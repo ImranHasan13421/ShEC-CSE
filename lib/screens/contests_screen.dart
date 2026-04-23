@@ -1,7 +1,16 @@
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart'; // Make sure you added this to pubspec.yaml
 
 class ContestsScreen extends StatelessWidget {
   const ContestsScreen({super.key});
+
+  // Helper method to open URLs in the external browser
+  Future<void> _launchURL(String urlString) async {
+    final Uri url = Uri.parse(urlString);
+    if (!await launchUrl(url, mode: LaunchMode.externalApplication)) {
+      debugPrint('Could not launch $urlString');
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -9,11 +18,11 @@ class ContestsScreen extends StatelessWidget {
 
     return DefaultTabController(
       length: 2,
-      child: Column( // Replaced Scaffold with Column
+      child: Column(
         children: [
           // 1. The TabBar
           Container(
-            color: colors.primary, // Matches your original AppBar background
+            color: colors.primary,
             child: const TabBar(
               labelColor: Colors.white,
               unselectedLabelColor: Colors.white70,
@@ -27,7 +36,7 @@ class ContestsScreen extends StatelessWidget {
           ),
 
           // 2. The Tab Views
-          Expanded( // Expanded is required so TabBarView knows how much space to take
+          Expanded(
             child: TabBarView(
               children: [
                 _buildContestsTab(context),
@@ -47,26 +56,47 @@ class ContestsScreen extends StatelessWidget {
         _buildContestCard(
           context: context,
           iconColor: Colors.blue,
-          title: 'Codeforces Round #912 (Div. 2)',
+          title: 'Codeforces Rounds',
           platform: 'Codeforces',
-          level: '1600-2100',
-          date: 'Dec 28, 2026 • 8:35 PM',
+          level: 'Div 1, 2, 3, 4',
+          date: 'Frequent / Weekly',
+          url: 'https://codeforces.com/contests',
         ),
         _buildContestCard(
           context: context,
           iconColor: Colors.orange,
-          title: 'Weekly Contest 378',
+          title: 'LeetCode Weekly Contest',
           platform: 'LeetCode',
           level: 'All Levels',
-          date: 'Dec 29, 2026 • 8:00 AM',
+          date: 'Every Sunday',
+          url: 'https://leetcode.com/contest/',
         ),
         _buildContestCard(
           context: context,
           iconColor: Colors.teal,
-          title: 'ICPC Asia Regional Contest',
-          platform: 'ICPC',
-          level: 'Advanced',
-          date: 'Jan 15, 2027',
+          title: 'AtCoder Beginner Contest',
+          platform: 'AtCoder',
+          level: 'Beginner / Intermediate',
+          date: 'Weekends',
+          url: 'https://atcoder.jp/contests/',
+        ),
+        _buildContestCard(
+          context: context,
+          iconColor: Colors.brown,
+          title: 'CodeChef Starters',
+          platform: 'CodeChef',
+          level: 'Rated for All',
+          date: 'Every Wednesday',
+          url: 'https://www.codechef.com/contests',
+        ),
+        _buildContestCard(
+          context: context,
+          iconColor: Colors.indigo,
+          title: 'HackerEarth Challenges',
+          platform: 'HackerEarth',
+          level: 'Various',
+          date: 'Ongoing & Monthly',
+          url: 'https://www.hackerearth.com/challenges/',
         ),
       ],
     );
@@ -78,19 +108,93 @@ class ContestsScreen extends StatelessWidget {
       children: [
         _buildCourseCard(
           context: context,
-          icon: Icons.school,
-          iconColor: Colors.indigo,
-          title: 'Machine Learning Specialization',
-          provider: 'Coursera',
-          tag: 'Certificate',
+          icon: Icons.computer,
+          iconColor: Colors.redAccent,
+          title: "CS50's Intro to Computer Science",
+          provider: 'Harvard University',
+          tag: 'Free / Cert Optional',
+          url: 'https://pll.harvard.edu/course/cs50-introduction-computer-science',
         ),
         _buildCourseCard(
           context: context,
-          icon: Icons.computer,
-          iconColor: Colors.purple,
-          title: 'Web Development Bootcamp',
-          provider: 'Udemy',
-          tag: 'Course',
+          icon: Icons.web,
+          iconColor: Colors.indigo,
+          title: 'Responsive Web Design',
+          provider: 'freeCodeCamp',
+          tag: 'Free Certificate',
+          url: 'https://www.freecodecamp.org/learn/responsive-web-design/',
+        ),
+        _buildCourseCard(
+          context: context,
+          icon: Icons.psychology,
+          iconColor: Colors.blue,
+          title: 'Machine Learning Specialization',
+          provider: 'DeepLearning.AI',
+          tag: 'Free to Audit',
+          url: 'https://www.coursera.org/specializations/machine-learning-introduction',
+        ),
+        _buildCourseCard(
+          context: context,
+          icon: Icons.developer_mode,
+          iconColor: Colors.teal,
+          title: 'Full Stack Open',
+          provider: 'University of Helsinki',
+          tag: 'Free Certificate',
+          url: 'https://fullstackopen.com/en/',
+        ),
+        _buildCourseCard(
+          context: context,
+          icon: Icons.lightbulb,
+          iconColor: Colors.amber,
+          title: 'Elements of AI',
+          provider: 'University of Helsinki',
+          tag: 'Free Certificate',
+          url: 'https://www.elementsofai.com/',
+        ),
+        _buildCourseCard(
+          context: context,
+          icon: Icons.code,
+          iconColor: Colors.deepPurple,
+          title: 'Python for Everybody',
+          provider: 'University of Michigan',
+          tag: 'Free to Audit',
+          url: 'https://www.coursera.org/specializations/python',
+        ),
+        _buildCourseCard(
+          context: context,
+          icon: Icons.data_object,
+          iconColor: Colors.indigoAccent,
+          title: 'JS Algorithms & Data Structures',
+          provider: 'freeCodeCamp',
+          tag: 'Free Certificate',
+          url: 'https://www.freecodecamp.org/learn/javascript-algorithms-and-data-structures/',
+        ),
+        _buildCourseCard(
+          context: context,
+          icon: Icons.cloud,
+          iconColor: Colors.cyan,
+          title: 'Introduction to Cloud Computing',
+          provider: 'IBM',
+          tag: 'Free to Audit',
+          url: 'https://www.coursera.org/learn/introduction-to-cloud',
+        ),
+        _buildCourseCard(
+          context: context,
+          icon: Icons.terminal,
+          iconColor: Colors.grey.shade800,
+          title: 'Intro to CS & Programming in Python',
+          provider: 'MIT OpenCourseWare',
+          tag: 'Free Course',
+          url: 'https://ocw.mit.edu/courses/6-0001-introduction-to-computer-science-and-programming-in-python-fall-2016/',
+        ),
+        _buildCourseCard(
+          context: context,
+          icon: Icons.language,
+          iconColor: Colors.redAccent,
+          title: "CS50's Web Programming",
+          provider: 'Harvard University',
+          tag: 'Free / Cert Optional',
+          url: 'https://pll.harvard.edu/course/cs50s-web-programming-python-and-javascript',
         ),
       ],
     );
@@ -103,6 +207,7 @@ class ContestsScreen extends StatelessWidget {
     required String platform,
     required String level,
     required String date,
+    required String url,
   }) {
     final colors = Theme.of(context).colorScheme;
 
@@ -166,7 +271,7 @@ class ContestsScreen extends StatelessWidget {
                   ],
                 ),
                 ElevatedButton(
-                  onPressed: () {},
+                  onPressed: () => _launchURL(url), // Launches browser URL
                   style: ElevatedButton.styleFrom(
                     backgroundColor: colors.primary,
                     foregroundColor: Colors.white,
@@ -191,6 +296,7 @@ class ContestsScreen extends StatelessWidget {
     required String title,
     required String provider,
     required String tag,
+    required String url,
   }) {
     final colors = Theme.of(context).colorScheme;
     return Card(
@@ -216,7 +322,12 @@ class ContestsScreen extends StatelessWidget {
           padding: const EdgeInsets.only(top: 8.0),
           child: Row(
             children: [
-              Text(provider),
+              Flexible( // Added Flexible to prevent overflow on small screens
+                child: Text(
+                  provider,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
               const SizedBox(width: 8),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
@@ -230,7 +341,7 @@ class ContestsScreen extends StatelessWidget {
           ),
         ),
         trailing: ElevatedButton(
-          onPressed: () {},
+          onPressed: () => _launchURL(url), // Launches browser URL
           style: ElevatedButton.styleFrom(
             backgroundColor: colors.surfaceContainerHighest,
             foregroundColor: colors.primary,
