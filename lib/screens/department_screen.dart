@@ -34,7 +34,7 @@ class DepartmentScreen extends StatelessWidget {
           ]),
           const SizedBox(height: 16),
           _buildInfoCard(context, 'Contact Information', [
-            _InfoRow(Icons.mail, 'Email:', 'Mail Here', url: 'shec.ac.bd@gmail.com'),
+            _InfoRow(Icons.mail, 'Email:', 'shec.ac.bd@gmail.com'),
             _InfoRow(Icons.phone, 'Phone:', '+8801907485801'),
             _InfoRow(Icons.location_on, 'Address:', 'House # 10, Road # 01, Chand Uddan, Mohammadpur, Dhaka'),
             _InfoRow(Icons.link, 'Website:', 'ShEC CSE Department', url: 'https://shec.ac.bd/cse-department.html'),
