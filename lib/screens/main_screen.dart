@@ -1,7 +1,7 @@
-//lib/screens/main_screen.dart/
-import 'package:ShEC_CSE/screens/gallery_screen.dart';
-import 'package:ShEC_CSE/screens/messenger_screen.dart';
+// lib/screens/main_screen.dart
+import 'dart:io'; // Required for FileImage
 import 'package:flutter/material.dart';
+import '../models/profile_state.dart'; // Import the global state
 import 'home_screen.dart';
 import 'department_screen.dart';
 import 'login_screen.dart';
@@ -11,6 +11,7 @@ import 'contests_screen.dart';
 import 'messenger_screen.dart';
 import 'club_screen.dart';
 import 'gallery_screen.dart';
+import 'profile_screen.dart'; // Import Profile Screen
 
 class HomeLayout extends StatefulWidget {
   const HomeLayout({super.key});
@@ -22,13 +23,12 @@ class HomeLayout extends StatefulWidget {
 class _HomeLayoutState extends State<HomeLayout> {
   int _currentIndex = 0;
 
-  // Bottom Nav Screens
   List<Widget> _getScreens() {
     return [
       DashboardScreen(
         onNavigateToTab: (index) {
           setState(() {
-            _currentIndex = index; // Switches the tab when called from Home
+            _currentIndex = index;
           });
         },
       ),
@@ -58,7 +58,26 @@ class _HomeLayoutState extends State<HomeLayout> {
         ),
         centerTitle: true,
         actions: [
-          IconButton(icon: const Icon(Icons.person_outline), onPressed: () {}),
+          // Dynamic Profile Icon in AppBar
+          ValueListenableBuilder<ProfileData>(
+            valueListenable: currentProfile,
+            builder: (context, profile, _) {
+              return Padding(
+                padding: const EdgeInsets.only(right: 12.0),
+                child: GestureDetector(
+                  onTap: () {
+                    Navigator.push(context, MaterialPageRoute(builder: (_) => const ProfileScreen()));
+                  },
+                  child: CircleAvatar(
+                    radius: 16,
+                    backgroundColor: Colors.white24,
+                    backgroundImage: profile.imagePath != null ? FileImage(File(profile.imagePath!)) : null,
+                    child: profile.imagePath == null ? const Icon(Icons.person, color: Colors.white, size: 20) : null,
+                  ),
+                ),
+              );
+            },
+          ),
         ],
       ),
       drawer: _buildDrawer(context, colors),
@@ -99,24 +118,33 @@ class _HomeLayoutState extends State<HomeLayout> {
       child: ListView(
         padding: EdgeInsets.zero,
         children: [
-          UserAccountsDrawerHeader(
-            decoration: BoxDecoration(
-              color: colors.primary,
-              // Optional: Add a subtle background pattern or gradient here later
-            ),
-            accountName: const Text('Imran', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
-            accountEmail: const Text('Member | CSE Dept'),
-            currentAccountPicture: Container(
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                border: Border.all(color: Colors.white, width: 2),
-              ),
-              child: const CircleAvatar(
-                backgroundColor: Colors.white,
-                // Replace this icon with a NetworkImage when you link Supabase profiles!
-                child: Icon(Icons.person, size: 40, color: Colors.grey),
-              ),
-            ),
+          // Dynamic Drawer Header
+          ValueListenableBuilder<ProfileData>(
+            valueListenable: currentProfile,
+            builder: (context, profile, _) {
+              return UserAccountsDrawerHeader(
+                decoration: BoxDecoration(color: colors.primary),
+                accountName: Text(profile.name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+                accountEmail: Text(profile.email),
+                currentAccountPicture: GestureDetector(
+                  onTap: () {
+                    Navigator.pop(context); // Close Drawer
+                    Navigator.push(context, MaterialPageRoute(builder: (_) => const ProfileScreen()));
+                  },
+                  child: Container(
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      border: Border.all(color: Colors.white, width: 2),
+                    ),
+                    child: CircleAvatar(
+                      backgroundColor: Colors.white,
+                      backgroundImage: profile.imagePath != null ? FileImage(File(profile.imagePath!)) : null,
+                      child: profile.imagePath == null ? const Icon(Icons.person, size: 40, color: Colors.grey) : null,
+                    ),
+                  ),
+                ),
+              );
+            },
           ),
           ListTile(
             leading: const Icon(Icons.school),
