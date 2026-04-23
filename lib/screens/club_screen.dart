@@ -1,7 +1,15 @@
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class ClubScreen extends StatelessWidget {
   const ClubScreen({super.key});
+
+  Future<void> _launchURL(String urlString) async {
+    final Uri url = Uri.parse(urlString);
+    if (!await launchUrl(url, mode: LaunchMode.externalApplication)) {
+      debugPrint('Could not launch $urlString');
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -91,12 +99,13 @@ class ClubScreen extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('Mission', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.blue)),
+            const Text('Mission', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.redAccent)),
             const SizedBox(height: 8),
             Text(
               'To create a collaborative learning environment where students can develop their technical skills, work on innovative projects, and prepare for successful careers in technology.',
               style: TextStyle(color: colors.onSurface.withOpacity(0.8), height: 1.4),
             ),
+
             const Divider(height: 32),
             const Text('Vision', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.teal)),
             const SizedBox(height: 8),
@@ -104,8 +113,34 @@ class ClubScreen extends StatelessWidget {
               "To be the leading student programming community that produces skilled software engineers and innovators who contribute to Bangladesh's growing tech industry.",
               style: TextStyle(color: colors.onSurface.withOpacity(0.8), height: 1.4),
             ),
-          ],
-        ),
+
+            const Divider(height: 32),
+            const Text('Connection', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.indigo)),
+            const SizedBox(height: 8),
+            Text(
+            "Stay updated with our latest events, ongoing workshops, and community discussions by connecting with us on our official social media channels.",
+            style: TextStyle(color: colors.onSurface.withOpacity(0.8), height: 1.4),
+            ),
+            const SizedBox(height: 16),
+            SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              onPressed: () => _launchURL('https://www.facebook.com/SHEC.CPC'),
+              icon: const Icon(Icons.facebook, color: Color(0xFF1877F2)), // Official Facebook Blue
+              label: const Text(
+                  'Follow Our Page',
+                  style: TextStyle(color: Color(0xFF1877F2), fontWeight: FontWeight.bold)
+              ),
+              style: OutlinedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                side: const BorderSide(color: Color(0xFF1877F2)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+            ),
+          ),
+        ],),
       ),
     );
   }
