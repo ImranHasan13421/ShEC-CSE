@@ -1,13 +1,19 @@
-//lib/screens/department_screen.dart/
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart'; // Make sure to add this import
 
 class DepartmentScreen extends StatelessWidget {
   const DepartmentScreen({super.key});
 
+  // Helper method to open URLs
+  Future<void> _launchURL(String urlString) async {
+    final Uri url = Uri.parse(urlString);
+    if (!await launchUrl(url, mode: LaunchMode.externalApplication)) {
+      debugPrint('Could not launch $urlString');
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).colorScheme;
-
     return Scaffold(
       appBar: AppBar(
         title: const Text('CSE Department'),
@@ -24,12 +30,14 @@ class DepartmentScreen extends StatelessWidget {
             _InfoRow(Icons.account_balance, 'Certification:', 'University of Dhaka'),
             _InfoRow(Icons.event_seat, 'Seats:', '50 per year'),
             _InfoRow(Icons.library_books, 'Total Credits:', '160.50'),
+            _InfoRow(Icons.menu_book_rounded, 'Syllabus:', 'Official Syllabus', url: 'https://drive.google.com/file/d/1qto0ELdWgFXq05M-lHLNnnICP0rlPYQa/view'),
           ]),
           const SizedBox(height: 16),
           _buildInfoCard(context, 'Contact Information', [
-            _InfoRow(Icons.email, 'Email:', 'csedeptofsec@gmail.com'),
+            _InfoRow(Icons.mail, 'Email:', 'Mail Here', url: 'shec.ac.bd@gmail.com'),
             _InfoRow(Icons.phone, 'Phone:', '+8801907485801'),
             _InfoRow(Icons.location_on, 'Address:', 'House # 10, Road # 01, Chand Uddan, Mohammadpur, Dhaka'),
+            _InfoRow(Icons.link, 'Website:', 'ShEC CSE Department', url: 'https://shec.ac.bd/cse-department.html'),
           ]),
         ],
       ),
@@ -77,15 +85,30 @@ class DepartmentScreen extends StatelessWidget {
             const SizedBox(height: 16),
             ...rows.map((row) => Padding(
               padding: const EdgeInsets.only(bottom: 12.0),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Icon(row.icon, size: 20, color: colors.primary),
-                  const SizedBox(width: 12),
-                  Text(row.label, style: const TextStyle(fontWeight: FontWeight.w600)),
-                  const SizedBox(width: 8),
-                  Expanded(child: Text(row.value, style: TextStyle(color: colors.onSurface.withOpacity(0.7)))),
-                ],
+              // Wrap the row in a GestureDetector to make it clickable
+              child: GestureDetector(
+                onTap: row.url != null ? () => _launchURL(row.url!) : null,
+                behavior: HitTestBehavior.opaque,
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(row.icon, size: 20, color: colors.primary),
+                    const SizedBox(width: 12),
+                    Text(row.label, style: const TextStyle(fontWeight: FontWeight.w600)),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        row.value,
+                        style: TextStyle(
+                          // If it has a URL, make it look like a hyperlink!
+                          color: row.url != null ? colors.primary : colors.onSurface.withOpacity(0.7),
+                          decoration: row.url != null ? TextDecoration.underline : TextDecoration.none,
+                          fontWeight: row.url != null ? FontWeight.bold : FontWeight.normal,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
             )),
           ],
@@ -99,5 +122,7 @@ class _InfoRow {
   final IconData icon;
   final String label;
   final String value;
-  _InfoRow(this.icon, this.label, this.value);
+  final String? url;
+
+  _InfoRow(this.icon, this.label, this.value, {this.url});
 }
