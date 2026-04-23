@@ -9,26 +9,33 @@ class ContestsScreen extends StatelessWidget {
 
     return DefaultTabController(
       length: 2,
-      child: Scaffold(
-        appBar: AppBar(
-          title: const Text('Extra Curriculum'),
-          bottom: TabBar(
-            labelColor: Colors.white,
-            unselectedLabelColor: Colors.white70,
-            indicatorColor: Colors.white,
-            indicatorWeight: 3,
-            tabs: const [
-              Tab(text: 'Contests'),
-              Tab(text: 'Events & Courses'),
-            ],
+      child: Column( // Replaced Scaffold with Column
+        children: [
+          // 1. The TabBar
+          Container(
+            color: colors.primary, // Matches your original AppBar background
+            child: const TabBar(
+              labelColor: Colors.white,
+              unselectedLabelColor: Colors.white70,
+              indicatorColor: Colors.white,
+              indicatorWeight: 3,
+              tabs: [
+                Tab(text: 'Contests'),
+                Tab(text: 'Events & Courses'),
+              ],
+            ),
           ),
-        ),
-        body: TabBarView(
-          children: [
-            _buildContestsTab(context),
-            _buildCoursesTab(context),
-          ],
-        ),
+
+          // 2. The Tab Views
+          Expanded( // Expanded is required so TabBarView knows how much space to take
+            child: TabBarView(
+              children: [
+                _buildContestsTab(context),
+                _buildCoursesTab(context),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }

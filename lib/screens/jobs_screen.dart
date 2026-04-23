@@ -8,9 +8,6 @@ class JobsScreen extends StatelessWidget {
     final colors = Theme.of(context).colorScheme;
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Job Board'),
-      ),
       body: ListView(
         padding: const EdgeInsets.all(16.0),
         children: [

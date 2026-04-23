@@ -2,7 +2,9 @@
 import 'package:flutter/material.dart';
 
 class DashboardScreen extends StatelessWidget {
-  const DashboardScreen({super.key});
+  final Function(int)? onNavigateToTab;
+
+  const DashboardScreen({super.key, this.onNavigateToTab});
 
   @override
   Widget build(BuildContext context) {
@@ -25,15 +27,16 @@ class DashboardScreen extends StatelessWidget {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            _buildQuickAccessIcon(context, Icons.message, 'Messenger', Colors.blue),
-            _buildQuickAccessIcon(context, Icons.notifications, 'Notices', Colors.amber),
-            _buildQuickAccessIcon(context, Icons.work, 'Jobs', Colors.green),
-            _buildQuickAccessIcon(context, Icons.emoji_events, 'Contests', Colors.redAccent),
+            // Indices matching bottom nav: 1=Notices, 2=Messenger, 3=Jobs, 4=Contests
+            _buildQuickAccessIcon(context, Icons.notifications, 'Notices', Colors.amber, () => onNavigateToTab?.call(1)),
+            _buildQuickAccessIcon(context, Icons.message, 'Messenger', Colors.blue, () => onNavigateToTab?.call(2)),
+            _buildQuickAccessIcon(context, Icons.work, 'Jobs', Colors.green, () => onNavigateToTab?.call(3)),
+            _buildQuickAccessIcon(context, Icons.emoji_events, 'Contests', Colors.redAccent, () => onNavigateToTab?.call(4)),
           ],
         ),
         const SizedBox(height: 32),
 
-        _buildSectionHeader('Latest Notices', () {}),
+        _buildSectionHeader('Latest Notices', () => onNavigateToTab?.call(1)), // Routes to Notices tab
         _buildListCard(
           context,
           icon: Icons.lightbulb,
@@ -54,7 +57,7 @@ class DashboardScreen extends StatelessWidget {
         ),
 
         const SizedBox(height: 24),
-        _buildSectionHeader('Upcoming Contests', () {}),
+        _buildSectionHeader('Upcoming Contests', () => onNavigateToTab?.call(4)), // Routes to Contests tab
         _buildListCard(
           context,
           icon: Icons.emoji_events,
@@ -68,17 +71,21 @@ class DashboardScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildQuickAccessIcon(BuildContext context, IconData icon, String label, Color color) {
-    return Column(
-      children: [
-        CircleAvatar(
-          radius: 28,
-          backgroundColor: color.withOpacity(0.15),
-          child: Icon(icon, color: color, size: 28),
-        ),
-        const SizedBox(height: 8),
-        Text(label, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500)),
-      ],
+  Widget _buildQuickAccessIcon(BuildContext context, IconData icon, String label, Color color, VoidCallback onTap) {
+    return GestureDetector(
+      onTap: onTap,
+      behavior: HitTestBehavior.opaque,
+      child: Column(
+        children: [
+          CircleAvatar(
+            radius: 28,
+            backgroundColor: color.withOpacity(0.15),
+            child: Icon(icon, color: color, size: 28),
+          ),
+          const SizedBox(height: 8),
+          Text(label, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500)),
+        ],
+      ),
     );
   }
 
@@ -109,44 +116,127 @@ class DashboardScreen extends StatelessWidget {
         borderRadius: BorderRadius.circular(12),
         side: BorderSide(color: colors.outline.withOpacity(0.1)),
       ),
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            CircleAvatar(
-              backgroundColor: iconColor.withOpacity(0.1),
-              child: Icon(icon, color: iconColor),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                  const SizedBox(height: 4),
-                  Text(subtitle, style: TextStyle(color: colors.onSurface.withOpacity(0.6), fontSize: 13)),
-                  const SizedBox(height: 12),
-                  Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: colors.primary.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(4),
+      child: InkWell(
+        onTap: () => _showDetailsBottomSheet(context, title, subtitle, tag, date, icon, iconColor),
+        borderRadius: BorderRadius.circular(12),
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              CircleAvatar(
+                backgroundColor: iconColor.withOpacity(0.1),
+                child: Icon(icon, color: iconColor),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                    const SizedBox(height: 4),
+                    Text(subtitle, style: TextStyle(color: colors.onSurface.withOpacity(0.6), fontSize: 13)),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: colors.primary.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: Text(tag, style: TextStyle(color: colors.primary, fontSize: 10, fontWeight: FontWeight.bold)),
                         ),
-                        child: Text(tag, style: TextStyle(color: colors.primary, fontSize: 10, fontWeight: FontWeight.bold)),
-                      ),
-                      const Spacer(),
-                      Text(date, style: TextStyle(color: colors.onSurface.withOpacity(0.5), fontSize: 12)),
-                    ],
+                        const Spacer(),
+                        Text(date, style: TextStyle(color: colors.onSurface.withOpacity(0.5), fontSize: 12)),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // Beautiful Bottom Sheet for when a card is tapped
+  void _showDetailsBottomSheet(BuildContext context, String title, String subtitle, String tag, String date, IconData icon, Color iconColor) {
+    final colors = Theme.of(context).colorScheme;
+
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) {
+        return Padding(
+          padding: const EdgeInsets.all(24.0),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Container(
+                  width: 40,
+                  height: 4,
+                  margin: const EdgeInsets.only(bottom: 24),
+                  decoration: BoxDecoration(
+                    color: colors.onSurface.withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              Row(
+                children: [
+                  CircleAvatar(
+                    radius: 24,
+                    backgroundColor: iconColor.withOpacity(0.1),
+                    child: Icon(icon, color: iconColor, size: 28),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Text(title, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
                   ),
                 ],
               ),
-            ),
-          ],
-        ),
-      ),
+              const SizedBox(height: 20),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                decoration: BoxDecoration(
+                  color: colors.primary.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Text(tag, style: TextStyle(color: colors.primary, fontWeight: FontWeight.bold)),
+              ),
+              const SizedBox(height: 16),
+              Text(subtitle, style: TextStyle(fontSize: 16, color: colors.onSurface.withOpacity(0.8), height: 1.5)),
+              const SizedBox(height: 24),
+              Row(
+                children: [
+                  Icon(Icons.calendar_today, size: 16, color: colors.onSurface.withOpacity(0.5)),
+                  const SizedBox(width: 8),
+                  Text('Scheduled for: $date', style: TextStyle(color: colors.onSurface.withOpacity(0.6))),
+                ],
+              ),
+              const SizedBox(height: 32),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: () => Navigator.pop(context),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: colors.primary,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                  ),
+                  child: const Text('Close'),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 }

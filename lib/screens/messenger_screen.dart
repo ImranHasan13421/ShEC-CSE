@@ -9,9 +9,6 @@ class MessengerScreen extends StatelessWidget {
     final colors = Theme.of(context).colorScheme;
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Messenger'),
-      ),
       body: ListView(
         padding: const EdgeInsets.symmetric(vertical: 8),
         children: [

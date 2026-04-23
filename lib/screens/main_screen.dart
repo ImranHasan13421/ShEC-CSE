@@ -23,13 +23,21 @@ class _HomeLayoutState extends State<HomeLayout> {
   int _currentIndex = 0;
 
   // Bottom Nav Screens
-  final List<Widget> _screens = [
-    const DashboardScreen(),
-    const NoticesScreen(),
-    const MessengerScreen(),
-    const JobsScreen(),
-    const ContestsScreen(),
-  ];
+  List<Widget> _getScreens() {
+    return [
+      DashboardScreen(
+        onNavigateToTab: (index) {
+          setState(() {
+            _currentIndex = index; // Switches the tab when called from Home
+          });
+        },
+      ),
+      const NoticesScreen(),
+      const MessengerScreen(),
+      const JobsScreen(),
+      const ContestsScreen(),
+    ];
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -56,7 +64,7 @@ class _HomeLayoutState extends State<HomeLayout> {
       drawer: _buildDrawer(context, colors),
       body: IndexedStack(
         index: _currentIndex,
-        children: _screens,
+        children: _getScreens(),
       ),
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _currentIndex,
