@@ -100,7 +100,7 @@ class _SplashScreenState extends State<SplashScreen> {
               duration: const Duration(milliseconds: 500),
               opacity: _isExiting ? 0.0 : 1.0,
               child: Image.asset(
-                'assets/splash.gif',
+                'assets/branding/splash.gif',
                 width: currentSize,
                 height: currentSize,
                 fit: BoxFit.contain,

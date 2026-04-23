@@ -69,7 +69,7 @@ class ClubScreen extends StatelessWidget {
                 CircleAvatar(
                   radius: 24, // Optional: adjust the size if needed
                   backgroundColor: colors.primary.withOpacity(0.1),
-                  backgroundImage: const AssetImage('assets/cpc.jpg'),
+                  backgroundImage: const AssetImage('assets/branding/cpc.jpg'),
                 ),
                 const SizedBox(width: 12),
                 const Text('ShEC CPC', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),

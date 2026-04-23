@@ -48,7 +48,7 @@ class _HomeLayoutState extends State<HomeLayout> {
         title: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Image.asset('assets/logo.png', height: 28, width: 28),
+            Image.asset('assets/branding/logo.png', height: 28, width: 28),
             const SizedBox(width: 12),
             Text(
               _currentIndex == 0 ? 'ShEC CSE' : _getAppBarTitle(_currentIndex),
