@@ -67,8 +67,9 @@ class ClubScreen extends StatelessWidget {
             Row(
               children: [
                 CircleAvatar(
+                  radius: 24, // Optional: adjust the size if needed
                   backgroundColor: colors.primary.withOpacity(0.1),
-                  child: Icon(Icons.code, color: colors.primary),
+                  backgroundImage: const AssetImage('assets/cpc.jpg'),
                 ),
                 const SizedBox(width: 12),
                 const Text('ShEC CPC', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
@@ -203,37 +204,44 @@ class ClubScreen extends StatelessWidget {
       ),
       child: Column(
         children: [
-          _buildMemberItem(context, 'Ahmed Hassan', 'President', '4th Year', Colors.blue),
+          _buildMemberItem(context, 'Saifur Rahman', 'President', '4th Year', Colors.blue, 'assets/committee_members/saifur.jpg'),
           _buildDivider(colors),
-          _buildMemberItem(context, 'Fatima Rahman', 'Vice President', '4th Year', Colors.teal),
+          _buildMemberItem(context, 'Tanvirul islam', 'Vice President', '4th Year', Colors.teal, 'assets/committee_members/tanvir.jpg'),
           _buildDivider(colors),
-          _buildMemberItem(context, 'Karim Abdullah', 'General Secretary', '3rd Year', Colors.indigo),
+          _buildMemberItem(context, 'MD. Imran Hasan', 'General Secretary', '4th Year', Colors.indigo, 'assets/committee_members/imran.jpg'),
           _buildDivider(colors),
-          _buildMemberItem(context, 'Nusrat Jahan', 'Treasurer', '3rd Year', Colors.orange),
+          _buildMemberItem(context, 'MD. Mehedi Hasan Mridul', 'Senior Treasurer', '4th Year', Colors.orange, 'assets/committee_members/mridul.jpg'),
           _buildDivider(colors),
-          _buildMemberItem(context, 'Rafiq Islam', 'Technical Lead', '4th Year', Colors.redAccent),
+          _buildMemberItem(context, 'Toifika Tasnim Oishe', 'Press & Media Joint Secretary', '4th Year', Colors.redAccent, 'assets/committee_members/oishe.jpg'),
           _buildDivider(colors),
-          _buildMemberItem(context, 'Sadia Akter', 'Event Coordinator', '3rd Year', Colors.purple),
+          _buildMemberItem(context, 'Istiak Hossain Khan', 'Press & Media Joint Secretary', '4th Year', Colors.redAccent, 'assets/committee_members/istiak.jpg'),
+
         ],
       ),
     );
   }
 
-  Widget _buildMemberItem(BuildContext context, String name, String role, String year, Color roleColor) {
+  Widget _buildMemberItem(BuildContext context, String name, String role, String year, Color roleColor, String imagePath) {
     final colors = Theme.of(context).colorScheme;
     return ListTile(
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-      leading: const CircleAvatar(
-        backgroundColor: Colors.grey,
-        backgroundImage: AssetImage('assets/images/default_avatar.png'), // Add a placeholder image in assets or remove backgroundImage to just show the icon
-        child: Icon(Icons.person, color: Colors.white),
+      leading: CircleAvatar(
+        backgroundColor: colors.primary.withOpacity(0.1),
+        backgroundImage: AssetImage(imagePath), // Uses the specific image passed in
       ),
       title: Text(name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
       subtitle: Padding(
         padding: const EdgeInsets.only(top: 4.0),
         child: Row(
+          // Wrapped the role in an Expanded widget so it doesn't overflow the screen bounds on small phones
           children: [
-            Text(role, style: TextStyle(color: roleColor, fontWeight: FontWeight.w600, fontSize: 13)),
+            Expanded(
+              child: Text(
+                role,
+                style: TextStyle(color: roleColor, fontWeight: FontWeight.w600, fontSize: 13),
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
             const SizedBox(width: 8),
             Text('• $year', style: TextStyle(color: colors.onSurface.withOpacity(0.5), fontSize: 13)),
           ],
