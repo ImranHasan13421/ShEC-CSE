@@ -26,9 +26,11 @@ dev_dependencies:
 flutter:
   uses-material-design: true
   assets:
+    - assets/branding/
     - assets/branding/logo.png
     - assets/branding/cpc.jpg
     - assets/branding/splash.gif
+    - assets/branding/ducmc.png
     - assets/committee_members/saifur.jpg
     - assets/committee_members/tanvir.jpg
     - assets/committee_members/imran.jpg

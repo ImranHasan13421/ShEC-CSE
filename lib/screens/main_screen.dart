@@ -12,6 +12,7 @@ import 'messenger_screen.dart';
 import 'club_screen.dart';
 import 'gallery_screen.dart';
 import 'profile_screen.dart';
+import 'cgpa_calculator_screen.dart';
 
 class HomeLayout extends StatefulWidget {
   const HomeLayout({super.key});
@@ -183,6 +184,15 @@ class _HomeLayoutState extends State<HomeLayout> {
               Navigator.push(context, MaterialPageRoute(builder: (_) => const GalleryScreen()));
             },
           ),
+          ListTile(
+            leading: const Icon(Icons.calculate),
+            title: const Text('CGPA Calculator'),
+            onTap: () {
+              Navigator.pop(context);
+              Navigator.push(context, MaterialPageRoute(builder: (_) => const CGPACalculatorScreen()));
+            },
+          ),
+          const Divider(), // Existing divider before Log Out
           const Divider(),
           ListTile(
             leading: const Icon(Icons.logout, color: Colors.redAccent),
