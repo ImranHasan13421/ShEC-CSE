@@ -13,9 +13,9 @@ class GalleryScreen extends StatelessWidget {
       {'title': 'Programming Lab', 'subtitle': 'Coding sessions', 'image': 'assets/gallery/2.jpg', 'icon': Icons.code, 'color': Colors.teal},
       {'title': 'Application Lab', 'subtitle': 'App development workshop', 'image': 'assets/gallery/3.jpg', 'icon': Icons.app_shortcut, 'color': Colors.indigo},
       {'title': 'Network Lab', 'subtitle': 'Configuring devices', 'image': 'assets/gallery/4.jpg', 'icon': Icons.router, 'color': Colors.orange},
-      {'title': 'Annual Hackathon', 'subtitle': 'National coding competition', 'image': 'assets/gallery/7.jpg', 'icon': Icons.emoji_events, 'color': Colors.redAccent},
-      {'title': 'Algorithm Workshop', 'subtitle': 'Advanced data structures', 'image': 'assets/gallery/6.jpg', 'icon': Icons.schema, 'color': Colors.purple},
       {'title': 'Project Exhibition', 'subtitle': 'Final year showcase', 'image': 'assets/gallery/5.jpg', 'icon': Icons.lightbulb, 'color': Colors.amber},
+      {'title': 'Algorithm Workshop', 'subtitle': 'Advanced data structures', 'image': 'assets/gallery/6.jpg', 'icon': Icons.schema, 'color': Colors.purple},
+      {'title': 'Annual Hackathon', 'subtitle': 'National coding competition', 'image': 'assets/gallery/7.jpg', 'icon': Icons.emoji_events, 'color': Colors.redAccent},
       {'title': 'Basic Programming Workshop', 'subtitle': 'Curious learners', 'image': 'assets/gallery/8.jpg', 'icon': Icons.smart_toy, 'color': Colors.cyan},
     ];
 

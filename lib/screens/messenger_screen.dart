@@ -12,6 +12,30 @@ class MessengerScreen extends StatelessWidget {
       body: ListView(
         padding: const EdgeInsets.symmetric(vertical: 8),
         children: [
+          // 0. Alumni Association
+          _buildChatTile(
+            context: context,
+            title: 'Alumni Association',
+            subtitle: 'Interested, meet me at home...',
+            time: '5:16 PM',
+            unreadCount: 0,
+            icon: Icons.diamond_outlined,
+            iconColor: Colors.red, // Distinct Indigo Color
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => ChatScreen(
+                    groupName: 'Alumni Association',
+                    memberCount: '21',
+                    themeColor: Colors.red,
+                    messages: _getAlumniMesseges(),
+                  ),
+                ),
+              );
+            },
+          ),
+
           // 1. General Club Group
           _buildChatTile(
             context: context,
@@ -85,12 +109,6 @@ class MessengerScreen extends StatelessWidget {
           ),
         ],
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {},
-        backgroundColor: colors.primary,
-        foregroundColor: Colors.white,
-        child: const Icon(Icons.message),
-      ),
     );
   }
 
@@ -159,6 +177,17 @@ class MessengerScreen extends StatelessWidget {
 
   // --- MOCK DATA GENERATORS ---
 
+  List<Map<String, dynamic>> _getAlumniMesseges() {
+    return [
+      {'sender': 'Soikot Bhuiyan', 'text': "Hey everyone! Looking for an asset manager for a game development startup.", 'time': '9:00 AM', 'isCommittee': false, 'isMe': false},
+      {'sender': 'Me', 'text': "Tanvirul Islam might be interested", 'time': '9:05 AM', 'isCommittee': false, 'isMe': true},
+      {'sender': 'Tanvirul Islam', 'text': "Sure, I am willing to work", 'time': '9:10 AM', 'isCommittee': false, 'isMe': false},
+      {'sender': 'Soikot Bhuiyan', 'text': "Ok, 2 PM. Meet me at campus", 'time': '9:12 AM', 'isCommittee': true, 'isMe': false},
+      {'sender': 'Abdul Aowal Asif', 'text': "A Junior Flutter Developer with minimum 1 year experience is needed in Ezze Softwares Company. Anyone interested please response!", 'time': '5:16 PM', 'isCommittee': false, 'isMe': false},
+      {'sender': 'Me', 'text': "Interested, meet me at home, we will discuss about salary", 'time': '5:16 PM', 'isCommittee': false, 'isMe': true},
+    ];
+  }
+
   List<Map<String, dynamic>> _getGeneralMessages() {
     return [
       {'sender': 'Sarah Johnson', 'text': "Hey everyone! Don't forget about the workshop tomorrow.", 'time': '9:00 AM', 'isCommittee': true, 'isMe': false},
@@ -166,6 +195,26 @@ class MessengerScreen extends StatelessWidget {
       {'sender': 'Mike Chen', 'text': "It starts at 2 PM in the main auditorium.", 'time': '9:10 AM', 'isCommittee': false, 'isMe': false},
       {'sender': 'Sarah Johnson', 'text': "Yes, 2 PM sharp. Please be on time!", 'time': '9:12 AM', 'isCommittee': true, 'isMe': false},
       {'sender': 'Me', 'text': "Got it! See you all there.", 'time': '9:15 AM', 'isCommittee': false, 'isMe': true},
+      {'sender': 'Abdul Aowal Asif', 'text': "Sounds good, I'll come by around 1.30 PM.", 'time': '5:18 PM', 'isCommittee': false, 'isMe': false},
+      {'sender': 'Saifur Rahman', 'text': "Guys, don't forget we have the Machine Learning workshop tomorrow at 10 AM in the main lab.", 'time': '6:00 PM', 'isCommittee': true, 'isMe': false},
+      {'sender': 'Me', 'text': "Do we need to install anything on our laptops beforehand?", 'time': '6:05 PM', 'isCommittee': false, 'isMe': true},
+      {'sender': 'Saifur Rahman', 'text': "Yes, please have Python and Anaconda installed before you arrive.", 'time': '6:08 PM', 'isCommittee': true, 'isMe': false},
+      {'sender': 'MD. Imran Hasan', 'text': "I've pinned the installation guide document to the group description.", 'time': '6:10 PM', 'isCommittee': true, 'isMe': false},
+      {'sender': 'Me', 'text': "Awesome, thanks bhai!", 'time': '6:12 PM', 'isCommittee': false, 'isMe': true},
+      {'sender': 'Toifika Tasnim Oishe', 'text': "Can someone share the slides from yesterday's Data Structures class?", 'time': '7:30 PM', 'isCommittee': true, 'isMe': false},
+      {'sender': 'MD. Mehedi Hasan Mridul', 'text': "Uploading them right now...", 'time': '7:32 PM', 'isCommittee': true, 'isMe': false},
+      {'sender': 'MD. Mehedi Hasan Mridul', 'text': "📄 DS_Lecture_04_Trees.pdf", 'time': '7:33 PM', 'isCommittee': true, 'isMe': false},
+      {'sender': 'Toifika Tasnim Oishe', 'text': "Got it, thanks Mridul!", 'time': '7:35 PM', 'isCommittee': true, 'isMe': false},
+      {'sender': 'Istiak Hossain Khan', 'text': "Is anyone participating in the Codeforces Round #892 tonight?", 'time': '8:00 PM', 'isCommittee': true, 'isMe': false},
+      {'sender': 'Me', 'text': "I'm in! Aiming to finally reach Specialist tier 🤞", 'time': '8:02 PM', 'isCommittee': false, 'isMe': true},
+      {'sender': 'Tanvirul islam', 'text': "Best of luck! I'll be skipping this one, got a project deadline at midnight.", 'time': '8:05 PM', 'isCommittee': true, 'isMe': false},
+      {'sender': 'Soikot Bhuiyan', 'text': "Has the department published the final exam routine yet?", 'time': '8:20 PM', 'isCommittee': false, 'isMe': false},
+      {'sender': 'Saifur Rahman', 'text': "Not officially, but I heard from the faculty it might start from the 15th of next month.", 'time': '8:25 PM', 'isCommittee': true, 'isMe': false},
+      {'sender': 'Abdul Aowal Asif', 'text': "Ah, time to actually start studying I guess 😅", 'time': '8:26 PM', 'isCommittee': false, 'isMe': false},
+      {'sender': 'Me', 'text': "Relatable. My syllabus is completely untouched.", 'time': '8:28 PM', 'isCommittee': false, 'isMe': true},
+      {'sender': 'MD. Imran Hasan', 'text': "Don't worry, we'll organize a club group study session next week to cover the hard topics.", 'time': '8:35 PM', 'isCommittee': true, 'isMe': false},
+      {'sender': 'Istiak Hossain Khan', 'text': "Count me in for that study session!", 'time': '8:36 PM', 'isCommittee': true, 'isMe': false},
+      {'sender': 'Saifur Rahman', 'text': "Perfect. Let's finalize the date by Friday.", 'time': '8:45 PM', 'isCommittee': true, 'isMe': false},
     ];
   }
 
