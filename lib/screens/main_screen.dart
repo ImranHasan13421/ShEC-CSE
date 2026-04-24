@@ -13,6 +13,7 @@ import 'club_screen.dart';
 import 'gallery_screen.dart';
 import 'profile_screen.dart';
 import 'cgpa_calculator_screen.dart';
+import 'resources_screen.dart';
 
 class HomeLayout extends StatefulWidget {
   const HomeLayout({super.key});
@@ -190,6 +191,14 @@ class _HomeLayoutState extends State<HomeLayout> {
             onTap: () {
               Navigator.pop(context);
               Navigator.push(context, MaterialPageRoute(builder: (_) => const CGPACalculatorScreen()));
+            },
+          ),
+          ListTile(
+            leading: const Icon(Icons.folder_copy),
+            title: const Text('Previous Resources'),
+            onTap: () {
+              Navigator.pop(context);
+              Navigator.push(context, MaterialPageRoute(builder: (_) => const YearsScreen()));
             },
           ),
           const Divider(), // Existing divider before Log Out
