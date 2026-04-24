@@ -27,22 +27,14 @@ flutter:
   uses-material-design: true
   assets:
     - assets/branding/
-    - assets/branding/logo.png
-    - assets/branding/cpc.jpg
-    - assets/branding/splash.gif
-    - assets/branding/ducmc.png
-    - assets/committee_members/saifur.jpg
-    - assets/committee_members/tanvir.jpg
-    - assets/committee_members/imran.jpg
-    - assets/committee_members/mridul.jpg
-    - assets/committee_members/oishe.jpg
-    - assets/committee_members/istiak.jpg
+    - assets/committee_members/
+    - assets/gallery/
 
 flutter_launcher_icons:
   android: true
   ios: true
-  image_path: "assets/branding/logo.png" # Path to your high-res logo
+  image_path: "assets/branding/logo.png"
 
   # Optional but recommended for Android 8.0+ (Adaptive Icons)
-  adaptive_icon_background: "#FFFFFF" # Or your preferred background color/image
+  adaptive_icon_background: "#FFFFFF"
   adaptive_icon_foreground: "assets/branding/logo.png"

@@ -7,16 +7,16 @@ class GalleryScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
 
-    // Mock data for the gallery items
+    // Added 'image' paths to the mock data
     final List<Map<String, dynamic>> galleryItems = [
-      {'title': 'Microprocessor Lab', 'subtitle': 'Students working on projects', 'icon': Icons.memory, 'color': Colors.blue},
-      {'title': 'Programming Lab', 'subtitle': 'Coding sessions', 'icon': Icons.code, 'color': Colors.teal},
-      {'title': 'Application Lab', 'subtitle': 'App development workshop', 'icon': Icons.app_shortcut, 'color': Colors.indigo},
-      {'title': 'Network Lab', 'subtitle': 'Configuring devices', 'icon': Icons.router, 'color': Colors.orange},
-      {'title': 'Annual Hackathon', 'subtitle': '24-hour coding challenge', 'icon': Icons.emoji_events, 'color': Colors.redAccent},
-      {'title': 'Algorithm Workshop', 'subtitle': 'Advanced data structures', 'icon': Icons.schema, 'color': Colors.purple},
-      {'title': 'Project Exhibition', 'subtitle': 'Final year showcase', 'icon': Icons.lightbulb, 'color': Colors.amber},
-      {'title': 'Robotics Competition', 'subtitle': 'Challenge winners', 'icon': Icons.smart_toy, 'color': Colors.cyan},
+      {'title': 'Microprocessor Lab', 'subtitle': 'Top Level Equipments', 'image': 'assets/gallery/1.jpg', 'icon': Icons.memory, 'color': Colors.blue},
+      {'title': 'Programming Lab', 'subtitle': 'Coding sessions', 'image': 'assets/gallery/2.jpg', 'icon': Icons.code, 'color': Colors.teal},
+      {'title': 'Application Lab', 'subtitle': 'App development workshop', 'image': 'assets/gallery/3.jpg', 'icon': Icons.app_shortcut, 'color': Colors.indigo},
+      {'title': 'Network Lab', 'subtitle': 'Configuring devices', 'image': 'assets/gallery/4.jpg', 'icon': Icons.router, 'color': Colors.orange},
+      {'title': 'Annual Hackathon', 'subtitle': 'National coding competition', 'image': 'assets/gallery/7.jpg', 'icon': Icons.emoji_events, 'color': Colors.redAccent},
+      {'title': 'Algorithm Workshop', 'subtitle': 'Advanced data structures', 'image': 'assets/gallery/6.jpg', 'icon': Icons.schema, 'color': Colors.purple},
+      {'title': 'Project Exhibition', 'subtitle': 'Final year showcase', 'image': 'assets/gallery/5.jpg', 'icon': Icons.lightbulb, 'color': Colors.amber},
+      {'title': 'Basic Programming Workshop', 'subtitle': 'Curious learners', 'image': 'assets/gallery/8.jpg', 'icon': Icons.smart_toy, 'color': Colors.cyan},
     ];
 
     return Scaffold(
@@ -26,10 +26,10 @@ class GalleryScreen extends StatelessWidget {
       body: GridView.builder(
         padding: const EdgeInsets.all(16.0),
         gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: 2, // Two items per row
+          crossAxisCount: 2,
           crossAxisSpacing: 16,
           mainAxisSpacing: 16,
-          childAspectRatio: 0.85, // Makes the cards slightly taller than they are wide
+          childAspectRatio: 0.85,
         ),
         itemCount: galleryItems.length,
         itemBuilder: (context, index) {
@@ -38,6 +38,7 @@ class GalleryScreen extends StatelessWidget {
             context: context,
             title: item['title'],
             subtitle: item['subtitle'],
+            imagePath: item['image'], // Passing the new image path
             icon: item['icon'],
             iconColor: item['color'],
           );
@@ -50,6 +51,7 @@ class GalleryScreen extends StatelessWidget {
     required BuildContext context,
     required String title,
     required String subtitle,
+    required String imagePath,
     required IconData icon,
     required Color iconColor,
   }) {
@@ -62,7 +64,7 @@ class GalleryScreen extends StatelessWidget {
         borderRadius: BorderRadius.circular(12),
         side: BorderSide(color: colors.outline.withOpacity(0.1)),
       ),
-      clipBehavior: Clip.antiAlias, // Ensures the top container respects the card's border radius
+      clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: () {
           // Future: Open full-screen image viewer
@@ -70,18 +72,25 @@ class GalleryScreen extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // Top Half: Image Placeholder
+            // Top Half: Image with Icon Fallback
             Expanded(
               flex: 3,
-              child: Container(
-                color: iconColor.withOpacity(0.1),
-                child: Center(
-                  child: Icon(
-                    icon,
-                    size: 48,
-                    color: iconColor.withOpacity(0.8),
-                  ),
-                ),
+              child: Image.asset(
+                imagePath,
+                fit: BoxFit.cover, // Ensures the image fills the space beautifully
+                errorBuilder: (context, error, stackTrace) {
+                  // If the image file isn't found in assets, it smoothly falls back to your original icon design!
+                  return Container(
+                    color: iconColor.withOpacity(0.1),
+                    child: Center(
+                      child: Icon(
+                        icon,
+                        size: 48,
+                        color: iconColor.withOpacity(0.8),
+                      ),
+                    ),
+                  );
+                },
               ),
             ),
             // Bottom Half: Text Details

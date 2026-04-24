@@ -201,7 +201,6 @@ class _HomeLayoutState extends State<HomeLayout> {
               Navigator.push(context, MaterialPageRoute(builder: (_) => const YearsScreen()));
             },
           ),
-          const Divider(), // Existing divider before Log Out
           const Divider(),
           ListTile(
             leading: const Icon(Icons.logout, color: Colors.redAccent),
