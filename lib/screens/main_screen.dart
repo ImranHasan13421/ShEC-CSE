@@ -1,7 +1,7 @@
 // lib/screens/main_screen.dart
-import 'dart:io'; // Required for FileImage
+import 'dart:io';
 import 'package:flutter/material.dart';
-import '../models/profile_state.dart'; // Import the global state
+import '../models/profile_state.dart';
 import 'home_screen.dart';
 import 'department_screen.dart';
 import 'login_screen.dart';
@@ -11,7 +11,7 @@ import 'contests_screen.dart';
 import 'messenger_screen.dart';
 import 'club_screen.dart';
 import 'gallery_screen.dart';
-import 'profile_screen.dart'; // Import Profile Screen
+import 'profile_screen.dart';
 
 class HomeLayout extends StatefulWidget {
   const HomeLayout({super.key});
@@ -43,61 +43,74 @@ class _HomeLayoutState extends State<HomeLayout> {
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
 
-    return Scaffold(
-      appBar: AppBar(
-        title: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Image.asset('assets/branding/logo.png', height: 28, width: 28),
-            const SizedBox(width: 12),
-            Text(
-              _currentIndex == 0 ? 'ShEC CSE' : _getAppBarTitle(_currentIndex),
-              style: const TextStyle(fontWeight: FontWeight.bold),
+    // --- Added PopScope here ---
+    return PopScope(
+      canPop: _currentIndex == 0, // Only allow popping (exiting app) if on the Home tab
+      onPopInvoked: (didPop) {
+        if (didPop) {
+          return; // The app successfully exited, do nothing
+        }
+        // If canPop was false (we are on another tab), switch back to the Home tab
+        setState(() {
+          _currentIndex = 0;
+        });
+      },
+      child: Scaffold(
+        appBar: AppBar(
+          title: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Image.asset('assets/logo.png', height: 28, width: 28),
+              const SizedBox(width: 12),
+              Text(
+                _currentIndex == 0 ? 'ShEC CSE' : _getAppBarTitle(_currentIndex),
+                style: const TextStyle(fontWeight: FontWeight.bold),
+              ),
+            ],
+          ),
+          centerTitle: true,
+          actions: [
+            // Dynamic Profile Icon in AppBar
+            ValueListenableBuilder<ProfileData>(
+              valueListenable: currentProfile,
+              builder: (context, profile, _) {
+                return Padding(
+                  padding: const EdgeInsets.only(right: 12.0),
+                  child: GestureDetector(
+                    onTap: () {
+                      Navigator.push(context, MaterialPageRoute(builder: (_) => const ProfileScreen()));
+                    },
+                    child: CircleAvatar(
+                      radius: 16,
+                      backgroundColor: Colors.white24,
+                      backgroundImage: profile.imagePath != null ? FileImage(File(profile.imagePath!)) : null,
+                      child: profile.imagePath == null ? const Icon(Icons.person, color: Colors.white, size: 20) : null,
+                    ),
+                  ),
+                );
+              },
             ),
           ],
         ),
-        centerTitle: true,
-        actions: [
-          // Dynamic Profile Icon in AppBar
-          ValueListenableBuilder<ProfileData>(
-            valueListenable: currentProfile,
-            builder: (context, profile, _) {
-              return Padding(
-                padding: const EdgeInsets.only(right: 12.0),
-                child: GestureDetector(
-                  onTap: () {
-                    Navigator.push(context, MaterialPageRoute(builder: (_) => const ProfileScreen()));
-                  },
-                  child: CircleAvatar(
-                    radius: 16,
-                    backgroundColor: Colors.white24,
-                    backgroundImage: profile.imagePath != null ? FileImage(File(profile.imagePath!)) : null,
-                    child: profile.imagePath == null ? const Icon(Icons.person, color: Colors.white, size: 20) : null,
-                  ),
-                ),
-              );
-            },
-          ),
-        ],
-      ),
-      drawer: _buildDrawer(context, colors),
-      body: IndexedStack(
-        index: _currentIndex,
-        children: _getScreens(),
-      ),
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: _currentIndex,
-        onTap: (index) => setState(() => _currentIndex = index),
-        type: BottomNavigationBarType.fixed,
-        selectedItemColor: colors.primary,
-        unselectedItemColor: colors.onSurface.withOpacity(0.5),
-        items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
-          BottomNavigationBarItem(icon: Icon(Icons.notifications), label: 'Notices'),
-          BottomNavigationBarItem(icon: Icon(Icons.message), label: 'Messenger'),
-          BottomNavigationBarItem(icon: Icon(Icons.work), label: 'Jobs'),
-          BottomNavigationBarItem(icon: Icon(Icons.emoji_events), label: 'Contests'),
-        ],
+        drawer: _buildDrawer(context, colors),
+        body: IndexedStack(
+          index: _currentIndex,
+          children: _getScreens(),
+        ),
+        bottomNavigationBar: BottomNavigationBar(
+          currentIndex: _currentIndex,
+          onTap: (index) => setState(() => _currentIndex = index),
+          type: BottomNavigationBarType.fixed,
+          selectedItemColor: colors.primary,
+          unselectedItemColor: colors.onSurface.withOpacity(0.5),
+          items: const [
+            BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
+            BottomNavigationBarItem(icon: Icon(Icons.notifications), label: 'Notices'),
+            BottomNavigationBarItem(icon: Icon(Icons.message), label: 'Messenger'),
+            BottomNavigationBarItem(icon: Icon(Icons.work), label: 'Jobs'),
+            BottomNavigationBarItem(icon: Icon(Icons.emoji_events), label: 'Contests'),
+          ],
+        ),
       ),
     );
   }
