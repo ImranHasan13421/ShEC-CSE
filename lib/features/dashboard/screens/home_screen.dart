@@ -1,10 +1,10 @@
 // lib/screens/home_screen.dart
 import 'package:flutter/material.dart';
-import '../models/quick_access_state.dart';
-import 'cgpa_calculator_screen.dart';
-import 'resources_screen.dart';
-import 'department_screen.dart';
-import 'club_screen.dart';
+import 'package:ShEC_CSE/features/dashboard/models/quick_access_state.dart';
+import 'package:ShEC_CSE/features/cgpa_calculator/screens/cgpa_calculator_screen.dart';
+import 'package:ShEC_CSE/features/resources/screens/resources_screen.dart';
+import 'package:ShEC_CSE/features/department/screens/department_screen.dart';
+import 'package:ShEC_CSE/features/club/screens/club_screen.dart';
 
 class DashboardScreen extends StatelessWidget {
   final Function(int)? onNavigateToTab;

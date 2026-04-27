@@ -1,19 +1,19 @@
 // lib/screens/main_screen.dart
 import 'dart:io';
 import 'package:flutter/material.dart';
-import '../models/profile_state.dart';
-import 'home_screen.dart';
-import 'department_screen.dart';
-import 'login_screen.dart';
-import 'notices_screen.dart';
-import 'jobs_screen.dart';
-import 'contests_screen.dart';
-import 'messenger_screen.dart';
-import 'club_screen.dart';
-import 'gallery_screen.dart';
-import 'profile_screen.dart';
-import 'cgpa_calculator_screen.dart';
-import 'resources_screen.dart';
+import 'package:ShEC_CSE/features/profile/models/profile_state.dart';
+import 'package:ShEC_CSE/features/dashboard/screens/home_screen.dart';
+import 'package:ShEC_CSE/features/department/screens/department_screen.dart';
+import 'package:ShEC_CSE/features/auth/screens/login_screen.dart';
+import 'package:ShEC_CSE/features/notices/screens/notices_screen.dart';
+import 'package:ShEC_CSE/features/jobs/screens/jobs_screen.dart';
+import 'package:ShEC_CSE/features/contests/screens/contests_screen.dart';
+import 'package:ShEC_CSE/features/messenger/screens/messenger_screen.dart';
+import 'package:ShEC_CSE/features/club/screens/club_screen.dart';
+import 'package:ShEC_CSE/features/gallery/screens/gallery_screen.dart';
+import 'package:ShEC_CSE/features/profile/screens/profile_screen.dart';
+import 'package:ShEC_CSE/features/cgpa_calculator/screens/cgpa_calculator_screen.dart';
+import 'package:ShEC_CSE/features/resources/screens/resources_screen.dart';
 
 class HomeLayout extends StatefulWidget {
   const HomeLayout({super.key});
@@ -62,7 +62,7 @@ class _HomeLayoutState extends State<HomeLayout> {
           title: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Image.asset('assets/logo.png', height: 28, width: 28),
+              Image.asset('assets/branding/logo.png', height: 28, width: 28),
               const SizedBox(width: 12),
               Text(
                 _currentIndex == 0 ? 'ShEC CSE' : _getAppBarTitle(_currentIndex),

@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'chat_screen.dart'; // Make sure this imports the file we just updated
+import 'package:ShEC_CSE/features/messenger/screens/chat_screen.dart'; // Make sure this imports the file we just updated
 
 class MessengerScreen extends StatelessWidget {
   const MessengerScreen({super.key});

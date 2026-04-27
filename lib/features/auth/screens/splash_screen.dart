@@ -1,8 +1,8 @@
 // lib/screens/splash_screen.dart
 
 import 'package:flutter/material.dart';
-import 'main_screen.dart';
-import 'login_screen.dart';
+import 'package:ShEC_CSE/features/dashboard/screens/main_screen.dart';
+import 'package:ShEC_CSE/features/auth/screens/login_screen.dart';
 
 enum GifSize { small, medium, large, custom }
 
