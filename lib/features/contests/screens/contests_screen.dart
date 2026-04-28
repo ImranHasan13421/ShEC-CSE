@@ -11,6 +11,11 @@ class ContestsScreen extends StatefulWidget {
 }
 
 class _ContestsScreenState extends State<ContestsScreen> {
+  @override
+  void initState() {
+    super.initState();
+    fetchContestsAndCourses();
+  }
   Future<void> _launchURL(String urlString) async {
     final Uri url = Uri.parse(urlString);
     if (!await launchUrl(url, mode: LaunchMode.externalApplication)) {
@@ -87,7 +92,7 @@ class _ContestsScreenState extends State<ContestsScreen> {
                       );
 
                       if (existingItem == null) {
-                        stateNotifier.value = List.from(stateNotifier.value)..insert(0, newItem);
+                        addContestToDB(newItem);
                       } else {
                         final index = stateNotifier.value.indexOf(existingItem);
                         if (index != -1) {
@@ -95,6 +100,7 @@ class _ContestsScreenState extends State<ContestsScreen> {
                           updatedList[index] = newItem;
                           stateNotifier.value = updatedList;
                         }
+                        updateContestInDB(newItem);
                       }
                       Navigator.pop(context);
                     }
@@ -111,7 +117,7 @@ class _ContestsScreenState extends State<ContestsScreen> {
   }
 
   void _deleteItem(ContestItem item, ValueNotifier<List<ContestItem>> stateNotifier) {
-    stateNotifier.value = List.from(stateNotifier.value)..remove(item);
+    deleteContestFromDB(item);
   }
 
   @override

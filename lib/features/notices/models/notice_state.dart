@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 class NoticeItem {
   final String id;
@@ -22,77 +23,113 @@ class NoticeItem {
     required this.date,
     this.isPinned = false,
   });
+
+  factory NoticeItem.fromJson(Map<String, dynamic> json) {
+    return NoticeItem(
+      id: json['id'] as String,
+      icon: IconData(json['icon_code_point'] as int, fontFamily: 'MaterialIcons'),
+      iconColor: Color(json['icon_color'] as int),
+      title: json['title'] as String,
+      subtitle: json['subtitle'] as String,
+      tags: List<String>.from(json['tags'] ?? []),
+      tagColor: Color(json['tag_color'] as int),
+      date: json['date'] as String,
+      isPinned: json['is_pinned'] as bool? ?? false,
+    );
+  }
+
+  Map<String, dynamic> toJson(String category) {
+    return {
+      'category': category,
+      'title': title,
+      'subtitle': subtitle,
+      'tags': tags,
+      'tag_color': tagColor.value,
+      'date': date,
+      'is_pinned': isPinned,
+      'icon_code_point': icon.codePoint,
+      'icon_color': iconColor.value,
+    };
+  }
 }
 
 // Global Notifiers for Notices
-final ValueNotifier<List<NoticeItem>> clubNoticesState = ValueNotifier([
-  NoticeItem(
-    id: 'c1',
-    icon: Icons.lightbulb,
-    iconColor: Colors.amber,
-    title: 'Workshop on Machine Learning Basics',
-    subtitle: 'Join us for an introductory workshop on ML fundamentals and practical applications. Learn from industry experts.',
-    tags: ['Workshop', 'Machine Learning'],
-    tagColor: Colors.blue,
-    date: 'May 15, 2026',
-    isPinned: true,
-  ),
-  NoticeItem(
-    id: 'c2',
-    icon: Icons.code,
-    iconColor: Colors.amber,
-    title: 'Hackathon Registration Open',
-    subtitle: 'Annual coding hackathon registration is now open. Form your teams and register today!',
-    tags: ['Event', 'Hackathon'],
-    tagColor: Colors.indigo,
-    date: 'May 20, 2026',
-    isPinned: true,
-  ),
-  NoticeItem(
-    id: 'c3',
-    icon: Icons.record_voice_over,
-    iconColor: Colors.teal,
-    title: 'Guest Lecture: AI in Healthcare',
-    subtitle: 'Dr. Sarah Johnson will discuss the applications of AI in modern healthcare systems.',
-    tags: ['Lecture', 'AI'],
-    tagColor: Colors.teal,
-    date: 'May 18, 2026',
-    isPinned: false,
-  ),
-]);
+final ValueNotifier<List<NoticeItem>> clubNoticesState = ValueNotifier([]);
+final ValueNotifier<List<NoticeItem>> deptNoticesState = ValueNotifier([]);
 
-final ValueNotifier<List<NoticeItem>> deptNoticesState = ValueNotifier([
-  NoticeItem(
-    id: 'd1',
-    icon: Icons.assignment,
-    iconColor: Colors.amber,
-    title: 'Mid-term Examination Schedule',
-    subtitle: 'The mid-term examination schedule for all CSE courses has been published.',
-    tags: ['Academic', 'Exam'],
-    tagColor: Colors.purple,
-    date: 'May 12, 2026',
-    isPinned: true,
-  ),
-  NoticeItem(
-    id: 'd2',
-    icon: Icons.build,
-    iconColor: Colors.cyan,
-    title: 'Lab Equipment Maintenance',
-    subtitle: 'Computer labs will be closed for maintenance on May 16-17.',
-    tags: ['Maintenance', 'Lab'],
-    tagColor: Colors.cyan,
-    date: 'May 10, 2026',
-    isPinned: false,
-  ),
-  NoticeItem(
-    id: 'd3',
-    icon: Icons.article,
-    iconColor: Colors.deepPurple,
-    title: 'Research Paper Submission Deadline',
-    subtitle: 'Final year students must submit their research papers by May 25.',
-    tags: ['Academic', 'Research'],
-    tagColor: Colors.purple,
-    date: 'May 8, 2026',
-    isPinned: false,
-  ),
-]);
+Future<void> fetchNotices() async {
+  try {
+    final response = await Supabase.instance.client
+        .from('notices')
+        .select()
+        .order('created_at', ascending: false);
+
+    final List<NoticeItem> clubNotices = [];
+    final List<NoticeItem> deptNotices = [];
+
+    for (var row in response) {
+      final notice = NoticeItem.fromJson(row);
+      if (row['category'] == 'club') {
+        clubNotices.add(notice);
+      } else if (row['category'] == 'department') {
+        deptNotices.add(notice);
+      }
+    }
+
+    clubNoticesState.value = clubNotices;
+    deptNoticesState.value = deptNotices;
+  } catch (e) {
+    debugPrint('Error fetching notices: $e');
+  }
+}
+
+Future<void> addNoticeToDB(NoticeItem notice, String category) async {
+  try {
+    final data = notice.toJson(category);
+    final response = await Supabase.instance.client
+        .from('notices')
+        .insert(data)
+        .select()
+        .single();
+
+    final newNotice = NoticeItem.fromJson(response);
+    if (category == 'club') {
+      clubNoticesState.value = List.from(clubNoticesState.value)..insert(0, newNotice);
+    } else {
+      deptNoticesState.value = List.from(deptNoticesState.value)..insert(0, newNotice);
+    }
+  } catch (e) {
+    debugPrint('Error adding notice: $e');
+  }
+}
+
+Future<void> updateNoticeInDB(NoticeItem notice, String category) async {
+  try {
+    final data = notice.toJson(category);
+    await Supabase.instance.client
+        .from('notices')
+        .update(data)
+        .eq('id', notice.id);
+  } catch (e) {
+    debugPrint('Error updating notice: $e');
+  }
+}
+
+Future<void> deleteNoticeFromDB(String id, String category) async {
+  try {
+    await Supabase.instance.client
+        .from('notices')
+        .delete()
+        .eq('id', id);
+
+    if (category == 'club') {
+      clubNoticesState.value = List.from(clubNoticesState.value)
+        ..removeWhere((notice) => notice.id == id);
+    } else {
+      deptNoticesState.value = List.from(deptNoticesState.value)
+        ..removeWhere((notice) => notice.id == id);
+    }
+  } catch (e) {
+    debugPrint('Error deleting notice: $e');
+  }
+}

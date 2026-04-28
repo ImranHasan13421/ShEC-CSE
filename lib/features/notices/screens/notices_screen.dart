@@ -10,15 +10,25 @@ class NoticesScreen extends StatefulWidget {
 }
 
 class _NoticesScreenState extends State<NoticesScreen> {
+  @override
+  void initState() {
+    super.initState();
+    fetchNotices();
+  }
+
   // --- Toggle Logic ---
-  void _togglePin(NoticeItem notice, ValueNotifier<List<NoticeItem>> stateNotifier) {
+  void _togglePin(NoticeItem notice, ValueNotifier<List<NoticeItem>> stateNotifier) async {
     notice.isPinned = !notice.isPinned;
     // Trigger a rebuild of the list by re-assigning the value
     stateNotifier.value = List.from(stateNotifier.value);
+    
+    String category = stateNotifier == clubNoticesState ? 'club' : 'department';
+    await updateNoticeInDB(notice, category);
   }
 
-  void _deleteNotice(NoticeItem notice, ValueNotifier<List<NoticeItem>> stateNotifier) {
-    stateNotifier.value = List.from(stateNotifier.value)..remove(notice);
+  void _deleteNotice(NoticeItem notice, ValueNotifier<List<NoticeItem>> stateNotifier) async {
+    String category = stateNotifier == clubNoticesState ? 'club' : 'department';
+    await deleteNoticeFromDB(notice.id, category);
   }
 
   void _showNoticeForm(BuildContext context, ValueNotifier<List<NoticeItem>> defaultStateNotifier, {NoticeItem? existingNotice}) {
@@ -124,7 +134,7 @@ class _NoticesScreenState extends State<NoticesScreen> {
                             if (existingNotice == null) {
                               // Add new
                               final newNotice = NoticeItem(
-                                id: DateTime.now().millisecondsSinceEpoch.toString(),
+                                id: '',
                                 icon: Icons.notifications,
                                 iconColor: Colors.blue,
                                 title: titleController.text,
@@ -133,25 +143,29 @@ class _NoticesScreenState extends State<NoticesScreen> {
                                 tagColor: Colors.blue,
                                 date: 'Just now',
                               );
-                              selectedNotifier.value = List.from(selectedNotifier.value)..insert(0, newNotice);
+                              String category = selectedNotifier == clubNoticesState ? 'club' : 'department';
+                              addNoticeToDB(newNotice, category);
                             } else {
                               // Edit existing
+                              final updatedNotice = NoticeItem(
+                                id: existingNotice.id,
+                                icon: existingNotice.icon,
+                                iconColor: existingNotice.iconColor,
+                                title: titleController.text,
+                                subtitle: subtitleController.text,
+                                tags: selectedTags,
+                                tagColor: existingNotice.tagColor,
+                                date: existingNotice.date,
+                                isPinned: existingNotice.isPinned,
+                              );
                               final index = defaultStateNotifier.value.indexOf(existingNotice);
                               if (index != -1) {
                                 final updatedList = List<NoticeItem>.from(defaultStateNotifier.value);
-                                updatedList[index] = NoticeItem(
-                                  id: existingNotice.id,
-                                  icon: existingNotice.icon,
-                                  iconColor: existingNotice.iconColor,
-                                  title: titleController.text,
-                                  subtitle: subtitleController.text,
-                                  tags: selectedTags,
-                                  tagColor: existingNotice.tagColor,
-                                  date: existingNotice.date,
-                                  isPinned: existingNotice.isPinned,
-                                );
+                                updatedList[index] = updatedNotice;
                                 defaultStateNotifier.value = updatedList;
                               }
+                              String category = defaultStateNotifier == clubNoticesState ? 'club' : 'department';
+                              updateNoticeInDB(updatedNotice, category);
                             }
                             Navigator.pop(context);
                           }

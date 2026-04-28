@@ -218,12 +218,23 @@ class SessionsScreen extends StatelessWidget {
 // ==========================================
 // 4. PDFs (FILES) SCREEN
 // ==========================================
-class PdfsScreen extends StatelessWidget {
+class PdfsScreen extends StatefulWidget {
   final String title;
   final String session;
   final Color color;
 
   const PdfsScreen({super.key, required this.title, required this.session, required this.color});
+
+  @override
+  State<PdfsScreen> createState() => _PdfsScreenState();
+}
+
+class _PdfsScreenState extends State<PdfsScreen> {
+  @override
+  void initState() {
+    super.initState();
+    fetchResources();
+  }
 
   void _showForm(BuildContext context, {ResourceItem? existingItem}) {
     final nameController = TextEditingController(text: existingItem?.name ?? '');
@@ -263,15 +274,15 @@ class PdfsScreen extends StatelessWidget {
                   onPressed: () {
                     if (nameController.text.isNotEmpty) {
                       final newItem = ResourceItem(
-                        id: existingItem?.id ?? DateTime.now().millisecondsSinceEpoch.toString(),
+                        id: existingItem?.id ?? '',
                         name: nameController.text,
                         size: sizeController.text,
                         date: 'Just now',
-                        session: session,
+                        session: widget.session,
                       );
 
                       if (existingItem == null) {
-                        resourceState.value = List.from(resourceState.value)..insert(0, newItem);
+                        addResourceToDB(newItem);
                       } else {
                         final index = resourceState.value.indexOf(existingItem);
                         if (index != -1) {
@@ -279,6 +290,7 @@ class PdfsScreen extends StatelessWidget {
                           updatedList[index] = newItem;
                           resourceState.value = updatedList;
                         }
+                        updateResourceInDB(newItem);
                       }
                       Navigator.pop(context);
                     }
@@ -295,7 +307,7 @@ class PdfsScreen extends StatelessWidget {
   }
 
   void _deleteItem(ResourceItem item) {
-    resourceState.value = List.from(resourceState.value)..remove(item);
+    deleteResourceFromDB(item);
   }
 
   @override
@@ -303,12 +315,12 @@ class PdfsScreen extends StatelessWidget {
     final colors = Theme.of(context).colorScheme;
 
     return Scaffold(
-      appBar: AppBar(title: Text(title)),
+      appBar: AppBar(title: Text(widget.title)),
       body: ValueListenableBuilder<List<ResourceItem>>(
         valueListenable: resourceState,
         builder: (context, items, _) {
           // Filter resources for this specific session
-          final sessionItems = items.where((i) => i.session == session).toList();
+          final sessionItems = items.where((i) => i.session == widget.session).toList();
 
           return ListView(
             padding: const EdgeInsets.all(16.0),
@@ -316,18 +328,18 @@ class PdfsScreen extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: color.withOpacity(0.1),
+                  color: widget.color.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: color.withOpacity(0.3)),
+                  border: Border.all(color: widget.color.withOpacity(0.3)),
                 ),
                 child: Row(
                   children: [
-                    Icon(Icons.info_outline, color: color),
+                    Icon(Icons.info_outline, color: widget.color),
                     const SizedBox(width: 12),
                     Expanded(
                       child: Text(
                         'These are placeholder files. You can add or edit resources if you are a Committee Member.',
-                        style: TextStyle(color: color, fontSize: 13, fontWeight: FontWeight.w500),
+                        style: TextStyle(color: widget.color, fontSize: 13, fontWeight: FontWeight.w500),
                       ),
                     ),
                   ],
@@ -366,7 +378,7 @@ class PdfsScreen extends StatelessWidget {
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       IconButton(
-                        icon: Icon(Icons.download, color: color),
+                        icon: Icon(Icons.download, color: widget.color),
                         onPressed: () {
                           ScaffoldMessenger.of(context).showSnackBar(
                             const SnackBar(content: Text('Downloading file...')),

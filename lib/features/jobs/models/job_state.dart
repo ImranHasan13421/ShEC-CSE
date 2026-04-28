@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 // --- Data Model for Jobs ---
 class JobItem {
@@ -27,59 +28,122 @@ class JobItem {
     required this.icon,
     this.isStarred = false,
   });
+
+  factory JobItem.fromJson(Map<String, dynamic> json) {
+    return JobItem(
+      id: json['id'] as String,
+      company: json['company'] as String,
+      role: json['role'] as String,
+      location: json['location'] as String,
+      salary: json['salary'] as String,
+      deadline: json['deadline'] as String,
+      jobType: json['job_type'] as String,
+      typeColor: Color(json['type_color'] as int),
+      iconColor: Color(json['icon_color'] as int),
+      icon: IconData(json['icon_code_point'] as int, fontFamily: 'MaterialIcons'),
+      isStarred: json['is_starred'] as bool? ?? false,
+    );
+  }
+
+  Map<String, dynamic> toJson(String category) {
+    return {
+      'category': category,
+      'company': company,
+      'role': role,
+      'location': location,
+      'salary': salary,
+      'deadline': deadline,
+      'job_type': jobType,
+      'type_color': typeColor.value,
+      'icon_code_point': icon.codePoint,
+      'icon_color': iconColor.value,
+      'is_starred': isStarred,
+    };
+  }
 }
 
 // Global Notifiers for Jobs
-final ValueNotifier<List<JobItem>> recommendedJobsState = ValueNotifier([
-  JobItem(
-    id: 'j1',
-    company: 'Google',
-    role: 'Software Engineer Intern',
-    location: 'Mountain View, CA',
-    salary: '\$8,000 - \$10,000/month',
-    deadline: 'May 30, 2026',
-    jobType: 'Internship',
-    typeColor: Colors.teal,
-    iconColor: Colors.blue,
-    icon: Icons.g_mobiledata,
-  ),
-  JobItem(
-    id: 'j2',
-    company: 'Microsoft',
-    role: 'Machine Learning Engineer',
-    location: 'Redmond, WA',
-    salary: '\$110k - \$150k/year',
-    deadline: 'June 10, 2026',
-    jobType: 'Full-time',
-    typeColor: Colors.indigo,
-    iconColor: Colors.blueAccent,
-    icon: Icons.window,
-  ),
-]);
+final ValueNotifier<List<JobItem>> recommendedJobsState = ValueNotifier([]);
+final ValueNotifier<List<JobItem>> recentJobsState = ValueNotifier([]);
 
-final ValueNotifier<List<JobItem>> recentJobsState = ValueNotifier([
-  JobItem(
-    id: 'j3',
-    company: 'Meta',
-    role: 'Frontend Developer',
-    location: 'Menlo Park, CA',
-    salary: '\$120k - \$160k/year',
-    deadline: 'June 5, 2026',
-    jobType: 'Full-time',
-    typeColor: Colors.indigo,
-    iconColor: Colors.blue,
-    icon: Icons.facebook,
-  ),
-  JobItem(
-    id: 'j4',
-    company: 'Amazon',
-    role: 'Data Science Intern',
-    location: 'Seattle, WA',
-    salary: '\$7,500 - \$9,000/month',
-    deadline: 'May 28, 2026',
-    jobType: 'Internship',
-    typeColor: Colors.teal,
-    iconColor: Colors.orange,
-    icon: Icons.shopping_cart,
-  ),
-]);
+// Supabase DB functions for Jobs
+Future<void> fetchJobs() async {
+  try {
+    final response = await Supabase.instance.client
+        .from('jobs')
+        .select()
+        .order('created_at', ascending: false);
+
+    final List<JobItem> recommended = [];
+    final List<JobItem> recent = [];
+
+    for (var row in response) {
+      final job = JobItem.fromJson(row);
+      if (row['category'] == 'recommended') {
+        recommended.add(job);
+      } else if (row['category'] == 'recent') {
+        recent.add(job);
+      }
+    }
+
+    recommendedJobsState.value = recommended;
+    recentJobsState.value = recent;
+  } catch (e) {
+    debugPrint('Error fetching jobs: $e');
+  }
+}
+
+Future<void> addJobToDB(JobItem job, String category) async {
+  try {
+    final data = job.toJson(category);
+    // Remove id to let Supabase generate it, or you can insert it if using uuid package
+    final response = await Supabase.instance.client
+        .from('jobs')
+        .insert(data)
+        .select()
+        .single();
+    
+    final newJob = JobItem.fromJson(response);
+    if (category == 'recommended') {
+      recommendedJobsState.value = List.from(recommendedJobsState.value)..insert(0, newJob);
+    } else {
+      recentJobsState.value = List.from(recentJobsState.value)..insert(0, newJob);
+    }
+  } catch (e) {
+    debugPrint('Error adding job: $e');
+  }
+}
+
+Future<void> updateJobInDB(JobItem job, String category) async {
+  try {
+    final data = job.toJson(category);
+    await Supabase.instance.client
+        .from('jobs')
+        .update(data)
+        .eq('id', job.id);
+        
+    // Local state is usually updated in the screen before calling this, 
+    // or we can refresh here.
+  } catch (e) {
+    debugPrint('Error updating job: $e');
+  }
+}
+
+Future<void> deleteJobFromDB(String id, String category) async {
+  try {
+    await Supabase.instance.client
+        .from('jobs')
+        .delete()
+        .eq('id', id);
+        
+    if (category == 'recommended') {
+      recommendedJobsState.value = List.from(recommendedJobsState.value)
+        ..removeWhere((job) => job.id == id);
+    } else {
+      recentJobsState.value = List.from(recentJobsState.value)
+        ..removeWhere((job) => job.id == id);
+    }
+  } catch (e) {
+    debugPrint('Error deleting job: $e');
+  }
+}

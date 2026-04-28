@@ -10,13 +10,22 @@ class JobsScreen extends StatefulWidget {
 }
 
 class _JobsScreenState extends State<JobsScreen> {
-  void _toggleStar(JobItem job, ValueNotifier<List<JobItem>> stateNotifier) {
+  @override
+  void initState() {
+    super.initState();
+    fetchJobs();
+  }
+  void _toggleStar(JobItem job, ValueNotifier<List<JobItem>> stateNotifier) async {
     job.isStarred = !job.isStarred;
     stateNotifier.value = List.from(stateNotifier.value);
+    
+    String category = stateNotifier == recommendedJobsState ? 'recommended' : 'recent';
+    await updateJobInDB(job, category);
   }
 
-  void _deleteJob(JobItem job, ValueNotifier<List<JobItem>> stateNotifier) {
-    stateNotifier.value = List.from(stateNotifier.value)..remove(job);
+  void _deleteJob(JobItem job, ValueNotifier<List<JobItem>> stateNotifier) async {
+    String category = stateNotifier == recommendedJobsState ? 'recommended' : 'recent';
+    await deleteJobFromDB(job.id, category);
   }
 
   void _showJobForm(BuildContext context, {JobItem? existingJob, ValueNotifier<List<JobItem>>? defaultStateNotifier}) {
@@ -106,7 +115,7 @@ class _JobsScreenState extends State<JobsScreen> {
                           if (roleController.text.isNotEmpty && companyController.text.isNotEmpty) {
                             if (existingJob == null) {
                               final newJob = JobItem(
-                                id: DateTime.now().millisecondsSinceEpoch.toString(),
+                                id: '',
                                 company: companyController.text,
                                 role: roleController.text,
                                 location: locationController.text,
@@ -117,27 +126,31 @@ class _JobsScreenState extends State<JobsScreen> {
                                 iconColor: Colors.blue,
                                 icon: Icons.work,
                               );
-                              selectedNotifier.value = List.from(selectedNotifier.value)..insert(0, newJob);
+                              String category = selectedNotifier == recommendedJobsState ? 'recommended' : 'recent';
+                              addJobToDB(newJob, category);
                             } else {
                               final targetNotifier = defaultStateNotifier!;
+                              final updatedJob = JobItem(
+                                id: existingJob.id,
+                                company: companyController.text,
+                                role: roleController.text,
+                                location: locationController.text,
+                                salary: salaryController.text,
+                                deadline: deadlineController.text,
+                                jobType: jobTypeController.text,
+                                typeColor: existingJob.typeColor,
+                                iconColor: existingJob.iconColor,
+                                icon: existingJob.icon,
+                                isStarred: existingJob.isStarred,
+                              );
                               final index = targetNotifier.value.indexOf(existingJob);
                               if (index != -1) {
                                 final updatedList = List<JobItem>.from(targetNotifier.value);
-                                updatedList[index] = JobItem(
-                                  id: existingJob.id,
-                                  company: companyController.text,
-                                  role: roleController.text,
-                                  location: locationController.text,
-                                  salary: salaryController.text,
-                                  deadline: deadlineController.text,
-                                  jobType: jobTypeController.text,
-                                  typeColor: existingJob.typeColor,
-                                  iconColor: existingJob.iconColor,
-                                  icon: existingJob.icon,
-                                  isStarred: existingJob.isStarred,
-                                );
+                                updatedList[index] = updatedJob;
                                 targetNotifier.value = updatedList;
                               }
+                              String category = targetNotifier == recommendedJobsState ? 'recommended' : 'recent';
+                              updateJobInDB(updatedJob, category);
                             }
                             Navigator.pop(context);
                           }
