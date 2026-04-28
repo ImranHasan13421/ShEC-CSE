@@ -1,33 +1,6 @@
 import 'package:flutter/material.dart';
-
-// --- Data Model for Jobs ---
-class JobItem {
-  final String id;
-  final String company;
-  final String role;
-  final String location;
-  final String salary;
-  final String deadline;
-  final String jobType;
-  final Color typeColor;
-  final Color iconColor;
-  final IconData icon;
-  bool isStarred;
-
-  JobItem({
-    required this.id,
-    required this.company,
-    required this.role,
-    required this.location,
-    required this.salary,
-    required this.deadline,
-    required this.jobType,
-    required this.typeColor,
-    required this.iconColor,
-    required this.icon,
-    this.isStarred = false,
-  });
-}
+import 'package:ShEC_CSE/features/profile/models/profile_state.dart';
+import '../models/job_state.dart';
 
 class JobsScreen extends StatefulWidget {
   const JobsScreen({super.key});
@@ -37,73 +10,150 @@ class JobsScreen extends StatefulWidget {
 }
 
 class _JobsScreenState extends State<JobsScreen> {
-  late List<JobItem> recommendedJobs;
-  late List<JobItem> recentJobs;
-
-  @override
-  void initState() {
-    super.initState();
-
-    // Initialize mock data
-    recommendedJobs = [
-      JobItem(
-        id: 'j1',
-        company: 'Google',
-        role: 'Software Engineer Intern',
-        location: 'Mountain View, CA',
-        salary: '\$8,000 - \$10,000/month',
-        deadline: 'May 30, 2026',
-        jobType: 'Internship',
-        typeColor: Colors.teal,
-        iconColor: Colors.blue,
-        icon: Icons.g_mobiledata,
-      ),
-      JobItem(
-        id: 'j2',
-        company: 'Microsoft',
-        role: 'Machine Learning Engineer',
-        location: 'Redmond, WA',
-        salary: '\$110k - \$150k/year',
-        deadline: 'June 10, 2026',
-        jobType: 'Full-time',
-        typeColor: Colors.indigo,
-        iconColor: Colors.blueAccent,
-        icon: Icons.window,
-      ),
-    ];
-
-    recentJobs = [
-      JobItem(
-        id: 'j3',
-        company: 'Meta',
-        role: 'Frontend Developer',
-        location: 'Menlo Park, CA',
-        salary: '\$120k - \$160k/year',
-        deadline: 'June 5, 2026',
-        jobType: 'Full-time',
-        typeColor: Colors.indigo,
-        iconColor: Colors.blue,
-        icon: Icons.facebook,
-      ),
-      JobItem(
-        id: 'j4',
-        company: 'Amazon',
-        role: 'Data Science Intern',
-        location: 'Seattle, WA',
-        salary: '\$7,500 - \$9,000/month',
-        deadline: 'May 28, 2026',
-        jobType: 'Internship',
-        typeColor: Colors.teal,
-        iconColor: Colors.orange,
-        icon: Icons.shopping_cart,
-      ),
-    ];
+  void _toggleStar(JobItem job, ValueNotifier<List<JobItem>> stateNotifier) {
+    job.isStarred = !job.isStarred;
+    stateNotifier.value = List.from(stateNotifier.value);
   }
 
-  void _toggleStar(JobItem job) {
-    setState(() {
-      job.isStarred = !job.isStarred;
-    });
+  void _deleteJob(JobItem job, ValueNotifier<List<JobItem>> stateNotifier) {
+    stateNotifier.value = List.from(stateNotifier.value)..remove(job);
+  }
+
+  void _showJobForm(BuildContext context, {JobItem? existingJob, ValueNotifier<List<JobItem>>? defaultStateNotifier}) {
+    final roleController = TextEditingController(text: existingJob?.role ?? '');
+    final companyController = TextEditingController(text: existingJob?.company ?? '');
+    final locationController = TextEditingController(text: existingJob?.location ?? '');
+    final salaryController = TextEditingController(text: existingJob?.salary ?? '');
+    final deadlineController = TextEditingController(text: existingJob?.deadline ?? '');
+    final jobTypeController = TextEditingController(text: existingJob?.jobType ?? '');
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (BuildContext context, StateSetter setModalState) {
+            ValueNotifier<List<JobItem>> selectedNotifier = defaultStateNotifier ?? recommendedJobsState;
+
+            return Padding(
+              padding: EdgeInsets.only(
+                bottom: MediaQuery.of(context).viewInsets.bottom,
+                left: 24,
+                right: 24,
+                top: 24,
+              ),
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(existingJob == null ? 'Add Job' : 'Edit Job', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+                    const SizedBox(height: 16),
+                    
+                    if (existingJob == null) ...[
+                      const Text('Job Category', style: TextStyle(fontWeight: FontWeight.bold)),
+                      const SizedBox(height: 8),
+                      SegmentedButton<ValueNotifier<List<JobItem>>>(
+                        segments: [
+                          ButtonSegment(value: recommendedJobsState, label: const Text('Recommended')),
+                          ButtonSegment(value: recentJobsState, label: const Text('Recent')),
+                        ],
+                        selected: {selectedNotifier},
+                        onSelectionChanged: (Set<ValueNotifier<List<JobItem>>> newSelection) {
+                          setModalState(() {
+                            selectedNotifier = newSelection.first;
+                          });
+                        },
+                      ),
+                      const SizedBox(height: 16),
+                    ],
+
+                    TextField(
+                      controller: roleController,
+                      decoration: const InputDecoration(labelText: 'Job Role', border: OutlineInputBorder()),
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: companyController,
+                      decoration: const InputDecoration(labelText: 'Company', border: OutlineInputBorder()),
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: locationController,
+                      decoration: const InputDecoration(labelText: 'Location', border: OutlineInputBorder()),
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: salaryController,
+                      decoration: const InputDecoration(labelText: 'Salary/Stipend', border: OutlineInputBorder()),
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: deadlineController,
+                      decoration: const InputDecoration(labelText: 'Deadline', border: OutlineInputBorder()),
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: jobTypeController,
+                      decoration: const InputDecoration(labelText: 'Job Type (e.g., Internship)', border: OutlineInputBorder()),
+                    ),
+                    const SizedBox(height: 24),
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        onPressed: () {
+                          if (roleController.text.isNotEmpty && companyController.text.isNotEmpty) {
+                            if (existingJob == null) {
+                              final newJob = JobItem(
+                                id: DateTime.now().millisecondsSinceEpoch.toString(),
+                                company: companyController.text,
+                                role: roleController.text,
+                                location: locationController.text,
+                                salary: salaryController.text,
+                                deadline: deadlineController.text,
+                                jobType: jobTypeController.text,
+                                typeColor: Colors.teal,
+                                iconColor: Colors.blue,
+                                icon: Icons.work,
+                              );
+                              selectedNotifier.value = List.from(selectedNotifier.value)..insert(0, newJob);
+                            } else {
+                              final targetNotifier = defaultStateNotifier!;
+                              final index = targetNotifier.value.indexOf(existingJob);
+                              if (index != -1) {
+                                final updatedList = List<JobItem>.from(targetNotifier.value);
+                                updatedList[index] = JobItem(
+                                  id: existingJob.id,
+                                  company: companyController.text,
+                                  role: roleController.text,
+                                  location: locationController.text,
+                                  salary: salaryController.text,
+                                  deadline: deadlineController.text,
+                                  jobType: jobTypeController.text,
+                                  typeColor: existingJob.typeColor,
+                                  iconColor: existingJob.iconColor,
+                                  icon: existingJob.icon,
+                                  isStarred: existingJob.isStarred,
+                                );
+                                targetNotifier.value = updatedList;
+                              }
+                            }
+                            Navigator.pop(context);
+                          }
+                        },
+                        child: Text(existingJob == null ? 'Create' : 'Update'),
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+                  ],
+                ),
+              ),
+            );
+          }
+        );
+      },
+    );
   }
 
   @override
@@ -113,11 +163,43 @@ class _JobsScreenState extends State<JobsScreen> {
         padding: const EdgeInsets.all(16.0),
         children: [
           _buildSectionTitle(context, 'Recommended for You'),
-          ...recommendedJobs.map((job) => _buildJobCard(job)),
+          ValueListenableBuilder<List<JobItem>>(
+            valueListenable: recommendedJobsState,
+            builder: (context, jobs, _) {
+              if (jobs.isEmpty) {
+                return const Padding(padding: EdgeInsets.all(16), child: Center(child: Text('No recommended jobs.')));
+              }
+              return Column(
+                children: jobs.map((job) => _buildJobCard(job, recommendedJobsState)).toList(),
+              );
+            },
+          ),
           const SizedBox(height: 16),
           _buildSectionTitle(context, 'Recently Posted'),
-          ...recentJobs.map((job) => _buildJobCard(job)),
+          ValueListenableBuilder<List<JobItem>>(
+            valueListenable: recentJobsState,
+            builder: (context, jobs, _) {
+              if (jobs.isEmpty) {
+                return const Padding(padding: EdgeInsets.all(16), child: Center(child: Text('No recent jobs.')));
+              }
+              return Column(
+                children: jobs.map((job) => _buildJobCard(job, recentJobsState)).toList(),
+              );
+            },
+          ),
         ],
+      ),
+      floatingActionButton: ValueListenableBuilder<ProfileData>(
+        valueListenable: currentProfile,
+        builder: (context, profile, _) {
+          if (profile.role == UserRole.committeeMember) {
+            return FloatingActionButton(
+              onPressed: () => _showJobForm(context),
+              child: const Icon(Icons.add),
+            );
+          }
+          return const SizedBox.shrink();
+        },
       ),
     );
   }
@@ -136,7 +218,7 @@ class _JobsScreenState extends State<JobsScreen> {
     );
   }
 
-  Widget _buildJobCard(JobItem job) {
+  Widget _buildJobCard(JobItem job, ValueNotifier<List<JobItem>> stateNotifier) {
     final colors = Theme.of(context).colorScheme;
 
     return Card(
@@ -179,9 +261,49 @@ class _JobsScreenState extends State<JobsScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          job.role,
-                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Expanded(
+                              child: Text(
+                                job.role,
+                                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                              ),
+                            ),
+                            // The Star Button
+                            IconButton(
+                              icon: Icon(
+                                job.isStarred ? Icons.star : Icons.star_border,
+                                color: job.isStarred ? Colors.amber : colors.onSurface.withOpacity(0.3),
+                              ),
+                              onPressed: () => _toggleStar(job, stateNotifier),
+                              constraints: const BoxConstraints(),
+                              padding: EdgeInsets.zero,
+                            ),
+                            // Edit/Delete for Committee Members
+                            ValueListenableBuilder<ProfileData>(
+                              valueListenable: currentProfile,
+                              builder: (context, profile, _) {
+                                if (profile.role == UserRole.committeeMember) {
+                                  return PopupMenuButton<String>(
+                                    icon: const Icon(Icons.more_vert, size: 20),
+                                    onSelected: (value) {
+                                      if (value == 'edit') {
+                                        _showJobForm(context, existingJob: job, defaultStateNotifier: stateNotifier);
+                                      } else if (value == 'delete') {
+                                        _deleteJob(job, stateNotifier);
+                                      }
+                                    },
+                                    itemBuilder: (context) => [
+                                      const PopupMenuItem(value: 'edit', child: Text('Edit')),
+                                      const PopupMenuItem(value: 'delete', child: Text('Delete', style: TextStyle(color: Colors.red))),
+                                    ],
+                                  );
+                                }
+                                return const SizedBox.shrink();
+                              },
+                            ),
+                          ],
                         ),
                         const SizedBox(height: 4),
                         Text(
@@ -190,16 +312,6 @@ class _JobsScreenState extends State<JobsScreen> {
                         ),
                       ],
                     ),
-                  ),
-                  // The Star Button
-                  IconButton(
-                    icon: Icon(
-                      job.isStarred ? Icons.star : Icons.star_border,
-                      color: job.isStarred ? Colors.amber : colors.onSurface.withOpacity(0.3),
-                    ),
-                    onPressed: () => _toggleStar(job),
-                    constraints: const BoxConstraints(),
-                    padding: EdgeInsets.zero,
                   ),
                 ],
               ),
@@ -246,10 +358,7 @@ class _JobsScreenState extends State<JobsScreen> {
   }
 }
 
-
 // --- Job Details Screen ---
-// Added directly in the same file to keep your structure simple!
-
 class JobDetailScreen extends StatelessWidget {
   final JobItem job;
 

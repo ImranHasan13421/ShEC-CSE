@@ -1,29 +1,6 @@
 import 'package:flutter/material.dart';
-
-// --- Data Model for Notices ---
-class NoticeItem {
-  final String id;
-  final IconData icon;
-  final Color iconColor;
-  final String title;
-  final String subtitle;
-  final String tag;
-  final Color tagColor;
-  final String date;
-  bool isPinned;
-
-  NoticeItem({
-    required this.id,
-    required this.icon,
-    required this.iconColor,
-    required this.title,
-    required this.subtitle,
-    required this.tag,
-    required this.tagColor,
-    required this.date,
-    this.isPinned = false,
-  });
-}
+import 'package:ShEC_CSE/features/profile/models/profile_state.dart';
+import '../models/notice_state.dart';
 
 class NoticesScreen extends StatefulWidget {
   const NoticesScreen({super.key});
@@ -33,93 +10,164 @@ class NoticesScreen extends StatefulWidget {
 }
 
 class _NoticesScreenState extends State<NoticesScreen> {
-  // --- Dynamic State Data ---
-  late List<NoticeItem> clubNotices;
-  late List<NoticeItem> deptNotices;
-
-  @override
-  void initState() {
-    super.initState();
-    // Initialize Club Notices
-    clubNotices = [
-      NoticeItem(
-        id: 'c1',
-        icon: Icons.lightbulb,
-        iconColor: Colors.amber,
-        title: 'Workshop on Machine Learning Basics',
-        subtitle: 'Join us for an introductory workshop on ML fundamentals and practical applications. Learn from industry experts.',
-        tag: 'Workshop',
-        tagColor: Colors.blue,
-        date: 'May 15, 2026',
-        isPinned: true,
-      ),
-      NoticeItem(
-        id: 'c2',
-        icon: Icons.code,
-        iconColor: Colors.amber,
-        title: 'Hackathon Registration Open',
-        subtitle: 'Annual coding hackathon registration is now open. Form your teams and register today!',
-        tag: 'Event',
-        tagColor: Colors.indigo,
-        date: 'May 20, 2026',
-        isPinned: true,
-      ),
-      NoticeItem(
-        id: 'c3',
-        icon: Icons.record_voice_over,
-        iconColor: Colors.teal,
-        title: 'Guest Lecture: AI in Healthcare',
-        subtitle: 'Dr. Sarah Johnson will discuss the applications of AI in modern healthcare systems.',
-        tag: 'Lecture',
-        tagColor: Colors.teal,
-        date: 'May 18, 2026',
-        isPinned: false,
-      ),
-    ];
-
-    // Initialize Department Notices
-    deptNotices = [
-      NoticeItem(
-        id: 'd1',
-        icon: Icons.assignment,
-        iconColor: Colors.amber,
-        title: 'Mid-term Examination Schedule',
-        subtitle: 'The mid-term examination schedule for all CSE courses has been published.',
-        tag: 'Academic',
-        tagColor: Colors.purple,
-        date: 'May 12, 2026',
-        isPinned: true,
-      ),
-      NoticeItem(
-        id: 'd2',
-        icon: Icons.build,
-        iconColor: Colors.cyan,
-        title: 'Lab Equipment Maintenance',
-        subtitle: 'Computer labs will be closed for maintenance on May 16-17.',
-        tag: 'Maintenance',
-        tagColor: Colors.cyan,
-        date: 'May 10, 2026',
-        isPinned: false,
-      ),
-      NoticeItem(
-        id: 'd3',
-        icon: Icons.article,
-        iconColor: Colors.deepPurple,
-        title: 'Research Paper Submission Deadline',
-        subtitle: 'Final year students must submit their research papers by May 25.',
-        tag: 'Academic',
-        tagColor: Colors.purple,
-        date: 'May 8, 2026',
-        isPinned: false,
-      ),
-    ];
+  // --- Toggle Logic ---
+  void _togglePin(NoticeItem notice, ValueNotifier<List<NoticeItem>> stateNotifier) {
+    notice.isPinned = !notice.isPinned;
+    // Trigger a rebuild of the list by re-assigning the value
+    stateNotifier.value = List.from(stateNotifier.value);
   }
 
-  // --- Toggle Logic ---
-  void _togglePin(NoticeItem notice) {
-    setState(() {
-      notice.isPinned = !notice.isPinned;
-    });
+  void _deleteNotice(NoticeItem notice, ValueNotifier<List<NoticeItem>> stateNotifier) {
+    stateNotifier.value = List.from(stateNotifier.value)..remove(notice);
+  }
+
+  void _showNoticeForm(BuildContext context, ValueNotifier<List<NoticeItem>> defaultStateNotifier, {NoticeItem? existingNotice}) {
+    final titleController = TextEditingController(text: existingNotice?.title ?? '');
+    final subtitleController = TextEditingController(text: existingNotice?.subtitle ?? '');
+    
+    // We'll manage state inside the StatefulBuilder for the bottom sheet
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (BuildContext context, StateSetter setModalState) {
+            // Track the selected category
+            ValueNotifier<List<NoticeItem>> selectedNotifier = defaultStateNotifier;
+            
+            // Available tags and selected tags
+            final List<String> availableTags = ['Academic', 'Event', 'Workshop', 'Maintenance', 'Job', 'Lecture', 'General', 'Research'];
+            List<String> selectedTags = existingNotice?.tags.toList() ?? ['General'];
+
+            return Padding(
+              padding: EdgeInsets.only(
+                bottom: MediaQuery.of(context).viewInsets.bottom,
+                left: 24,
+                right: 24,
+                top: 24,
+              ),
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(existingNotice == null ? 'Add Notice' : 'Edit Notice', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+                    const SizedBox(height: 16),
+                    
+                    // Category Selection
+                    if (existingNotice == null) ...[
+                      const Text('Notice Category', style: TextStyle(fontWeight: FontWeight.bold)),
+                      const SizedBox(height: 8),
+                      SegmentedButton<ValueNotifier<List<NoticeItem>>>(
+                        segments: [
+                          ButtonSegment(value: clubNoticesState, label: const Text('Club')),
+                          ButtonSegment(value: deptNoticesState, label: const Text('Department')),
+                        ],
+                        selected: {selectedNotifier},
+                        onSelectionChanged: (Set<ValueNotifier<List<NoticeItem>>> newSelection) {
+                          setModalState(() {
+                            selectedNotifier = newSelection.first;
+                          });
+                        },
+                      ),
+                      const SizedBox(height: 16),
+                    ],
+
+                    TextField(
+                      controller: titleController,
+                      decoration: const InputDecoration(labelText: 'Title', border: OutlineInputBorder()),
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: subtitleController,
+                      decoration: const InputDecoration(labelText: 'Subtitle', border: OutlineInputBorder()),
+                      maxLines: 3,
+                    ),
+                    const SizedBox(height: 16),
+                    
+                    // Tags Selection
+                    const Text('Tags', style: TextStyle(fontWeight: FontWeight.bold)),
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 8.0,
+                      runSpacing: 4.0,
+                      children: availableTags.map((tag) {
+                        return FilterChip(
+                          label: Text(tag, style: const TextStyle(fontSize: 12)),
+                          selected: selectedTags.contains(tag),
+                          onSelected: (bool selected) {
+                            setModalState(() {
+                              if (selected) {
+                                if (selectedTags.contains('General') && tag != 'General') {
+                                  selectedTags.remove('General');
+                                }
+                                selectedTags.add(tag);
+                              } else {
+                                selectedTags.remove(tag);
+                                if (selectedTags.isEmpty) {
+                                  selectedTags.add('General');
+                                }
+                              }
+                            });
+                          },
+                        );
+                      }).toList(),
+                    ),
+                    
+                    const SizedBox(height: 24),
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        onPressed: () {
+                          if (titleController.text.isNotEmpty) {
+                            if (existingNotice == null) {
+                              // Add new
+                              final newNotice = NoticeItem(
+                                id: DateTime.now().millisecondsSinceEpoch.toString(),
+                                icon: Icons.notifications,
+                                iconColor: Colors.blue,
+                                title: titleController.text,
+                                subtitle: subtitleController.text,
+                                tags: selectedTags,
+                                tagColor: Colors.blue,
+                                date: 'Just now',
+                              );
+                              selectedNotifier.value = List.from(selectedNotifier.value)..insert(0, newNotice);
+                            } else {
+                              // Edit existing
+                              final index = defaultStateNotifier.value.indexOf(existingNotice);
+                              if (index != -1) {
+                                final updatedList = List<NoticeItem>.from(defaultStateNotifier.value);
+                                updatedList[index] = NoticeItem(
+                                  id: existingNotice.id,
+                                  icon: existingNotice.icon,
+                                  iconColor: existingNotice.iconColor,
+                                  title: titleController.text,
+                                  subtitle: subtitleController.text,
+                                  tags: selectedTags,
+                                  tagColor: existingNotice.tagColor,
+                                  date: existingNotice.date,
+                                  isPinned: existingNotice.isPinned,
+                                );
+                                defaultStateNotifier.value = updatedList;
+                              }
+                            }
+                            Navigator.pop(context);
+                          }
+                        },
+                        child: Text(existingNotice == null ? 'Create' : 'Update'),
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+                  ],
+                ),
+              ),
+            );
+          }
+        );
+      },
+    );
   }
 
   @override
@@ -128,55 +176,81 @@ class _NoticesScreenState extends State<NoticesScreen> {
 
     return DefaultTabController(
       length: 2,
-      child: Column( // Replaced Scaffold with Column
-        children: [
-          // 1. The TabBar
-          Container(
-            color: colors.primary, // Matches your original AppBar background
-            child: const TabBar(
-              labelColor: Colors.white,
-              unselectedLabelColor: Colors.white70,
-              indicatorColor: Colors.white,
-              indicatorWeight: 3,
-              tabs: [
-                Tab(text: 'Club Notices'),
-                Tab(text: 'Department Notices'),
-              ],
+      child: Scaffold(
+        body: Column(
+          children: [
+            // 1. The TabBar
+            Container(
+              color: colors.primary, // Matches your original AppBar background
+              child: const TabBar(
+                labelColor: Colors.white,
+                unselectedLabelColor: Colors.white70,
+                indicatorColor: Colors.white,
+                indicatorWeight: 3,
+                tabs: [
+                  Tab(text: 'Club Notices'),
+                  Tab(text: 'Department Notices'),
+                ],
+              ),
             ),
-          ),
 
-          // 2. The Tab Views
-          Expanded( // Expanded is required so TabBarView knows how much space to take
-            child: TabBarView(
-              children: [
-                _buildNoticesList(clubNotices),
-                _buildNoticesList(deptNotices),
-              ],
+            // 2. The Tab Views
+            Expanded(
+              child: TabBarView(
+                children: [
+                  _buildNoticesTab(clubNoticesState),
+                  _buildNoticesTab(deptNoticesState),
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
+        floatingActionButton: ValueListenableBuilder<ProfileData>(
+          valueListenable: currentProfile,
+          builder: (context, profile, _) {
+            if (profile.role == UserRole.committeeMember) {
+              return Builder(
+                builder: (context) {
+                  return FloatingActionButton(
+                    onPressed: () {
+                      final tabIndex = DefaultTabController.of(context).index;
+                      final targetState = tabIndex == 0 ? clubNoticesState : deptNoticesState;
+                      _showNoticeForm(context, targetState);
+                    },
+                    child: const Icon(Icons.add),
+                  );
+                }
+              );
+            }
+            return const SizedBox.shrink();
+          },
+        ),
       ),
     );
   }
 
-  Widget _buildNoticesList(List<NoticeItem> notices) {
-    // Dynamically filter lists based on their current pinned status
-    final pinnedNotices = notices.where((n) => n.isPinned).toList();
-    final unpinnedNotices = notices.where((n) => !n.isPinned).toList();
+  Widget _buildNoticesTab(ValueNotifier<List<NoticeItem>> stateNotifier) {
+    return ValueListenableBuilder<List<NoticeItem>>(
+      valueListenable: stateNotifier,
+      builder: (context, notices, _) {
+        final pinnedNotices = notices.where((n) => n.isPinned).toList();
+        final unpinnedNotices = notices.where((n) => !n.isPinned).toList();
 
-    return ListView(
-      padding: const EdgeInsets.all(16.0),
-      children: [
-        if (pinnedNotices.isNotEmpty) ...[
-          _buildSectionTitle('📌 Pinned Notices'),
-          ...pinnedNotices.map((notice) => _buildNoticeCard(notice)),
-          const SizedBox(height: 16),
-        ],
-        if (unpinnedNotices.isNotEmpty) ...[
-          _buildSectionTitle('All Notices'),
-          ...unpinnedNotices.map((notice) => _buildNoticeCard(notice)),
-        ],
-      ],
+        return ListView(
+          padding: const EdgeInsets.all(16.0),
+          children: [
+            if (pinnedNotices.isNotEmpty) ...[
+              _buildSectionTitle('📌 Pinned Notices'),
+              ...pinnedNotices.map((notice) => _buildNoticeCard(notice, stateNotifier)),
+              const SizedBox(height: 16),
+            ],
+            if (unpinnedNotices.isNotEmpty) ...[
+              _buildSectionTitle('All Notices'),
+              ...unpinnedNotices.map((notice) => _buildNoticeCard(notice, stateNotifier)),
+            ],
+          ],
+        );
+      },
     );
   }
 
@@ -194,7 +268,7 @@ class _NoticesScreenState extends State<NoticesScreen> {
     );
   }
 
-  Widget _buildNoticeCard(NoticeItem notice) {
+  Widget _buildNoticeCard(NoticeItem notice, ValueNotifier<List<NoticeItem>> stateNotifier) {
     final colors = Theme.of(context).colorScheme;
 
     // Pinned cards get a subtle yellowish background tint in light mode
@@ -205,7 +279,7 @@ class _NoticesScreenState extends State<NoticesScreen> {
     final borderColor = notice.isPinned ? Colors.amber.withOpacity(0.5) : colors.outline.withOpacity(0.1);
 
     return Card(
-      key: ValueKey(notice.id), // Helps Flutter animate list changes smoothly
+      key: ValueKey(notice.id),
       margin: const EdgeInsets.only(bottom: 12),
       elevation: 0,
       color: backgroundColor,
@@ -243,7 +317,7 @@ class _NoticesScreenState extends State<NoticesScreen> {
                               style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, height: 1.2),
                             ),
                           ),
-                          // The Interactive Pin Button
+                          // Pinned Button
                           Padding(
                             padding: const EdgeInsets.only(left: 8.0),
                             child: IconButton(
@@ -252,11 +326,34 @@ class _NoticesScreenState extends State<NoticesScreen> {
                                 color: notice.isPinned ? Colors.redAccent : colors.onSurface.withOpacity(0.3),
                                 size: 22,
                               ),
-                              onPressed: () => _togglePin(notice),
+                              onPressed: () => _togglePin(notice, stateNotifier),
                               padding: EdgeInsets.zero,
-                              constraints: const BoxConstraints(), // Removes default padding around IconButton
+                              constraints: const BoxConstraints(),
                               splashRadius: 24,
                             ),
+                          ),
+                          // Edit/Delete options for Committee Member
+                          ValueListenableBuilder<ProfileData>(
+                            valueListenable: currentProfile,
+                            builder: (context, profile, _) {
+                              if (profile.role == UserRole.committeeMember) {
+                                return PopupMenuButton<String>(
+                                  icon: const Icon(Icons.more_vert, size: 20),
+                                  onSelected: (value) {
+                                    if (value == 'edit') {
+                                      _showNoticeForm(context, stateNotifier, existingNotice: notice);
+                                    } else if (value == 'delete') {
+                                      _deleteNotice(notice, stateNotifier);
+                                    }
+                                  },
+                                  itemBuilder: (context) => [
+                                    const PopupMenuItem(value: 'edit', child: Text('Edit')),
+                                    const PopupMenuItem(value: 'delete', child: Text('Delete', style: TextStyle(color: Colors.red))),
+                                  ],
+                                );
+                              }
+                              return const SizedBox.shrink();
+                            },
                           ),
                         ],
                       ),
@@ -273,19 +370,26 @@ class _NoticesScreenState extends State<NoticesScreen> {
             const SizedBox(height: 16),
             Row(
               children: [
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: notice.isPinned ? Colors.white : notice.tagColor.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(6),
-                    border: Border.all(color: notice.tagColor.withOpacity(0.3)),
-                  ),
-                  child: Text(
-                    notice.tag,
-                    style: TextStyle(color: notice.tagColor, fontSize: 11, fontWeight: FontWeight.bold),
+                Expanded(
+                  child: Wrap(
+                    spacing: 6.0,
+                    runSpacing: 4.0,
+                    children: notice.tags.map((tag) {
+                      return Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: notice.isPinned ? Colors.white : notice.tagColor.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(6),
+                          border: Border.all(color: notice.tagColor.withOpacity(0.3)),
+                        ),
+                        child: Text(
+                          tag,
+                          style: TextStyle(color: notice.tagColor, fontSize: 11, fontWeight: FontWeight.bold),
+                        ),
+                      );
+                    }).toList(),
                   ),
                 ),
-                const Spacer(),
                 Icon(Icons.calendar_today, size: 12, color: colors.onSurface.withOpacity(0.5)),
                 const SizedBox(width: 4),
                 Text(

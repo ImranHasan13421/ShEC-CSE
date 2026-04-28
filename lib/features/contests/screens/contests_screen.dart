@@ -1,15 +1,117 @@
 import 'package:flutter/material.dart';
-import 'package:url_launcher/url_launcher.dart'; // Make sure you added this to pubspec.yaml
+import 'package:url_launcher/url_launcher.dart';
+import 'package:ShEC_CSE/features/profile/models/profile_state.dart';
+import '../models/contest_state.dart';
 
-class ContestsScreen extends StatelessWidget {
+class ContestsScreen extends StatefulWidget {
   const ContestsScreen({super.key});
 
-  // Helper method to open URLs in the external browser
+  @override
+  State<ContestsScreen> createState() => _ContestsScreenState();
+}
+
+class _ContestsScreenState extends State<ContestsScreen> {
   Future<void> _launchURL(String urlString) async {
     final Uri url = Uri.parse(urlString);
     if (!await launchUrl(url, mode: LaunchMode.externalApplication)) {
       debugPrint('Could not launch $urlString');
     }
+  }
+
+  void _showForm(BuildContext context, ValueNotifier<List<ContestItem>> stateNotifier, bool isCourse, {ContestItem? existingItem}) {
+    final titleController = TextEditingController(text: existingItem?.title ?? '');
+    final platformController = TextEditingController(text: existingItem?.platform ?? '');
+    final levelController = TextEditingController(text: existingItem?.level ?? '');
+    final dateController = TextEditingController(text: existingItem?.date ?? '');
+    final urlController = TextEditingController(text: existingItem?.url ?? '');
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (context) {
+        return Padding(
+          padding: EdgeInsets.only(
+            bottom: MediaQuery.of(context).viewInsets.bottom,
+            left: 24,
+            right: 24,
+            top: 24,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(existingItem == null ? (isCourse ? 'Add Course' : 'Add Contest') : (isCourse ? 'Edit Course' : 'Edit Contest'), style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 16),
+              TextField(
+                controller: titleController,
+                decoration: const InputDecoration(labelText: 'Title', border: OutlineInputBorder()),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: platformController,
+                decoration: const InputDecoration(labelText: 'Platform / Provider', border: OutlineInputBorder()),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: levelController,
+                decoration: const InputDecoration(labelText: 'Level / Tag', border: OutlineInputBorder()),
+              ),
+              if (!isCourse) ...[
+                const SizedBox(height: 12),
+                TextField(
+                  controller: dateController,
+                  decoration: const InputDecoration(labelText: 'Date / Frequency', border: OutlineInputBorder()),
+                ),
+              ],
+              const SizedBox(height: 12),
+              TextField(
+                controller: urlController,
+                decoration: const InputDecoration(labelText: 'URL', border: OutlineInputBorder()),
+              ),
+              const SizedBox(height: 24),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: () {
+                    if (titleController.text.isNotEmpty) {
+                      final newItem = ContestItem(
+                        id: existingItem?.id ?? DateTime.now().millisecondsSinceEpoch.toString(),
+                        title: titleController.text,
+                        platform: platformController.text,
+                        level: levelController.text,
+                        date: dateController.text,
+                        url: urlController.text,
+                        iconColor: existingItem?.iconColor ?? Colors.blue,
+                        isCourse: isCourse,
+                      );
+
+                      if (existingItem == null) {
+                        stateNotifier.value = List.from(stateNotifier.value)..insert(0, newItem);
+                      } else {
+                        final index = stateNotifier.value.indexOf(existingItem);
+                        if (index != -1) {
+                          final updatedList = List<ContestItem>.from(stateNotifier.value);
+                          updatedList[index] = newItem;
+                          stateNotifier.value = updatedList;
+                        }
+                      }
+                      Navigator.pop(context);
+                    }
+                  },
+                  child: Text(existingItem == null ? 'Create' : 'Update'),
+                ),
+              ),
+              const SizedBox(height: 24),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  void _deleteItem(ContestItem item, ValueNotifier<List<ContestItem>> stateNotifier) {
+    stateNotifier.value = List.from(stateNotifier.value)..remove(item);
   }
 
   @override
@@ -18,197 +120,80 @@ class ContestsScreen extends StatelessWidget {
 
     return DefaultTabController(
       length: 2,
-      child: Column(
-        children: [
-          // 1. The TabBar
-          Container(
-            color: colors.primary,
-            child: const TabBar(
-              labelColor: Colors.white,
-              unselectedLabelColor: Colors.white70,
-              indicatorColor: Colors.white,
-              indicatorWeight: 3,
-              tabs: [
-                Tab(text: 'Contests'),
-                Tab(text: 'Events & Courses'),
-              ],
+      child: Scaffold(
+        body: Column(
+          children: [
+            Container(
+              color: colors.primary,
+              child: const TabBar(
+                labelColor: Colors.white,
+                unselectedLabelColor: Colors.white70,
+                indicatorColor: Colors.white,
+                indicatorWeight: 3,
+                tabs: [
+                  Tab(text: 'Contests'),
+                  Tab(text: 'Events & Courses'),
+                ],
+              ),
             ),
-          ),
-
-          // 2. The Tab Views
-          Expanded(
-            child: TabBarView(
-              children: [
-                _buildContestsTab(context),
-                _buildCoursesTab(context),
-              ],
+            Expanded(
+              child: TabBarView(
+                children: [
+                  _buildTab(context, contestState, false),
+                  _buildTab(context, courseState, true),
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
+        floatingActionButton: ValueListenableBuilder<ProfileData>(
+          valueListenable: currentProfile,
+          builder: (context, profile, _) {
+            if (profile.role == UserRole.committeeMember) {
+              return Builder(
+                builder: (context) {
+                  return FloatingActionButton(
+                    onPressed: () {
+                      final tabIndex = DefaultTabController.of(context).index;
+                      if (tabIndex == 0) {
+                        _showForm(context, contestState, false);
+                      } else {
+                        _showForm(context, courseState, true);
+                      }
+                    },
+                    child: const Icon(Icons.add),
+                  );
+                }
+              );
+            }
+            return const SizedBox.shrink();
+          },
+        ),
       ),
     );
   }
 
-  Widget _buildContestsTab(BuildContext context) {
-    return ListView(
-      padding: const EdgeInsets.all(16.0),
-      children: [
-        _buildContestCard(
-          context: context,
-          iconColor: Colors.blue,
-          title: 'Codeforces Rounds',
-          platform: 'Codeforces',
-          level: 'Div 1, 2, 3, 4',
-          date: 'Frequent / Weekly',
-          url: 'https://codeforces.com/contests',
-        ),
-        _buildContestCard(
-          context: context,
-          iconColor: Colors.orange,
-          title: 'LeetCode Weekly Contest',
-          platform: 'LeetCode',
-          level: 'All Levels',
-          date: 'Every Sunday',
-          url: 'https://leetcode.com/contest/',
-        ),
-        _buildContestCard(
-          context: context,
-          iconColor: Colors.teal,
-          title: 'AtCoder Beginner Contest',
-          platform: 'AtCoder',
-          level: 'Beginner / Intermediate',
-          date: 'Weekends',
-          url: 'https://atcoder.jp/contests/',
-        ),
-        _buildContestCard(
-          context: context,
-          iconColor: Colors.brown,
-          title: 'CodeChef Starters',
-          platform: 'CodeChef',
-          level: 'Rated for All',
-          date: 'Every Wednesday',
-          url: 'https://www.codechef.com/contests',
-        ),
-        _buildContestCard(
-          context: context,
-          iconColor: Colors.indigo,
-          title: 'HackerEarth Challenges',
-          platform: 'HackerEarth',
-          level: 'Various',
-          date: 'Ongoing & Monthly',
-          url: 'https://www.hackerearth.com/challenges/',
-        ),
-      ],
+  Widget _buildTab(BuildContext context, ValueNotifier<List<ContestItem>> stateNotifier, bool isCourse) {
+    return ValueListenableBuilder<List<ContestItem>>(
+      valueListenable: stateNotifier,
+      builder: (context, items, _) {
+        return ListView.builder(
+          padding: const EdgeInsets.all(16.0),
+          itemCount: items.length,
+          itemBuilder: (context, index) {
+            final item = items[index];
+            if (isCourse) {
+              return _buildCourseCard(context, item, stateNotifier);
+            } else {
+              return _buildContestCard(context, item, stateNotifier);
+            }
+          },
+        );
+      },
     );
   }
 
-  Widget _buildCoursesTab(BuildContext context) {
-    return ListView(
-      padding: const EdgeInsets.all(16.0),
-      children: [
-        _buildCourseCard(
-          context: context,
-          icon: Icons.computer,
-          iconColor: Colors.redAccent,
-          title: "CS50's Intro to Computer Science",
-          provider: 'Harvard University',
-          tag: 'Free / Cert Optional',
-          url: 'https://pll.harvard.edu/course/cs50-introduction-computer-science',
-        ),
-        _buildCourseCard(
-          context: context,
-          icon: Icons.web,
-          iconColor: Colors.indigo,
-          title: 'Responsive Web Design',
-          provider: 'freeCodeCamp',
-          tag: 'Free Certificate',
-          url: 'https://www.freecodecamp.org/learn/responsive-web-design/',
-        ),
-        _buildCourseCard(
-          context: context,
-          icon: Icons.psychology,
-          iconColor: Colors.blue,
-          title: 'Machine Learning Specialization',
-          provider: 'DeepLearning.AI',
-          tag: 'Free to Audit',
-          url: 'https://www.coursera.org/specializations/machine-learning-introduction',
-        ),
-        _buildCourseCard(
-          context: context,
-          icon: Icons.developer_mode,
-          iconColor: Colors.teal,
-          title: 'Full Stack Open',
-          provider: 'University of Helsinki',
-          tag: 'Free Certificate',
-          url: 'https://fullstackopen.com/en/',
-        ),
-        _buildCourseCard(
-          context: context,
-          icon: Icons.lightbulb,
-          iconColor: Colors.amber,
-          title: 'Elements of AI',
-          provider: 'University of Helsinki',
-          tag: 'Free Certificate',
-          url: 'https://www.elementsofai.com/',
-        ),
-        _buildCourseCard(
-          context: context,
-          icon: Icons.code,
-          iconColor: Colors.deepPurple,
-          title: 'Python for Everybody',
-          provider: 'University of Michigan',
-          tag: 'Free to Audit',
-          url: 'https://www.coursera.org/specializations/python',
-        ),
-        _buildCourseCard(
-          context: context,
-          icon: Icons.data_object,
-          iconColor: Colors.indigoAccent,
-          title: 'JS Algorithms & Data Structures',
-          provider: 'freeCodeCamp',
-          tag: 'Free Certificate',
-          url: 'https://www.freecodecamp.org/learn/javascript-algorithms-and-data-structures/',
-        ),
-        _buildCourseCard(
-          context: context,
-          icon: Icons.cloud,
-          iconColor: Colors.cyan,
-          title: 'Introduction to Cloud Computing',
-          provider: 'IBM',
-          tag: 'Free to Audit',
-          url: 'https://www.coursera.org/learn/introduction-to-cloud',
-        ),
-        _buildCourseCard(
-          context: context,
-          icon: Icons.terminal,
-          iconColor: Colors.grey.shade800,
-          title: 'Intro to CS & Programming in Python',
-          provider: 'MIT OpenCourseWare',
-          tag: 'Free Course',
-          url: 'https://ocw.mit.edu/courses/6-0001-introduction-to-computer-science-and-programming-in-python-fall-2016/',
-        ),
-        _buildCourseCard(
-          context: context,
-          icon: Icons.language,
-          iconColor: Colors.redAccent,
-          title: "CS50's Web Programming",
-          provider: 'Harvard University',
-          tag: 'Free / Cert Optional',
-          url: 'https://pll.harvard.edu/course/cs50s-web-programming-python-and-javascript',
-        ),
-      ],
-    );
-  }
-
-  Widget _buildContestCard({
-    required BuildContext context,
-    required Color iconColor,
-    required String title,
-    required String platform,
-    required String level,
-    required String date,
-    required String url,
-  }) {
+  Widget _buildContestCard(BuildContext context, ContestItem item, ValueNotifier<List<ContestItem>> stateNotifier) {
     final colors = Theme.of(context).colorScheme;
 
     return Card(
@@ -228,21 +213,27 @@ class ContestsScreen extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.all(10),
                   decoration: BoxDecoration(
-                    color: iconColor.withOpacity(0.1),
+                    color: item.iconColor.withOpacity(0.1),
                     shape: BoxShape.circle,
                   ),
-                  child: Icon(Icons.emoji_events, color: iconColor, size: 24),
+                  child: Icon(Icons.emoji_events, color: item.iconColor, size: 24),
                 ),
                 const SizedBox(width: 16),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Expanded(child: Text(item.title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16))),
+                          _buildAdminMenu(item, stateNotifier),
+                        ],
+                      ),
                       const SizedBox(height: 6),
                       Row(
                         children: [
-                          Text(platform, style: TextStyle(color: colors.onSurface.withOpacity(0.7), fontSize: 13)),
+                          Text(item.platform, style: TextStyle(color: colors.onSurface.withOpacity(0.7), fontSize: 13)),
                           const SizedBox(width: 8),
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
@@ -250,7 +241,7 @@ class ContestsScreen extends StatelessWidget {
                               color: colors.error.withOpacity(0.1),
                               borderRadius: BorderRadius.circular(4),
                             ),
-                            child: Text(level, style: TextStyle(color: colors.error, fontSize: 10, fontWeight: FontWeight.bold)),
+                            child: Text(item.level, style: TextStyle(color: colors.error, fontSize: 10, fontWeight: FontWeight.bold)),
                           ),
                         ],
                       ),
@@ -267,11 +258,11 @@ class ContestsScreen extends StatelessWidget {
                   children: [
                     Icon(Icons.calendar_today, size: 14, color: colors.onSurface.withOpacity(0.6)),
                     const SizedBox(width: 6),
-                    Text(date, style: TextStyle(color: colors.onSurface.withOpacity(0.6), fontSize: 13, fontWeight: FontWeight.w500)),
+                    Text(item.date, style: TextStyle(color: colors.onSurface.withOpacity(0.6), fontSize: 13, fontWeight: FontWeight.w500)),
                   ],
                 ),
                 ElevatedButton(
-                  onPressed: () => _launchURL(url), // Launches browser URL
+                  onPressed: () => _launchURL(item.url),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: colors.primary,
                     foregroundColor: Colors.white,
@@ -289,15 +280,7 @@ class ContestsScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildCourseCard({
-    required BuildContext context,
-    required IconData icon,
-    required Color iconColor,
-    required String title,
-    required String provider,
-    required String tag,
-    required String url,
-  }) {
+  Widget _buildCourseCard(BuildContext context, ContestItem item, ValueNotifier<List<ContestItem>> stateNotifier) {
     final colors = Theme.of(context).colorScheme;
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
@@ -312,19 +295,25 @@ class ContestsScreen extends StatelessWidget {
         leading: Container(
           padding: const EdgeInsets.all(10),
           decoration: BoxDecoration(
-            color: iconColor.withOpacity(0.1),
+            color: item.iconColor.withOpacity(0.1),
             borderRadius: BorderRadius.circular(8),
           ),
-          child: Icon(icon, color: iconColor),
+          child: Icon(Icons.computer, color: item.iconColor),
         ),
-        title: Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
+        title: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Expanded(child: Text(item.title, style: const TextStyle(fontWeight: FontWeight.bold))),
+            _buildAdminMenu(item, stateNotifier),
+          ],
+        ),
         subtitle: Padding(
           padding: const EdgeInsets.only(top: 8.0),
           child: Row(
             children: [
-              Flexible( // Added Flexible to prevent overflow on small screens
+              Flexible(
                 child: Text(
-                  provider,
+                  item.platform,
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
@@ -335,13 +324,13 @@ class ContestsScreen extends StatelessWidget {
                   color: colors.primary.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(4),
                 ),
-                child: Text(tag, style: TextStyle(color: colors.primary, fontSize: 10, fontWeight: FontWeight.bold)),
+                child: Text(item.level, style: TextStyle(color: colors.primary, fontSize: 10, fontWeight: FontWeight.bold)),
               ),
             ],
           ),
         ),
         trailing: ElevatedButton(
-          onPressed: () => _launchURL(url), // Launches browser URL
+          onPressed: () => _launchURL(item.url),
           style: ElevatedButton.styleFrom(
             backgroundColor: colors.surfaceContainerHighest,
             foregroundColor: colors.primary,
@@ -350,6 +339,31 @@ class ContestsScreen extends StatelessWidget {
           child: const Text('Details'),
         ),
       ),
+    );
+  }
+
+  Widget _buildAdminMenu(ContestItem item, ValueNotifier<List<ContestItem>> stateNotifier) {
+    return ValueListenableBuilder<ProfileData>(
+      valueListenable: currentProfile,
+      builder: (context, profile, _) {
+        if (profile.role == UserRole.committeeMember) {
+          return PopupMenuButton<String>(
+            icon: const Icon(Icons.more_vert, size: 20),
+            onSelected: (value) {
+              if (value == 'edit') {
+                _showForm(context, stateNotifier, item.isCourse, existingItem: item);
+              } else if (value == 'delete') {
+                _deleteItem(item, stateNotifier);
+              }
+            },
+            itemBuilder: (context) => [
+              const PopupMenuItem(value: 'edit', child: Text('Edit')),
+              const PopupMenuItem(value: 'delete', child: Text('Delete', style: TextStyle(color: Colors.red))),
+            ],
+          );
+        }
+        return const SizedBox.shrink();
+      },
     );
   }
 }

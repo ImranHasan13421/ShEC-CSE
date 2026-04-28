@@ -25,7 +25,7 @@ class DashboardScreen extends StatelessWidget {
 
     // DEEP LINK: Direct to 3rd Year, Semester 1, Session 20-21
       case 'res_3_1_20':
-        Navigator.push(context, MaterialPageRoute(builder: (_) => const PdfsScreen(title: 'Session 20-21 Resources', color: Colors.teal)));
+        Navigator.push(context, MaterialPageRoute(builder: (_) => const PdfsScreen(title: 'Session 20-21 Resources', color: Colors.teal, session: '',)));
         break;
     }
   }
@@ -121,8 +121,10 @@ class DashboardScreen extends StatelessWidget {
                 });
               }
 
+              final unselectedShortcuts = availableShortcuts.where((item) => !activeShortcuts.value.contains(item)).toList();
+
               return Container(
-                height: MediaQuery.of(context).size.height * 0.7, // Take 70% of screen height
+                height: MediaQuery.of(context).size.height * 0.8, // Take 80% of screen height
                 padding: const EdgeInsets.all(24.0),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -136,26 +138,63 @@ class DashboardScreen extends StatelessWidget {
                       ],
                     ),
                     const SizedBox(height: 8),
-                    Text('Select up to 4 shortcuts for your dashboard.', style: TextStyle(color: colors.onSurface.withOpacity(0.6))),
+                    Text('Select and drag up to 4 shortcuts for your dashboard.', style: TextStyle(color: colors.onSurface.withOpacity(0.6))),
                     const SizedBox(height: 16),
 
-                    // List of all available shortcuts
+                    if (activeShortcuts.value.isNotEmpty) ...[
+                      const Text('Active Shortcuts (Drag to reorder)', style: TextStyle(fontWeight: FontWeight.bold)),
+                      const SizedBox(height: 8),
+                      ReorderableListView(
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
+                        onReorder: (oldIndex, newIndex) {
+                          setModalState(() {
+                            if (oldIndex < newIndex) {
+                              newIndex -= 1;
+                            }
+                            final item = activeShortcuts.value.removeAt(oldIndex);
+                            activeShortcuts.value.insert(newIndex, item);
+                            activeShortcuts.value = List.from(activeShortcuts.value);
+                          });
+                        },
+                        children: activeShortcuts.value.map((item) {
+                          return ListTile(
+                            key: ValueKey('active_${item.id}'),
+                            contentPadding: EdgeInsets.zero,
+                            leading: CircleAvatar(backgroundColor: item.color.withOpacity(0.1), child: Icon(item.icon, color: item.color, size: 20)),
+                            title: Text(item.title, style: const TextStyle(fontWeight: FontWeight.w600)),
+                            trailing: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                IconButton(
+                                  icon: const Icon(Icons.remove_circle, color: Colors.redAccent),
+                                  onPressed: () => toggleShortcut(item),
+                                ),
+                                const Icon(Icons.drag_handle, color: Colors.grey),
+                              ],
+                            ),
+                          );
+                        }).toList(),
+                      ),
+                      const Divider(height: 32),
+                    ],
+
+                    const Text('Available Shortcuts', style: TextStyle(fontWeight: FontWeight.bold)),
+                    const SizedBox(height: 8),
+                    // List of available shortcuts
                     Expanded(
                       child: ListView.separated(
-                        itemCount: availableShortcuts.length,
+                        itemCount: unselectedShortcuts.length,
                         separatorBuilder: (context, index) => const Divider(height: 1),
                         itemBuilder: (context, index) {
-                          final item = availableShortcuts[index];
-                          final isSelected = activeShortcuts.value.contains(item);
-
+                          final item = unselectedShortcuts[index];
                           return ListTile(
                             contentPadding: EdgeInsets.zero,
                             leading: CircleAvatar(backgroundColor: item.color.withOpacity(0.1), child: Icon(item.icon, color: item.color, size: 20)),
                             title: Text(item.title, style: const TextStyle(fontWeight: FontWeight.w600)),
-                            trailing: Checkbox(
-                              value: isSelected,
-                              activeColor: colors.primary,
-                              onChanged: (bool? value) => toggleShortcut(item),
+                            trailing: IconButton(
+                              icon: const Icon(Icons.add_circle, color: Colors.green),
+                              onPressed: () => toggleShortcut(item),
                             ),
                             onTap: () => toggleShortcut(item),
                           );

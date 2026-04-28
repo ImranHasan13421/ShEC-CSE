@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:ShEC_CSE/features/profile/models/profile_state.dart';
+import '../models/resource_state.dart';
 
 // ==========================================
 // 1. YEARS SCREEN
@@ -77,9 +79,9 @@ class SemestersScreen extends StatelessWidget {
       body: ListView(
         padding: const EdgeInsets.all(16.0),
         children: [
-          Padding(
-            padding: const EdgeInsets.only(bottom: 16.0, left: 4.0),
-            child: Text('Select Semester', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+          const Padding(
+            padding: EdgeInsets.only(bottom: 16.0, left: 4.0),
+            child: Text('Select Semester', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
           ),
           _buildSemesterCard(context, 1, colors),
           _buildSemesterCard(context, 2, colors),
@@ -136,8 +138,6 @@ class SessionsScreen extends StatelessWidget {
     required this.color,
   });
 
-  // Hardcoded manual mapping for session blocks
-  // Will be replaced by Admin API/Database fetch in the future
   List<String> _getValidSessions() {
     if (yearIndex == 4) {
       if (semIndex == 1) return ['19-20', '20-21'];
@@ -152,7 +152,7 @@ class SessionsScreen extends StatelessWidget {
       if (semIndex == 1) return ['19-20', '20-21', '21-22', '22-23', '23-24', '24-25'];
       if (semIndex == 2) return ['19-20', '20-21', '21-22', '22-23', '23-24'];
     }
-    return []; // Fallback empty list
+    return [];
   }
 
   @override
@@ -200,6 +200,7 @@ class SessionsScreen extends StatelessWidget {
                   MaterialPageRoute(
                     builder: (context) => PdfsScreen(
                       title: 'Session $session Resources',
+                      session: session,
                       color: color,
                     ),
                   ),
@@ -219,83 +220,200 @@ class SessionsScreen extends StatelessWidget {
 // ==========================================
 class PdfsScreen extends StatelessWidget {
   final String title;
+  final String session;
   final Color color;
 
-  const PdfsScreen({super.key, required this.title, required this.color});
+  const PdfsScreen({super.key, required this.title, required this.session, required this.color});
+
+  void _showForm(BuildContext context, {ResourceItem? existingItem}) {
+    final nameController = TextEditingController(text: existingItem?.name ?? '');
+    final sizeController = TextEditingController(text: existingItem?.size ?? '1.5 MB');
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (context) {
+        return Padding(
+          padding: EdgeInsets.only(
+            bottom: MediaQuery.of(context).viewInsets.bottom,
+            left: 24,
+            right: 24,
+            top: 24,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(existingItem == null ? 'Add Resource' : 'Edit Resource', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 16),
+              TextField(
+                controller: nameController,
+                decoration: const InputDecoration(labelText: 'File Name', border: OutlineInputBorder()),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: sizeController,
+                decoration: const InputDecoration(labelText: 'File Size', border: OutlineInputBorder()),
+              ),
+              const SizedBox(height: 24),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: () {
+                    if (nameController.text.isNotEmpty) {
+                      final newItem = ResourceItem(
+                        id: existingItem?.id ?? DateTime.now().millisecondsSinceEpoch.toString(),
+                        name: nameController.text,
+                        size: sizeController.text,
+                        date: 'Just now',
+                        session: session,
+                      );
+
+                      if (existingItem == null) {
+                        resourceState.value = List.from(resourceState.value)..insert(0, newItem);
+                      } else {
+                        final index = resourceState.value.indexOf(existingItem);
+                        if (index != -1) {
+                          final updatedList = List<ResourceItem>.from(resourceState.value);
+                          updatedList[index] = newItem;
+                          resourceState.value = updatedList;
+                        }
+                      }
+                      Navigator.pop(context);
+                    }
+                  },
+                  child: Text(existingItem == null ? 'Upload' : 'Update'),
+                ),
+              ),
+              const SizedBox(height: 24),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  void _deleteItem(ResourceItem item) {
+    resourceState.value = List.from(resourceState.value)..remove(item);
+  }
 
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
 
-    // Placeholder data to show how it will look once the admin uploads files
-    final List<Map<String, String>> dummyPdfs = [
-      {'name': 'Semester Final Question.pdf', 'size': '1.2 MB', 'date': 'Added 2 months ago'},
-      {'name': 'Semester Final All Course Notes .pdf', 'size': '36.6 MB', 'date': 'Added 3 months ago'},
-    ];
-
     return Scaffold(
       appBar: AppBar(title: Text(title)),
-      body: ListView(
-        padding: const EdgeInsets.all(16.0),
-        children: [
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: color.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: color.withOpacity(0.3)),
-            ),
-            child: Row(
-              children: [
-                Icon(Icons.info_outline, color: color),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    'These are placeholder files. The real question papers will be dynamically fetched here once the Admin Panel is live.',
-                    style: TextStyle(color: color, fontSize: 13, fontWeight: FontWeight.w500),
-                  ),
+      body: ValueListenableBuilder<List<ResourceItem>>(
+        valueListenable: resourceState,
+        builder: (context, items, _) {
+          // Filter resources for this specific session
+          final sessionItems = items.where((i) => i.session == session).toList();
+
+          return ListView(
+            padding: const EdgeInsets.all(16.0),
+            children: [
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: color.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: color.withOpacity(0.3)),
                 ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 24),
-          ...dummyPdfs.map((pdf) => Card(
-            margin: const EdgeInsets.only(bottom: 12),
-            elevation: 0,
-            color: colors.surface,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-              side: BorderSide(color: colors.outline.withOpacity(0.1)),
-            ),
-            child: ListTile(
-              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              leading: Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(color: Colors.redAccent.withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
-                child: const Icon(Icons.picture_as_pdf, color: Colors.redAccent),
-              ),
-              title: Text(pdf['name']!, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-              subtitle: Padding(
-                padding: const EdgeInsets.only(top: 4.0),
                 child: Row(
                   children: [
-                    Text(pdf['size']!, style: TextStyle(color: colors.onSurface.withOpacity(0.6), fontSize: 12)),
-                    const SizedBox(width: 8),
-                    Text('• ${pdf['date']}', style: TextStyle(color: colors.onSurface.withOpacity(0.4), fontSize: 12)),
+                    Icon(Icons.info_outline, color: color),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        'These are placeholder files. You can add or edit resources if you are a Committee Member.',
+                        style: TextStyle(color: color, fontSize: 13, fontWeight: FontWeight.w500),
+                      ),
+                    ),
                   ],
                 ),
               ),
-              trailing: IconButton(
-                icon: Icon(Icons.download, color: color),
-                onPressed: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Downloading file...')),
-                  );
-                },
-              ),
-            ),
-          )),
-        ],
+              const SizedBox(height: 24),
+              if (sessionItems.isEmpty)
+                const Center(child: Padding(padding: EdgeInsets.all(32), child: Text('No resources uploaded yet.'))),
+              ...sessionItems.map((pdf) => Card(
+                margin: const EdgeInsets.only(bottom: 12),
+                elevation: 0,
+                color: colors.surface,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  side: BorderSide(color: colors.outline.withOpacity(0.1)),
+                ),
+                child: ListTile(
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  leading: Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(color: Colors.redAccent.withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
+                    child: const Icon(Icons.picture_as_pdf, color: Colors.redAccent),
+                  ),
+                  title: Text(pdf.name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                  subtitle: Padding(
+                    padding: const EdgeInsets.only(top: 4.0),
+                    child: Row(
+                      children: [
+                        Text(pdf.size, style: TextStyle(color: colors.onSurface.withOpacity(0.6), fontSize: 12)),
+                        const SizedBox(width: 8),
+                        Text('• ${pdf.date}', style: TextStyle(color: colors.onSurface.withOpacity(0.4), fontSize: 12)),
+                      ],
+                    ),
+                  ),
+                  trailing: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      IconButton(
+                        icon: Icon(Icons.download, color: color),
+                        onPressed: () {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Downloading file...')),
+                          );
+                        },
+                      ),
+                      ValueListenableBuilder<ProfileData>(
+                        valueListenable: currentProfile,
+                        builder: (context, profile, _) {
+                          if (profile.role == UserRole.committeeMember) {
+                            return PopupMenuButton<String>(
+                              icon: const Icon(Icons.more_vert, size: 20),
+                              onSelected: (value) {
+                                if (value == 'edit') {
+                                  _showForm(context, existingItem: pdf);
+                                } else if (value == 'delete') {
+                                  _deleteItem(pdf);
+                                }
+                              },
+                              itemBuilder: (context) => [
+                                const PopupMenuItem(value: 'edit', child: Text('Edit')),
+                                const PopupMenuItem(value: 'delete', child: Text('Delete', style: TextStyle(color: Colors.red))),
+                              ],
+                            );
+                          }
+                          return const SizedBox.shrink();
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+              )),
+            ],
+          );
+        },
+      ),
+      floatingActionButton: ValueListenableBuilder<ProfileData>(
+        valueListenable: currentProfile,
+        builder: (context, profile, _) {
+          if (profile.role == UserRole.committeeMember) {
+            return FloatingActionButton(
+              onPressed: () => _showForm(context),
+              child: const Icon(Icons.upload_file),
+            );
+          }
+          return const SizedBox.shrink();
+        },
       ),
     );
   }
