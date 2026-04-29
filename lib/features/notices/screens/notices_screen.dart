@@ -35,6 +35,13 @@ class _NoticesScreenState extends State<NoticesScreen> {
     final titleController = TextEditingController(text: existingNotice?.title ?? '');
     final subtitleController = TextEditingController(text: existingNotice?.subtitle ?? '');
     
+    // Track the selected category
+    ValueNotifier<List<NoticeItem>> selectedNotifier = defaultStateNotifier;
+    
+    // Available tags and selected tags
+    final List<String> availableTags = ['Academic', 'Event', 'Workshop', 'Maintenance', 'Job', 'Lecture', 'General', 'Research'];
+    List<String> selectedTags = existingNotice?.tags.toList() ?? ['General'];
+
     // We'll manage state inside the StatefulBuilder for the bottom sheet
     showModalBottomSheet(
       context: context,
@@ -43,12 +50,6 @@ class _NoticesScreenState extends State<NoticesScreen> {
       builder: (context) {
         return StatefulBuilder(
           builder: (BuildContext context, StateSetter setModalState) {
-            // Track the selected category
-            ValueNotifier<List<NoticeItem>> selectedNotifier = defaultStateNotifier;
-            
-            // Available tags and selected tags
-            final List<String> availableTags = ['Academic', 'Event', 'Workshop', 'Maintenance', 'Job', 'Lecture', 'General', 'Research'];
-            List<String> selectedTags = existingNotice?.tags.toList() ?? ['General'];
 
             return Padding(
               padding: EdgeInsets.only(

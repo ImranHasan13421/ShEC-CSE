@@ -36,6 +36,8 @@ class _JobsScreenState extends State<JobsScreen> {
     final deadlineController = TextEditingController(text: existingJob?.deadline ?? '');
     final jobTypeController = TextEditingController(text: existingJob?.jobType ?? '');
 
+    ValueNotifier<List<JobItem>> selectedNotifier = defaultStateNotifier ?? recommendedJobsState;
+
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -43,7 +45,6 @@ class _JobsScreenState extends State<JobsScreen> {
       builder: (context) {
         return StatefulBuilder(
           builder: (BuildContext context, StateSetter setModalState) {
-            ValueNotifier<List<JobItem>> selectedNotifier = defaultStateNotifier ?? recommendedJobsState;
 
             return Padding(
               padding: EdgeInsets.only(
