@@ -57,13 +57,13 @@ class _NoticesScreenState extends State<NoticesScreen> {
       context: context,
       isScrollControlled: true,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
-      builder: (context) {
+      builder: (modalContext) {
         return StatefulBuilder(
           builder: (BuildContext context, StateSetter setModalState) {
 
             return Padding(
               padding: EdgeInsets.only(
-                bottom: MediaQuery.of(context).viewInsets.bottom,
+                bottom: MediaQuery.of(modalContext).viewInsets.bottom,
                 left: 24,
                 right: 24,
                 top: 24,
@@ -142,7 +142,8 @@ class _NoticesScreenState extends State<NoticesScreen> {
                       child: ElevatedButton(
                         onPressed: () async {
                           if (titleController.text.isNotEmpty) {
-                            Navigator.pop(context);
+                            final messenger = ScaffoldMessenger.of(context);
+                            Navigator.pop(modalContext);
                             try {
                               if (existingNotice == null) {
                                 // Add new
@@ -158,7 +159,7 @@ class _NoticesScreenState extends State<NoticesScreen> {
                                 );
                                 String category = selectedNotifier == clubNoticesState ? 'club' : 'department';
                                 await NoticeService.addNoticeToDB(newNotice, category);
-                                if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Notice created successfully')));
+                                if (mounted) messenger.showSnackBar(const SnackBar(content: Text('Notice created successfully')));
                               } else {
                                 // Edit existing
                                 final updatedNotice = NoticeItem(
@@ -180,10 +181,10 @@ class _NoticesScreenState extends State<NoticesScreen> {
                                 }
                                 String category = defaultStateNotifier == clubNoticesState ? 'club' : 'department';
                                 await NoticeService.updateNoticeInDB(updatedNotice, category);
-                                if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Notice updated successfully')));
+                                if (mounted) messenger.showSnackBar(const SnackBar(content: Text('Notice updated successfully')));
                               }
                             } catch (e) {
-                              if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+                              if (mounted) messenger.showSnackBar(SnackBar(content: Text('Error: $e')));
                             }
                           }
                         },

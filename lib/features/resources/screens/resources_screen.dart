@@ -245,10 +245,10 @@ class _PdfsScreenState extends State<PdfsScreen> {
       context: context,
       isScrollControlled: true,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
-      builder: (context) {
+      builder: (modalContext) {
         return Padding(
           padding: EdgeInsets.only(
-            bottom: MediaQuery.of(context).viewInsets.bottom,
+            bottom: MediaQuery.of(modalContext).viewInsets.bottom,
             left: 24,
             right: 24,
             top: 24,
@@ -274,7 +274,8 @@ class _PdfsScreenState extends State<PdfsScreen> {
                 child: ElevatedButton(
                   onPressed: () async {
                     if (nameController.text.isNotEmpty) {
-                      Navigator.pop(context);
+                      final messenger = ScaffoldMessenger.of(context);
+                      Navigator.pop(modalContext);
                       try {
                         final newItem = ResourceItem(
                           id: existingItem?.id ?? '',
@@ -286,7 +287,7 @@ class _PdfsScreenState extends State<PdfsScreen> {
 
                         if (existingItem == null) {
                           await ResourceService.addResourceToDB(newItem);
-                          if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Resource uploaded successfully')));
+                          if (mounted) messenger.showSnackBar(const SnackBar(content: Text('Resource uploaded successfully')));
                         } else {
                           final index = resourceState.value.indexOf(existingItem);
                           if (index != -1) {
@@ -295,10 +296,10 @@ class _PdfsScreenState extends State<PdfsScreen> {
                             resourceState.value = updatedList;
                           }
                           await ResourceService.updateResourceInDB(newItem);
-                          if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Resource updated successfully')));
+                          if (mounted) messenger.showSnackBar(const SnackBar(content: Text('Resource updated successfully')));
                         }
                       } catch (e) {
-                        if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+                        if (mounted) messenger.showSnackBar(SnackBar(content: Text('Error: $e')));
                       }
                     }
                   },

@@ -52,13 +52,13 @@ class _JobsScreenState extends State<JobsScreen> {
       context: context,
       isScrollControlled: true,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
-      builder: (context) {
+      builder: (modalContext) {
         return StatefulBuilder(
           builder: (BuildContext context, StateSetter setModalState) {
 
             return Padding(
               padding: EdgeInsets.only(
-                bottom: MediaQuery.of(context).viewInsets.bottom,
+                bottom: MediaQuery.of(modalContext).viewInsets.bottom,
                 left: 24,
                 right: 24,
                 top: 24,
@@ -124,7 +124,8 @@ class _JobsScreenState extends State<JobsScreen> {
                       child: ElevatedButton(
                         onPressed: () async {
                           if (roleController.text.isNotEmpty && companyController.text.isNotEmpty) {
-                            Navigator.pop(context);
+                            final messenger = ScaffoldMessenger.of(context);
+                            Navigator.pop(modalContext);
                             try {
                               if (existingJob == null) {
                                 final newJob = JobItem(
@@ -141,7 +142,7 @@ class _JobsScreenState extends State<JobsScreen> {
                                 );
                                 String category = selectedNotifier == recommendedJobsState ? 'recommended' : 'recent';
                                 await JobService.addJobToDB(newJob, category);
-                                if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Job created successfully')));
+                                if (mounted) messenger.showSnackBar(const SnackBar(content: Text('Job created successfully')));
                               } else {
                                 final targetNotifier = defaultStateNotifier!;
                                 final updatedJob = JobItem(
@@ -165,10 +166,10 @@ class _JobsScreenState extends State<JobsScreen> {
                                 }
                                 String category = targetNotifier == recommendedJobsState ? 'recommended' : 'recent';
                                 await JobService.updateJobInDB(updatedJob, category);
-                                if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Job updated successfully')));
+                                if (mounted) messenger.showSnackBar(const SnackBar(content: Text('Job updated successfully')));
                               }
                             } catch (e) {
-                              if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+                              if (mounted) messenger.showSnackBar(SnackBar(content: Text('Error: $e')));
                             }
                           }
                         },

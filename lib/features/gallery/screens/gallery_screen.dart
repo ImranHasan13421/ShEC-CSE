@@ -26,10 +26,10 @@ class _GalleryScreenState extends State<GalleryScreen> {
       context: context,
       isScrollControlled: true,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
-      builder: (context) {
+      builder: (modalContext) {
         return Padding(
           padding: EdgeInsets.only(
-            bottom: MediaQuery.of(context).viewInsets.bottom,
+            bottom: MediaQuery.of(modalContext).viewInsets.bottom,
             left: 24,
             right: 24,
             top: 24,
@@ -60,7 +60,8 @@ class _GalleryScreenState extends State<GalleryScreen> {
                 child: ElevatedButton(
                   onPressed: () async {
                     if (titleController.text.isNotEmpty) {
-                      Navigator.pop(context);
+                      final messenger = ScaffoldMessenger.of(context);
+                      Navigator.pop(modalContext);
                       try {
                         if (existingItem == null) {
                           final newItem = GalleryItem(
@@ -73,7 +74,7 @@ class _GalleryScreenState extends State<GalleryScreen> {
                           );
                           await GalleryService.addGalleryItemToDB(newItem);
                           if (mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Gallery Item added successfully')));
+                            messenger.showSnackBar(const SnackBar(content: Text('Gallery Item added successfully')));
                           }
                         } else {
                           final updatedItem = GalleryItem(
@@ -92,12 +93,12 @@ class _GalleryScreenState extends State<GalleryScreen> {
                           }
                           await GalleryService.updateGalleryItemInDB(updatedItem);
                           if (mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Gallery Item updated successfully')));
+                            messenger.showSnackBar(const SnackBar(content: Text('Gallery Item updated successfully')));
                           }
                         }
                       } catch (e) {
                         if (mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+                          messenger.showSnackBar(SnackBar(content: Text('Error: $e')));
                         }
                       }
                     }
@@ -114,14 +115,15 @@ class _GalleryScreenState extends State<GalleryScreen> {
   }
 
   void _deleteGalleryItem(GalleryItem item) async {
+    final messenger = ScaffoldMessenger.of(context);
     try {
       await GalleryService.deleteGalleryItemFromDB(item);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Gallery Item deleted')));
+        messenger.showSnackBar(const SnackBar(content: Text('Gallery Item deleted')));
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error deleting item: $e')));
+        messenger.showSnackBar(SnackBar(content: Text('Error deleting item: $e')));
       }
     }
   }

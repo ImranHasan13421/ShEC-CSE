@@ -35,10 +35,10 @@ class _ContestsScreenState extends State<ContestsScreen> {
       context: context,
       isScrollControlled: true,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
-      builder: (context) {
+      builder: (modalContext) {
         return Padding(
           padding: EdgeInsets.only(
-            bottom: MediaQuery.of(context).viewInsets.bottom,
+            bottom: MediaQuery.of(modalContext).viewInsets.bottom,
             left: 24,
             right: 24,
             top: 24,
@@ -81,7 +81,8 @@ class _ContestsScreenState extends State<ContestsScreen> {
                 child: ElevatedButton(
                   onPressed: () async {
                     if (titleController.text.isNotEmpty) {
-                      Navigator.pop(context);
+                      final messenger = ScaffoldMessenger.of(context);
+                      Navigator.pop(modalContext);
                       try {
                         final newItem = ContestItem(
                           id: existingItem?.id ?? '',
@@ -96,7 +97,7 @@ class _ContestsScreenState extends State<ContestsScreen> {
 
                         if (existingItem == null) {
                           await ContestService.addContestToDB(newItem);
-                          if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('${isCourse ? 'Course' : 'Contest'} created successfully')));
+                          if (mounted) messenger.showSnackBar(SnackBar(content: Text('${isCourse ? 'Course' : 'Contest'} created successfully')));
                         } else {
                           final index = stateNotifier.value.indexOf(existingItem);
                           if (index != -1) {
@@ -105,10 +106,10 @@ class _ContestsScreenState extends State<ContestsScreen> {
                             stateNotifier.value = updatedList;
                           }
                           await ContestService.updateContestInDB(newItem);
-                          if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('${isCourse ? 'Course' : 'Contest'} updated successfully')));
+                          if (mounted) messenger.showSnackBar(SnackBar(content: Text('${isCourse ? 'Course' : 'Contest'} updated successfully')));
                         }
                       } catch (e) {
-                        if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+                        if (mounted) messenger.showSnackBar(SnackBar(content: Text('Error: $e')));
                       }
                     }
                   },

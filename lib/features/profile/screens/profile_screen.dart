@@ -50,6 +50,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   Future<void> _pickAndCropImage() async {
     final picker = ImagePicker();
+    final toolbarColor = Theme.of(context).colorScheme.primary;
     final pickedFile = await picker.pickImage(source: ImageSource.gallery);
 
     if (pickedFile != null) {
@@ -60,7 +61,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         uiSettings: [
           AndroidUiSettings(
             toolbarTitle: 'Crop Profile Picture',
-            toolbarColor: Theme.of(context).colorScheme.primary,
+            toolbarColor: toolbarColor,
             toolbarWidgetColor: Colors.white,
             initAspectRatio: CropAspectRatioPreset.square,
             lockAspectRatio: true, // Prevents user from changing the 1:1 ratio

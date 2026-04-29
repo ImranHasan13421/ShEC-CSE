@@ -1,0 +1,114 @@
+-- Supabase SQL Schema for ShEC CSE App
+
+-- 1. Notices Table
+CREATE TABLE notices (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    category TEXT NOT NULL CHECK (category IN ('club', 'department')),
+    title TEXT NOT NULL,
+    subtitle TEXT NOT NULL,
+    tags TEXT[] NOT NULL DEFAULT '{}',
+    tag_color BIGINT NOT NULL,
+    date TEXT NOT NULL,
+    is_pinned BOOLEAN NOT NULL DEFAULT FALSE,
+    icon_code_point BIGINT NOT NULL,
+    icon_color BIGINT NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- 2. Jobs Table
+CREATE TABLE jobs (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    category TEXT NOT NULL CHECK (category IN ('recommended', 'recent')),
+    company TEXT NOT NULL,
+    role TEXT NOT NULL,
+    location TEXT NOT NULL,
+    salary TEXT NOT NULL,
+    deadline TEXT NOT NULL,
+    job_type TEXT NOT NULL,
+    type_color BIGINT NOT NULL,
+    icon_code_point BIGINT NOT NULL,
+    icon_color BIGINT NOT NULL,
+    is_starred BOOLEAN NOT NULL DEFAULT FALSE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- 3. Contests Table
+CREATE TABLE contests (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    title TEXT NOT NULL,
+    platform TEXT NOT NULL,
+    level TEXT NOT NULL,
+    date TEXT NOT NULL,
+    url TEXT NOT NULL,
+    icon_color BIGINT NOT NULL,
+    is_course BOOLEAN NOT NULL DEFAULT FALSE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- 4. Resources Table
+CREATE TABLE resources (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    name TEXT NOT NULL,
+    size TEXT NOT NULL,
+    date TEXT NOT NULL,
+    session TEXT NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Note: In Supabase SQL Editor, `uuid_generate_v4()` comes from the `uuid-ossp` extension, 
+-- which is usually enabled by default. If it fails, run: CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+
+-- 5. Gallery Table
+CREATE TABLE gallery (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    title TEXT NOT NULL,
+    subtitle TEXT NOT NULL,
+    image_path TEXT NOT NULL,
+    icon_code_point BIGINT NOT NULL,
+    icon_color BIGINT NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- ==========================================
+-- ROW LEVEL SECURITY (RLS) POLICIES
+-- ==========================================
+-- To allow public read/write access (since we are not using authentication),
+-- we must explicitly create these policies.
+
+ALTER TABLE notices ENABLE ROW LEVEL SECURITY;
+ALTER TABLE jobs ENABLE ROW LEVEL SECURITY;
+ALTER TABLE contests ENABLE ROW LEVEL SECURITY;
+ALTER TABLE resources ENABLE ROW LEVEL SECURITY;
+ALTER TABLE gallery ENABLE ROW LEVEL SECURITY;
+
+-- Notices Policies
+CREATE POLICY "Enable public read access for notices" ON notices FOR SELECT USING (true);
+CREATE POLICY "Enable public insert for notices" ON notices FOR INSERT WITH CHECK (true);
+CREATE POLICY "Enable public update for notices" ON notices FOR UPDATE USING (true) WITH CHECK (true);
+CREATE POLICY "Enable public delete for notices" ON notices FOR DELETE USING (true);
+
+-- Jobs Policies
+CREATE POLICY "Enable public read access for jobs" ON jobs FOR SELECT USING (true);
+CREATE POLICY "Enable public insert for jobs" ON jobs FOR INSERT WITH CHECK (true);
+CREATE POLICY "Enable public update for jobs" ON jobs FOR UPDATE USING (true) WITH CHECK (true);
+CREATE POLICY "Enable public delete for jobs" ON jobs FOR DELETE USING (true);
+
+-- Contests Policies
+CREATE POLICY "Enable public read access for contests" ON contests FOR SELECT USING (true);
+CREATE POLICY "Enable public insert for contests" ON contests FOR INSERT WITH CHECK (true);
+CREATE POLICY "Enable public update for contests" ON contests FOR UPDATE USING (true) WITH CHECK (true);
+CREATE POLICY "Enable public delete for contests" ON contests FOR DELETE USING (true);
+
+-- Resources Policies
+CREATE POLICY "Enable public read access for resources" ON resources FOR SELECT USING (true);
+CREATE POLICY "Enable public insert for resources" ON resources FOR INSERT WITH CHECK (true);
+CREATE POLICY "Enable public update for resources" ON resources FOR UPDATE USING (true) WITH CHECK (true);
+CREATE POLICY "Enable public delete for resources" ON resources FOR DELETE USING (true);
+
+-- Gallery Policies
+CREATE POLICY "Enable public read access for gallery" ON gallery FOR SELECT USING (true);
+CREATE POLICY "Enable public insert for gallery" ON gallery FOR INSERT WITH CHECK (true);
+CREATE POLICY "Enable public update for gallery" ON gallery FOR UPDATE USING (true) WITH CHECK (true);
+CREATE POLICY "Enable public delete for gallery" ON gallery FOR DELETE USING (true);
+
+
