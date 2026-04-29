@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:ShEC_CSE/features/profile/models/profile_state.dart';
 import '../models/job_state.dart';
+import '../../../backend/services/job_service.dart';
 
 class JobsScreen extends StatefulWidget {
   const JobsScreen({super.key});
@@ -13,19 +14,28 @@ class _JobsScreenState extends State<JobsScreen> {
   @override
   void initState() {
     super.initState();
-    fetchJobs();
+    JobService.fetchJobs();
   }
   void _toggleStar(JobItem job, ValueNotifier<List<JobItem>> stateNotifier) async {
-    job.isStarred = !job.isStarred;
-    stateNotifier.value = List.from(stateNotifier.value);
-    
-    String category = stateNotifier == recommendedJobsState ? 'recommended' : 'recent';
-    await updateJobInDB(job, category);
+    try {
+      job.isStarred = !job.isStarred;
+      stateNotifier.value = List.from(stateNotifier.value);
+      
+      String category = stateNotifier == recommendedJobsState ? 'recommended' : 'recent';
+      await JobService.updateJobInDB(job, category);
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error updating star: $e')));
+    }
   }
 
   void _deleteJob(JobItem job, ValueNotifier<List<JobItem>> stateNotifier) async {
-    String category = stateNotifier == recommendedJobsState ? 'recommended' : 'recent';
-    await deleteJobFromDB(job.id, category);
+    try {
+      String category = stateNotifier == recommendedJobsState ? 'recommended' : 'recent';
+      await JobService.deleteJobFromDB(job.id, category);
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Job deleted')));
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error deleting job: $e')));
+    }
   }
 
   void _showJobForm(BuildContext context, {JobItem? existingJob, ValueNotifier<List<JobItem>>? defaultStateNotifier}) {
@@ -112,48 +122,54 @@ class _JobsScreenState extends State<JobsScreen> {
                     SizedBox(
                       width: double.infinity,
                       child: ElevatedButton(
-                        onPressed: () {
+                        onPressed: () async {
                           if (roleController.text.isNotEmpty && companyController.text.isNotEmpty) {
-                            if (existingJob == null) {
-                              final newJob = JobItem(
-                                id: '',
-                                company: companyController.text,
-                                role: roleController.text,
-                                location: locationController.text,
-                                salary: salaryController.text,
-                                deadline: deadlineController.text,
-                                jobType: jobTypeController.text,
-                                typeColor: Colors.teal,
-                                iconColor: Colors.blue,
-                                icon: Icons.work,
-                              );
-                              String category = selectedNotifier == recommendedJobsState ? 'recommended' : 'recent';
-                              addJobToDB(newJob, category);
-                            } else {
-                              final targetNotifier = defaultStateNotifier!;
-                              final updatedJob = JobItem(
-                                id: existingJob.id,
-                                company: companyController.text,
-                                role: roleController.text,
-                                location: locationController.text,
-                                salary: salaryController.text,
-                                deadline: deadlineController.text,
-                                jobType: jobTypeController.text,
-                                typeColor: existingJob.typeColor,
-                                iconColor: existingJob.iconColor,
-                                icon: existingJob.icon,
-                                isStarred: existingJob.isStarred,
-                              );
-                              final index = targetNotifier.value.indexOf(existingJob);
-                              if (index != -1) {
-                                final updatedList = List<JobItem>.from(targetNotifier.value);
-                                updatedList[index] = updatedJob;
-                                targetNotifier.value = updatedList;
-                              }
-                              String category = targetNotifier == recommendedJobsState ? 'recommended' : 'recent';
-                              updateJobInDB(updatedJob, category);
-                            }
                             Navigator.pop(context);
+                            try {
+                              if (existingJob == null) {
+                                final newJob = JobItem(
+                                  id: '',
+                                  company: companyController.text,
+                                  role: roleController.text,
+                                  location: locationController.text,
+                                  salary: salaryController.text,
+                                  deadline: deadlineController.text,
+                                  jobType: jobTypeController.text,
+                                  typeColor: Colors.teal,
+                                  iconColor: Colors.blue,
+                                  icon: Icons.work,
+                                );
+                                String category = selectedNotifier == recommendedJobsState ? 'recommended' : 'recent';
+                                await JobService.addJobToDB(newJob, category);
+                                if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Job created successfully')));
+                              } else {
+                                final targetNotifier = defaultStateNotifier!;
+                                final updatedJob = JobItem(
+                                  id: existingJob.id,
+                                  company: companyController.text,
+                                  role: roleController.text,
+                                  location: locationController.text,
+                                  salary: salaryController.text,
+                                  deadline: deadlineController.text,
+                                  jobType: jobTypeController.text,
+                                  typeColor: existingJob.typeColor,
+                                  iconColor: existingJob.iconColor,
+                                  icon: existingJob.icon,
+                                  isStarred: existingJob.isStarred,
+                                );
+                                final index = targetNotifier.value.indexOf(existingJob);
+                                if (index != -1) {
+                                  final updatedList = List<JobItem>.from(targetNotifier.value);
+                                  updatedList[index] = updatedJob;
+                                  targetNotifier.value = updatedList;
+                                }
+                                String category = targetNotifier == recommendedJobsState ? 'recommended' : 'recent';
+                                await JobService.updateJobInDB(updatedJob, category);
+                                if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Job updated successfully')));
+                              }
+                            } catch (e) {
+                              if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+                            }
                           }
                         },
                         child: Text(existingJob == null ? 'Create' : 'Update'),

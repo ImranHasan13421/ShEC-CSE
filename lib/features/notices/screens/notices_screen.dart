@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:ShEC_CSE/features/profile/models/profile_state.dart';
 import '../models/notice_state.dart';
+import '../../../backend/services/notice_service.dart';
 
 class NoticesScreen extends StatefulWidget {
   const NoticesScreen({super.key});
@@ -13,22 +14,31 @@ class _NoticesScreenState extends State<NoticesScreen> {
   @override
   void initState() {
     super.initState();
-    fetchNotices();
+    NoticeService.fetchNotices();
   }
 
   // --- Toggle Logic ---
   void _togglePin(NoticeItem notice, ValueNotifier<List<NoticeItem>> stateNotifier) async {
-    notice.isPinned = !notice.isPinned;
-    // Trigger a rebuild of the list by re-assigning the value
-    stateNotifier.value = List.from(stateNotifier.value);
-    
-    String category = stateNotifier == clubNoticesState ? 'club' : 'department';
-    await updateNoticeInDB(notice, category);
+    try {
+      notice.isPinned = !notice.isPinned;
+      // Trigger a rebuild of the list by re-assigning the value
+      stateNotifier.value = List.from(stateNotifier.value);
+      
+      String category = stateNotifier == clubNoticesState ? 'club' : 'department';
+      await NoticeService.updateNoticeInDB(notice, category);
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error updating pin: $e')));
+    }
   }
 
   void _deleteNotice(NoticeItem notice, ValueNotifier<List<NoticeItem>> stateNotifier) async {
-    String category = stateNotifier == clubNoticesState ? 'club' : 'department';
-    await deleteNoticeFromDB(notice.id, category);
+    try {
+      String category = stateNotifier == clubNoticesState ? 'club' : 'department';
+      await NoticeService.deleteNoticeFromDB(notice.id, category);
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Notice deleted')));
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error deleting notice: $e')));
+    }
   }
 
   void _showNoticeForm(BuildContext context, ValueNotifier<List<NoticeItem>> defaultStateNotifier, {NoticeItem? existingNotice}) {
@@ -130,45 +140,51 @@ class _NoticesScreenState extends State<NoticesScreen> {
                     SizedBox(
                       width: double.infinity,
                       child: ElevatedButton(
-                        onPressed: () {
+                        onPressed: () async {
                           if (titleController.text.isNotEmpty) {
-                            if (existingNotice == null) {
-                              // Add new
-                              final newNotice = NoticeItem(
-                                id: '',
-                                icon: Icons.notifications,
-                                iconColor: Colors.blue,
-                                title: titleController.text,
-                                subtitle: subtitleController.text,
-                                tags: selectedTags,
-                                tagColor: Colors.blue,
-                                date: 'Just now',
-                              );
-                              String category = selectedNotifier == clubNoticesState ? 'club' : 'department';
-                              addNoticeToDB(newNotice, category);
-                            } else {
-                              // Edit existing
-                              final updatedNotice = NoticeItem(
-                                id: existingNotice.id,
-                                icon: existingNotice.icon,
-                                iconColor: existingNotice.iconColor,
-                                title: titleController.text,
-                                subtitle: subtitleController.text,
-                                tags: selectedTags,
-                                tagColor: existingNotice.tagColor,
-                                date: existingNotice.date,
-                                isPinned: existingNotice.isPinned,
-                              );
-                              final index = defaultStateNotifier.value.indexOf(existingNotice);
-                              if (index != -1) {
-                                final updatedList = List<NoticeItem>.from(defaultStateNotifier.value);
-                                updatedList[index] = updatedNotice;
-                                defaultStateNotifier.value = updatedList;
-                              }
-                              String category = defaultStateNotifier == clubNoticesState ? 'club' : 'department';
-                              updateNoticeInDB(updatedNotice, category);
-                            }
                             Navigator.pop(context);
+                            try {
+                              if (existingNotice == null) {
+                                // Add new
+                                final newNotice = NoticeItem(
+                                  id: '',
+                                  icon: Icons.notifications,
+                                  iconColor: Colors.blue,
+                                  title: titleController.text,
+                                  subtitle: subtitleController.text,
+                                  tags: selectedTags,
+                                  tagColor: Colors.blue,
+                                  date: 'Just now',
+                                );
+                                String category = selectedNotifier == clubNoticesState ? 'club' : 'department';
+                                await NoticeService.addNoticeToDB(newNotice, category);
+                                if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Notice created successfully')));
+                              } else {
+                                // Edit existing
+                                final updatedNotice = NoticeItem(
+                                  id: existingNotice.id,
+                                  icon: existingNotice.icon,
+                                  iconColor: existingNotice.iconColor,
+                                  title: titleController.text,
+                                  subtitle: subtitleController.text,
+                                  tags: selectedTags,
+                                  tagColor: existingNotice.tagColor,
+                                  date: existingNotice.date,
+                                  isPinned: existingNotice.isPinned,
+                                );
+                                final index = defaultStateNotifier.value.indexOf(existingNotice);
+                                if (index != -1) {
+                                  final updatedList = List<NoticeItem>.from(defaultStateNotifier.value);
+                                  updatedList[index] = updatedNotice;
+                                  defaultStateNotifier.value = updatedList;
+                                }
+                                String category = defaultStateNotifier == clubNoticesState ? 'club' : 'department';
+                                await NoticeService.updateNoticeInDB(updatedNotice, category);
+                                if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Notice updated successfully')));
+                              }
+                            } catch (e) {
+                              if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+                            }
                           }
                         },
                         child: Text(existingNotice == null ? 'Create' : 'Update'),

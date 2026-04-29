@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:ShEC_CSE/features/profile/models/profile_state.dart';
 import '../models/resource_state.dart';
+import '../../../backend/services/resource_service.dart';
 
 // ==========================================
 // 1. YEARS SCREEN
@@ -233,7 +234,7 @@ class _PdfsScreenState extends State<PdfsScreen> {
   @override
   void initState() {
     super.initState();
-    fetchResources();
+    ResourceService.fetchResources();
   }
 
   void _showForm(BuildContext context, {ResourceItem? existingItem}) {
@@ -271,28 +272,34 @@ class _PdfsScreenState extends State<PdfsScreen> {
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
-                  onPressed: () {
+                  onPressed: () async {
                     if (nameController.text.isNotEmpty) {
-                      final newItem = ResourceItem(
-                        id: existingItem?.id ?? '',
-                        name: nameController.text,
-                        size: sizeController.text,
-                        date: 'Just now',
-                        session: widget.session,
-                      );
-
-                      if (existingItem == null) {
-                        addResourceToDB(newItem);
-                      } else {
-                        final index = resourceState.value.indexOf(existingItem);
-                        if (index != -1) {
-                          final updatedList = List<ResourceItem>.from(resourceState.value);
-                          updatedList[index] = newItem;
-                          resourceState.value = updatedList;
-                        }
-                        updateResourceInDB(newItem);
-                      }
                       Navigator.pop(context);
+                      try {
+                        final newItem = ResourceItem(
+                          id: existingItem?.id ?? '',
+                          name: nameController.text,
+                          size: sizeController.text,
+                          date: 'Just now',
+                          session: widget.session,
+                        );
+
+                        if (existingItem == null) {
+                          await ResourceService.addResourceToDB(newItem);
+                          if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Resource uploaded successfully')));
+                        } else {
+                          final index = resourceState.value.indexOf(existingItem);
+                          if (index != -1) {
+                            final updatedList = List<ResourceItem>.from(resourceState.value);
+                            updatedList[index] = newItem;
+                            resourceState.value = updatedList;
+                          }
+                          await ResourceService.updateResourceInDB(newItem);
+                          if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Resource updated successfully')));
+                        }
+                      } catch (e) {
+                        if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+                      }
                     }
                   },
                   child: Text(existingItem == null ? 'Upload' : 'Update'),
@@ -306,8 +313,13 @@ class _PdfsScreenState extends State<PdfsScreen> {
     );
   }
 
-  void _deleteItem(ResourceItem item) {
-    deleteResourceFromDB(item);
+  void _deleteItem(ResourceItem item) async {
+    try {
+      await ResourceService.deleteResourceFromDB(item);
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Resource deleted successfully')));
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error deleting resource: $e')));
+    }
   }
 
   @override

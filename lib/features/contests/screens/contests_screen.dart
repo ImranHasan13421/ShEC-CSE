@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:ShEC_CSE/features/profile/models/profile_state.dart';
 import '../models/contest_state.dart';
+import '../../../backend/services/contest_service.dart';
 
 class ContestsScreen extends StatefulWidget {
   const ContestsScreen({super.key});
@@ -14,7 +15,7 @@ class _ContestsScreenState extends State<ContestsScreen> {
   @override
   void initState() {
     super.initState();
-    fetchContestsAndCourses();
+    ContestService.fetchContestsAndCourses();
   }
   Future<void> _launchURL(String urlString) async {
     final Uri url = Uri.parse(urlString);
@@ -78,31 +79,37 @@ class _ContestsScreenState extends State<ContestsScreen> {
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
-                  onPressed: () {
+                  onPressed: () async {
                     if (titleController.text.isNotEmpty) {
-                      final newItem = ContestItem(
-                        id: existingItem?.id ?? DateTime.now().millisecondsSinceEpoch.toString(),
-                        title: titleController.text,
-                        platform: platformController.text,
-                        level: levelController.text,
-                        date: dateController.text,
-                        url: urlController.text,
-                        iconColor: existingItem?.iconColor ?? Colors.blue,
-                        isCourse: isCourse,
-                      );
-
-                      if (existingItem == null) {
-                        addContestToDB(newItem);
-                      } else {
-                        final index = stateNotifier.value.indexOf(existingItem);
-                        if (index != -1) {
-                          final updatedList = List<ContestItem>.from(stateNotifier.value);
-                          updatedList[index] = newItem;
-                          stateNotifier.value = updatedList;
-                        }
-                        updateContestInDB(newItem);
-                      }
                       Navigator.pop(context);
+                      try {
+                        final newItem = ContestItem(
+                          id: existingItem?.id ?? '',
+                          title: titleController.text,
+                          platform: platformController.text,
+                          level: levelController.text,
+                          date: dateController.text,
+                          url: urlController.text,
+                          iconColor: existingItem?.iconColor ?? Colors.blue,
+                          isCourse: isCourse,
+                        );
+
+                        if (existingItem == null) {
+                          await ContestService.addContestToDB(newItem);
+                          if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('${isCourse ? 'Course' : 'Contest'} created successfully')));
+                        } else {
+                          final index = stateNotifier.value.indexOf(existingItem);
+                          if (index != -1) {
+                            final updatedList = List<ContestItem>.from(stateNotifier.value);
+                            updatedList[index] = newItem;
+                            stateNotifier.value = updatedList;
+                          }
+                          await ContestService.updateContestInDB(newItem);
+                          if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('${isCourse ? 'Course' : 'Contest'} updated successfully')));
+                        }
+                      } catch (e) {
+                        if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+                      }
                     }
                   },
                   child: Text(existingItem == null ? 'Create' : 'Update'),
@@ -116,8 +123,13 @@ class _ContestsScreenState extends State<ContestsScreen> {
     );
   }
 
-  void _deleteItem(ContestItem item, ValueNotifier<List<ContestItem>> stateNotifier) {
-    deleteContestFromDB(item);
+  void _deleteItem(ContestItem item, ValueNotifier<List<ContestItem>> stateNotifier) async {
+    try {
+      await ContestService.deleteContestFromDB(item);
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Deleted successfully')));
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error deleting: $e')));
+    }
   }
 
   @override

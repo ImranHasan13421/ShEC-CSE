@@ -1,9 +1,21 @@
 import 'package:flutter/material.dart';
 import 'package:ShEC_CSE/features/profile/models/profile_state.dart';
 import '../models/gallery_state.dart';
+import '../../../backend/services/gallery_service.dart';
 
-class GalleryScreen extends StatelessWidget {
+class GalleryScreen extends StatefulWidget {
   const GalleryScreen({super.key});
+
+  @override
+  State<GalleryScreen> createState() => _GalleryScreenState();
+}
+
+class _GalleryScreenState extends State<GalleryScreen> {
+  @override
+  void initState() {
+    super.initState();
+    GalleryService.fetchGalleryItems();
+  }
 
   void _showGalleryForm(BuildContext context, {GalleryItem? existingItem}) {
     final titleController = TextEditingController(text: existingItem?.title ?? '');
@@ -46,23 +58,25 @@ class GalleryScreen extends StatelessWidget {
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
-                  onPressed: () {
+                  onPressed: () async {
                     if (titleController.text.isNotEmpty) {
-                      if (existingItem == null) {
-                        final newItem = GalleryItem(
-                          id: DateTime.now().millisecondsSinceEpoch.toString(),
-                          title: titleController.text,
-                          subtitle: subtitleController.text,
-                          imagePath: imageController.text,
-                          icon: Icons.photo,
-                          color: Colors.blue,
-                        );
-                        galleryState.value = List.from(galleryState.value)..insert(0, newItem);
-                      } else {
-                        final index = galleryState.value.indexOf(existingItem);
-                        if (index != -1) {
-                          final updatedList = List<GalleryItem>.from(galleryState.value);
-                          updatedList[index] = GalleryItem(
+                      Navigator.pop(context);
+                      try {
+                        if (existingItem == null) {
+                          final newItem = GalleryItem(
+                            id: '',
+                            title: titleController.text,
+                            subtitle: subtitleController.text,
+                            imagePath: imageController.text,
+                            icon: Icons.photo,
+                            color: Colors.blue,
+                          );
+                          await GalleryService.addGalleryItemToDB(newItem);
+                          if (mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Gallery Item added successfully')));
+                          }
+                        } else {
+                          final updatedItem = GalleryItem(
                             id: existingItem.id,
                             title: titleController.text,
                             subtitle: subtitleController.text,
@@ -70,10 +84,22 @@ class GalleryScreen extends StatelessWidget {
                             icon: existingItem.icon,
                             color: existingItem.color,
                           );
-                          galleryState.value = updatedList;
+                          final index = galleryState.value.indexOf(existingItem);
+                          if (index != -1) {
+                            final updatedList = List<GalleryItem>.from(galleryState.value);
+                            updatedList[index] = updatedItem;
+                            galleryState.value = updatedList;
+                          }
+                          await GalleryService.updateGalleryItemInDB(updatedItem);
+                          if (mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Gallery Item updated successfully')));
+                          }
+                        }
+                      } catch (e) {
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
                         }
                       }
-                      Navigator.pop(context);
                     }
                   },
                   child: Text(existingItem == null ? 'Create' : 'Update'),
@@ -87,8 +113,17 @@ class GalleryScreen extends StatelessWidget {
     );
   }
 
-  void _deleteGalleryItem(GalleryItem item) {
-    galleryState.value = List.from(galleryState.value)..remove(item);
+  void _deleteGalleryItem(GalleryItem item) async {
+    try {
+      await GalleryService.deleteGalleryItemFromDB(item);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Gallery Item deleted')));
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error deleting item: $e')));
+      }
+    }
   }
 
   @override
@@ -158,7 +193,7 @@ class GalleryScreen extends StatelessWidget {
                     fit: BoxFit.cover,
                     errorBuilder: (context, error, stackTrace) {
                       return Container(
-                        color: item.color.withOpacity(0.1),
+                         color: item.color.withOpacity(0.1),
                         child: Center(
                           child: Icon(
                             item.icon,
