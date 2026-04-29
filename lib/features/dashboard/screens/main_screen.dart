@@ -5,6 +5,8 @@ import 'package:ShEC_CSE/features/profile/models/profile_state.dart';
 import 'package:ShEC_CSE/features/dashboard/screens/home_screen.dart';
 import 'package:ShEC_CSE/features/department/screens/department_screen.dart';
 import 'package:ShEC_CSE/features/auth/screens/login_screen.dart';
+import 'package:ShEC_CSE/features/auth/screens/members_screen.dart';
+import 'package:ShEC_CSE/backend/services/auth_service.dart';
 import 'package:ShEC_CSE/features/notices/screens/notices_screen.dart';
 import 'package:ShEC_CSE/features/jobs/screens/jobs_screen.dart';
 import 'package:ShEC_CSE/features/contests/screens/contests_screen.dart';
@@ -201,15 +203,41 @@ class _HomeLayoutState extends State<HomeLayout> {
               Navigator.push(context, MaterialPageRoute(builder: (_) => const YearsScreen()));
             },
           ),
+          // Superuser Only: Member Management
+          ValueListenableBuilder<ProfileData>(
+            valueListenable: currentProfile,
+            builder: (context, profile, _) {
+              if (profile.role == UserRole.superUser) {
+                return Column(
+                  children: [
+                    const Divider(),
+                    ListTile(
+                      leading: const Icon(Icons.manage_accounts, color: Colors.purple),
+                      title: const Text('Member Management', style: TextStyle(color: Colors.purple, fontWeight: FontWeight.bold)),
+                      onTap: () {
+                        Navigator.pop(context);
+                        Navigator.push(context, MaterialPageRoute(builder: (_) => const MembersScreen()));
+                      },
+                    ),
+                  ],
+                );
+              }
+              return const SizedBox.shrink();
+            },
+          ),
           const Divider(),
           ListTile(
             leading: const Icon(Icons.logout, color: Colors.redAccent),
             title: const Text('Log Out', style: TextStyle(color: Colors.redAccent)),
-            onTap: () {
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(builder: (context) => const LoginScreen()),
-              );
+            onTap: () async {
+              await AuthService.signOut();
+              if (context.mounted) {
+                Navigator.pushAndRemoveUntil(
+                  context,
+                  MaterialPageRoute(builder: (context) => const LoginScreen()),
+                  (route) => false,
+                );
+              }
             },
           ),
         ],

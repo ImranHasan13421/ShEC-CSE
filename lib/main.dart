@@ -4,6 +4,7 @@ import 'package:ShEC_CSE/features/auth/screens/splash_screen.dart';
 
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:ShEC_CSE/backend/services/auth_service.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -14,11 +15,19 @@ Future<void> main() async {
     anonKey: dotenv.env['SUPABASE_ANON_KEY']!,
   );
   
-  runApp(const ShEcCseApp());
+  AuthService.initializeAuthListener();
+
+  // Determine initial login state
+  final session = Supabase.instance.client.auth.currentSession;
+  final isLoggedIn = session != null;
+
+  runApp(ShEcCseApp(isLoggedIn: isLoggedIn));
 }
 
 class ShEcCseApp extends StatelessWidget {
-  const ShEcCseApp({super.key});
+  final bool isLoggedIn;
+  
+  const ShEcCseApp({super.key, required this.isLoggedIn});
 
   @override
   Widget build(BuildContext context) {
@@ -62,7 +71,7 @@ class ShEcCseApp extends StatelessWidget {
         ),
         useMaterial3: true,
       ),
-      home: const SplashScreen(isLoggedIn: false),
+      home: SplashScreen(isLoggedIn: isLoggedIn),
     );
   }
 }
