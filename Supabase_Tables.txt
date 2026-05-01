@@ -6,6 +6,8 @@ CREATE TABLE notices (
     category TEXT NOT NULL CHECK (category IN ('club', 'department')),
     title TEXT NOT NULL,
     subtitle TEXT NOT NULL,
+    description TEXT DEFAULT '',
+    image_path TEXT DEFAULT '',
     tags TEXT[] NOT NULL DEFAULT '{}',
     tag_color BIGINT NOT NULL,
     date TEXT NOT NULL,
@@ -157,3 +159,20 @@ CREATE POLICY "Superusers can delete profiles" ON profiles FOR DELETE USING (
 -- Note: We do not need a trigger to automatically create profiles if we are going to 
 -- handle profile creation explicitly during the sign-up flow in the app. 
 -- However, for robustness, we can keep the profile table strictly mapped.
+
+-- ==========================================
+-- STORAGE BUCKETS
+-- ==========================================
+
+-- 7. Notice Images Bucket
+-- Go to the Storage section in your Supabase Dashboard and create a new bucket named:
+-- "notice_images"
+-- Make sure to set the bucket as "Public" so images can be viewed without authentication.
+-- Alternatively, run this SQL (if you have the storage extension enabled/permissions):
+-- insert into storage.buckets (id, name, public) values ('notice_images', 'notice_images', true);
+
+-- Storage Policies for 'notice_images' bucket:
+-- CREATE POLICY "Give public access to notice images" ON storage.objects FOR SELECT USING (bucket_id = 'notice_images');
+-- CREATE POLICY "Allow authenticated users to upload notice images" ON storage.objects FOR INSERT WITH CHECK (bucket_id = 'notice_images' AND auth.role() = 'authenticated');
+-- CREATE POLICY "Allow authenticated users to update notice images" ON storage.objects FOR UPDATE USING (bucket_id = 'notice_images' AND auth.role() = 'authenticated');
+-- CREATE POLICY "Allow authenticated users to delete notice images" ON storage.objects FOR DELETE USING (bucket_id = 'notice_images' AND auth.role() = 'authenticated');

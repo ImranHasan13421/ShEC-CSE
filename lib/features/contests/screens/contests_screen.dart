@@ -168,7 +168,7 @@ class _ContestsScreenState extends State<ContestsScreen> {
         floatingActionButton: ValueListenableBuilder<ProfileData>(
           valueListenable: currentProfile,
           builder: (context, profile, _) {
-            if (profile.role == UserRole.committeeMember) {
+            if (profile.role == UserRole.committeeMember || profile.role == UserRole.superUser) {
               return Builder(
                 builder: (context) {
                   return FloatingActionButton(
@@ -365,7 +365,7 @@ class _ContestsScreenState extends State<ContestsScreen> {
     return ValueListenableBuilder<ProfileData>(
       valueListenable: currentProfile,
       builder: (context, profile, _) {
-        if (profile.role == UserRole.committeeMember) {
+        if (profile.role == UserRole.committeeMember || profile.role == UserRole.superUser) {
           return PopupMenuButton<String>(
             icon: const Icon(Icons.more_vert, size: 20),
             onSelected: (value) {

@@ -401,7 +401,7 @@ class _PdfsScreenState extends State<PdfsScreen> {
                       ValueListenableBuilder<ProfileData>(
                         valueListenable: currentProfile,
                         builder: (context, profile, _) {
-                          if (profile.role == UserRole.committeeMember) {
+                          if (profile.role == UserRole.committeeMember || profile.role == UserRole.superUser) {
                             return PopupMenuButton<String>(
                               icon: const Icon(Icons.more_vert, size: 20),
                               onSelected: (value) {
@@ -431,7 +431,7 @@ class _PdfsScreenState extends State<PdfsScreen> {
       floatingActionButton: ValueListenableBuilder<ProfileData>(
         valueListenable: currentProfile,
         builder: (context, profile, _) {
-          if (profile.role == UserRole.committeeMember) {
+          if (profile.role == UserRole.committeeMember || profile.role == UserRole.superUser) {
             return FloatingActionButton(
               onPressed: () => _showForm(context),
               child: const Icon(Icons.upload_file),

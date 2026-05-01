@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../features/notices/models/notice_state.dart';
@@ -63,6 +64,17 @@ class NoticeService {
     } else {
       deptNoticesState.value = List.from(deptNoticesState.value)
         ..removeWhere((notice) => notice.id == id);
+    }
+  }
+
+  static Future<String?> uploadImage(File file) async {
+    try {
+      final fileName = '${DateTime.now().millisecondsSinceEpoch}_${file.path.split('/').last}';
+      await _client.storage.from('notice_images').upload(fileName, file);
+      return _client.storage.from('notice_images').getPublicUrl(fileName);
+    } catch (e) {
+      debugPrint('Error uploading image: $e');
+      return null;
     }
   }
 }

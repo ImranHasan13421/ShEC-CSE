@@ -223,7 +223,7 @@ class _JobsScreenState extends State<JobsScreen> {
       floatingActionButton: ValueListenableBuilder<ProfileData>(
         valueListenable: currentProfile,
         builder: (context, profile, _) {
-          if (profile.role == UserRole.committeeMember) {
+          if (profile.role == UserRole.committeeMember || profile.role == UserRole.superUser) {
             return FloatingActionButton(
               onPressed: () => _showJobForm(context),
               child: const Icon(Icons.add),
@@ -315,7 +315,7 @@ class _JobsScreenState extends State<JobsScreen> {
                             ValueListenableBuilder<ProfileData>(
                               valueListenable: currentProfile,
                               builder: (context, profile, _) {
-                                if (profile.role == UserRole.committeeMember) {
+                                if (profile.role == UserRole.committeeMember || profile.role == UserRole.superUser) {
                                   return PopupMenuButton<String>(
                                     icon: const Icon(Icons.more_vert, size: 20),
                                     onSelected: (value) {

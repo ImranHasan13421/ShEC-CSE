@@ -7,6 +7,8 @@ class NoticeItem {
   final Color iconColor;
   final String title;
   final String subtitle;
+  final String description;
+  final String? imagePath;
   final List<String> tags;
   final Color tagColor;
   final String date;
@@ -18,6 +20,8 @@ class NoticeItem {
     required this.iconColor,
     required this.title,
     required this.subtitle,
+    this.description = '',
+    this.imagePath,
     required this.tags,
     required this.tagColor,
     required this.date,
@@ -31,6 +35,8 @@ class NoticeItem {
       iconColor: Color(json['icon_color'] as int),
       title: json['title'] as String,
       subtitle: json['subtitle'] as String,
+      description: json['description'] as String? ?? '',
+      imagePath: json['image_path'] as String?,
       tags: List<String>.from(json['tags'] ?? []),
       tagColor: Color(json['tag_color'] as int),
       date: json['date'] as String,
@@ -43,6 +49,8 @@ class NoticeItem {
       'category': category,
       'title': title,
       'subtitle': subtitle,
+      'description': description,
+      'image_path': imagePath ?? '',
       'tags': tags,
       'tag_color': tagColor.value,
       'date': date,

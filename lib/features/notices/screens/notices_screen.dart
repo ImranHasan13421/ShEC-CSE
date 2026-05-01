@@ -1,4 +1,6 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:ShEC_CSE/features/profile/models/profile_state.dart';
 import '../models/notice_state.dart';
 import '../../../backend/services/notice_service.dart';
@@ -44,6 +46,7 @@ class _NoticesScreenState extends State<NoticesScreen> {
   void _showNoticeForm(BuildContext context, ValueNotifier<List<NoticeItem>> defaultStateNotifier, {NoticeItem? existingNotice}) {
     final titleController = TextEditingController(text: existingNotice?.title ?? '');
     final subtitleController = TextEditingController(text: existingNotice?.subtitle ?? '');
+    final descriptionController = TextEditingController(text: existingNotice?.description ?? '');
     
     // Track the selected category
     ValueNotifier<List<NoticeItem>> selectedNotifier = defaultStateNotifier;
@@ -51,6 +54,19 @@ class _NoticesScreenState extends State<NoticesScreen> {
     // Available tags and selected tags
     final List<String> availableTags = ['Academic', 'Event', 'Workshop', 'Maintenance', 'Job', 'Lecture', 'General', 'Research'];
     List<String> selectedTags = existingNotice?.tags.toList() ?? ['General'];
+
+    File? selectedImage;
+    String? currentImageUrl = existingNotice?.imagePath;
+
+    Future<void> pickImage(StateSetter setModalState) async {
+      final picker = ImagePicker();
+      final pickedFile = await picker.pickImage(source: ImageSource.gallery);
+      if (pickedFile != null) {
+        setModalState(() {
+          selectedImage = File(pickedFile.path);
+        });
+      }
+    }
 
     // We'll manage state inside the StatefulBuilder for the bottom sheet
     showModalBottomSheet(
@@ -60,6 +76,7 @@ class _NoticesScreenState extends State<NoticesScreen> {
       builder: (modalContext) {
         return StatefulBuilder(
           builder: (BuildContext context, StateSetter setModalState) {
+            bool isUploading = false;
 
             return Padding(
               padding: EdgeInsets.only(
@@ -103,8 +120,64 @@ class _NoticesScreenState extends State<NoticesScreen> {
                     TextField(
                       controller: subtitleController,
                       decoration: const InputDecoration(labelText: 'Subtitle', border: OutlineInputBorder()),
-                      maxLines: 3,
                     ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: descriptionController,
+                      decoration: const InputDecoration(labelText: 'Full Description', border: OutlineInputBorder()),
+                      maxLines: 4,
+                    ),
+                    const SizedBox(height: 16),
+
+                    // Image Picker
+                    const Text('Attach Image', style: TextStyle(fontWeight: FontWeight.bold)),
+                    const SizedBox(height: 8),
+                    if (selectedImage != null)
+                      Stack(
+                        children: [
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(8),
+                            child: Image.file(selectedImage!, height: 150, width: double.infinity, fit: BoxFit.cover),
+                          ),
+                          Positioned(
+                            top: 8,
+                            right: 8,
+                            child: IconButton(
+                              icon: const Icon(Icons.close, color: Colors.white),
+                              style: IconButton.styleFrom(backgroundColor: Colors.black54),
+                              onPressed: () => setModalState(() => selectedImage = null),
+                            ),
+                          ),
+                        ],
+                      )
+                    else if (currentImageUrl != null && currentImageUrl!.isNotEmpty)
+                      Stack(
+                        children: [
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(8),
+                            child: Image.network(currentImageUrl!, height: 150, width: double.infinity, fit: BoxFit.cover),
+                          ),
+                          Positioned(
+                            top: 8,
+                            right: 8,
+                            child: IconButton(
+                              icon: const Icon(Icons.close, color: Colors.white),
+                              style: IconButton.styleFrom(backgroundColor: Colors.black54),
+                              onPressed: () => setModalState(() => currentImageUrl = null),
+                            ),
+                          ),
+                        ],
+                      )
+                    else
+                      OutlinedButton.icon(
+                        onPressed: () => pickImage(setModalState),
+                        icon: const Icon(Icons.image),
+                        label: const Text('Select Image from Gallery'),
+                        style: OutlinedButton.styleFrom(
+                          minimumSize: const Size(double.infinity, 50),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                        ),
+                      ),
                     const SizedBox(height: 16),
                     
                     // Tags Selection
@@ -140,55 +213,72 @@ class _NoticesScreenState extends State<NoticesScreen> {
                     SizedBox(
                       width: double.infinity,
                       child: ElevatedButton(
-                        onPressed: () async {
+                        onPressed: isUploading ? null : () async {
                           if (titleController.text.isNotEmpty) {
-                            final messenger = ScaffoldMessenger.of(context);
-                            Navigator.pop(modalContext);
-                            try {
-                              if (existingNotice == null) {
-                                // Add new
-                                final newNotice = NoticeItem(
-                                  id: '',
-                                  icon: Icons.notifications,
-                                  iconColor: Colors.blue,
-                                  title: titleController.text,
-                                  subtitle: subtitleController.text,
-                                  tags: selectedTags,
-                                  tagColor: Colors.blue,
-                                  date: 'Just now',
-                                );
-                                String category = selectedNotifier == clubNoticesState ? 'club' : 'department';
-                                await NoticeService.addNoticeToDB(newNotice, category);
-                                if (mounted) messenger.showSnackBar(const SnackBar(content: Text('Notice created successfully')));
-                              } else {
-                                // Edit existing
-                                final updatedNotice = NoticeItem(
-                                  id: existingNotice.id,
-                                  icon: existingNotice.icon,
-                                  iconColor: existingNotice.iconColor,
-                                  title: titleController.text,
-                                  subtitle: subtitleController.text,
-                                  tags: selectedTags,
-                                  tagColor: existingNotice.tagColor,
-                                  date: existingNotice.date,
-                                  isPinned: existingNotice.isPinned,
-                                );
-                                final index = defaultStateNotifier.value.indexOf(existingNotice);
-                                if (index != -1) {
-                                  final updatedList = List<NoticeItem>.from(defaultStateNotifier.value);
-                                  updatedList[index] = updatedNotice;
-                                  defaultStateNotifier.value = updatedList;
+                            setModalState(() => isUploading = true);
+                            
+                            String? finalImageUrl = currentImageUrl;
+                            
+                            // Upload new image if selected
+                            if (selectedImage != null) {
+                              finalImageUrl = await NoticeService.uploadImage(selectedImage!);
+                            }
+
+                            if (mounted) {
+                              final messenger = ScaffoldMessenger.of(context);
+                              Navigator.pop(modalContext);
+                              try {
+                                if (existingNotice == null) {
+                                  // Add new
+                                  final newNotice = NoticeItem(
+                                    id: '',
+                                    icon: Icons.notifications,
+                                    iconColor: Colors.blue,
+                                    title: titleController.text,
+                                    subtitle: subtitleController.text,
+                                    description: descriptionController.text,
+                                    imagePath: finalImageUrl,
+                                    tags: selectedTags,
+                                    tagColor: Colors.blue,
+                                    date: 'Just now',
+                                  );
+                                  String category = selectedNotifier == clubNoticesState ? 'club' : 'department';
+                                  await NoticeService.addNoticeToDB(newNotice, category);
+                                  if (mounted) messenger.showSnackBar(const SnackBar(content: Text('Notice created successfully')));
+                                } else {
+                                  // Edit existing
+                                  final updatedNotice = NoticeItem(
+                                    id: existingNotice.id,
+                                    icon: existingNotice.icon,
+                                    iconColor: existingNotice.iconColor,
+                                    title: titleController.text,
+                                    subtitle: subtitleController.text,
+                                    description: descriptionController.text,
+                                    imagePath: finalImageUrl,
+                                    tags: selectedTags,
+                                    tagColor: existingNotice.tagColor,
+                                    date: existingNotice.date,
+                                    isPinned: existingNotice.isPinned,
+                                  );
+                                  final index = defaultStateNotifier.value.indexOf(existingNotice);
+                                  if (index != -1) {
+                                    final updatedList = List<NoticeItem>.from(defaultStateNotifier.value);
+                                    updatedList[index] = updatedNotice;
+                                    defaultStateNotifier.value = updatedList;
+                                  }
+                                  String category = defaultStateNotifier == clubNoticesState ? 'club' : 'department';
+                                  await NoticeService.updateNoticeInDB(updatedNotice, category);
+                                  if (mounted) messenger.showSnackBar(const SnackBar(content: Text('Notice updated successfully')));
                                 }
-                                String category = defaultStateNotifier == clubNoticesState ? 'club' : 'department';
-                                await NoticeService.updateNoticeInDB(updatedNotice, category);
-                                if (mounted) messenger.showSnackBar(const SnackBar(content: Text('Notice updated successfully')));
+                              } catch (e) {
+                                if (mounted) messenger.showSnackBar(SnackBar(content: Text('Error: $e')));
                               }
-                            } catch (e) {
-                              if (mounted) messenger.showSnackBar(SnackBar(content: Text('Error: $e')));
                             }
                           }
                         },
-                        child: Text(existingNotice == null ? 'Create' : 'Update'),
+                        child: isUploading 
+                          ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                          : Text(existingNotice == null ? 'Create' : 'Update'),
                       ),
                     ),
                     const SizedBox(height: 24),
@@ -240,7 +330,7 @@ class _NoticesScreenState extends State<NoticesScreen> {
         floatingActionButton: ValueListenableBuilder<ProfileData>(
           valueListenable: currentProfile,
           builder: (context, profile, _) {
-            if (profile.role == UserRole.committeeMember) {
+            if (profile.role == UserRole.committeeMember || profile.role == UserRole.superUser) {
               return Builder(
                 builder: (context) {
                   return FloatingActionButton(
@@ -364,11 +454,10 @@ class _NoticesScreenState extends State<NoticesScreen> {
                               splashRadius: 24,
                             ),
                           ),
-                          // Edit/Delete options for Committee Member
                           ValueListenableBuilder<ProfileData>(
                             valueListenable: currentProfile,
                             builder: (context, profile, _) {
-                              if (profile.role == UserRole.committeeMember) {
+                              if (profile.role == UserRole.committeeMember || profile.role == UserRole.superUser) {
                                 return PopupMenuButton<String>(
                                   icon: const Icon(Icons.more_vert, size: 20),
                                   onSelected: (value) {
@@ -392,8 +481,33 @@ class _NoticesScreenState extends State<NoticesScreen> {
                       const SizedBox(height: 6),
                       Text(
                         notice.subtitle,
-                        style: TextStyle(color: colors.onSurface.withOpacity(0.7), fontSize: 13, height: 1.4),
+                        style: TextStyle(color: colors.onSurface.withOpacity(0.9), fontSize: 14, fontWeight: FontWeight.w600, height: 1.4),
                       ),
+                      if (notice.description.isNotEmpty) ...[
+                        const SizedBox(height: 6),
+                        Text(
+                          notice.description,
+                          style: TextStyle(color: colors.onSurface.withOpacity(0.7), fontSize: 13, height: 1.4),
+                        ),
+                      ],
+                      if (notice.imagePath != null && notice.imagePath!.isNotEmpty) ...[
+                        const SizedBox(height: 12),
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(8),
+                          child: Image.network(
+                            notice.imagePath!,
+                            width: double.infinity,
+                            fit: BoxFit.cover,
+                            errorBuilder: (context, error, stackTrace) {
+                              return Container(
+                                height: 100,
+                                color: colors.surfaceContainerHighest,
+                                child: const Center(child: Icon(Icons.broken_image, color: Colors.grey)),
+                              );
+                            },
+                          ),
+                        ),
+                      ],
                     ],
                   ),
                 ),

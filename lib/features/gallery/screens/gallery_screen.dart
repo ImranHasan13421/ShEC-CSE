@@ -156,7 +156,7 @@ class _GalleryScreenState extends State<GalleryScreen> {
       floatingActionButton: ValueListenableBuilder<ProfileData>(
         valueListenable: currentProfile,
         builder: (context, profile, _) {
-          if (profile.role == UserRole.committeeMember) {
+          if (profile.role == UserRole.committeeMember || profile.role == UserRole.superUser) {
             return FloatingActionButton(
               onPressed: () => _showGalleryForm(context),
               child: const Icon(Icons.add_photo_alternate),
@@ -246,7 +246,7 @@ class _GalleryScreenState extends State<GalleryScreen> {
           ValueListenableBuilder<ProfileData>(
             valueListenable: currentProfile,
             builder: (context, profile, _) {
-              if (profile.role == UserRole.committeeMember) {
+              if (profile.role == UserRole.committeeMember || profile.role == UserRole.superUser) {
                 return Positioned(
                   top: 0,
                   right: 0,
