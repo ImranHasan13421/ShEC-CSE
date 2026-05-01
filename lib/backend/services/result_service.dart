@@ -62,7 +62,7 @@ class ResultService {
   // 4. Sync missing results from API
   static Future<void> syncResults() async {
     final profile = currentProfile.value;
-    if (profile.duReg.isEmpty || profile.session.isEmpty) {
+    if (profile.duRegNo.isEmpty || profile.session.isEmpty) {
       debugPrint('Cannot sync: missing duReg or session');
       return;
     }
@@ -91,7 +91,7 @@ class ResultService {
       final examsToFetch = allExams.where((exam) => !existingExamIds.contains(exam.examId)).toList();
 
       for (var exam in examsToFetch) {
-        final success = await _fetchAndSaveResult(profile.duReg, exam.examId, sessId, exam.examName);
+        final success = await _fetchAndSaveResult(profile.duRegNo, exam.examId, sessId, exam.examName);
         if (success) {
           // Sleep briefly to avoid hammering the API
           await Future.delayed(const Duration(milliseconds: 500));
