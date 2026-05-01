@@ -42,6 +42,7 @@ class _HomeLayoutState extends State<HomeLayout> {
         },
       ),
       const NoticesScreen(),
+      const MessengerScreen(),
       const ContestsScreen(),
     ];
   }

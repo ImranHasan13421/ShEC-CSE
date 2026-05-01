@@ -34,3 +34,52 @@ USING (bucket_id = 'notice_images' AND auth.role() = 'authenticated');
 CREATE POLICY "Allow authenticated users to delete notice images" 
 ON storage.objects FOR DELETE 
 USING (bucket_id = 'notice_images' AND auth.role() = 'authenticated');
+
+-- ==========================================
+-- DUCMC Results Integration Tables
+-- ==========================================
+
+-- 4. Exams Table
+CREATE TABLE IF NOT EXISTS "DUCMC_exams_id" (
+  exam_id TEXT PRIMARY KEY,
+  exam_name TEXT NOT NULL
+);
+
+-- 5. Sessions Table
+CREATE TABLE IF NOT EXISTS "DUCMC_sessions_id" (
+  sess_id TEXT PRIMARY KEY,
+  session TEXT NOT NULL
+);
+
+-- 6. Student Results Table
+CREATE TABLE IF NOT EXISTS student_results (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    reg_no TEXT NOT NULL,
+    exam_id TEXT NOT NULL REFERENCES "DUCMC_exams_id"(exam_id),
+    gpa TEXT NOT NULL,
+    cgpa TEXT NOT NULL,
+    subjects JSONB NOT NULL DEFAULT '[]'::jsonb,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    UNIQUE(reg_no, exam_id)
+);
+
+-- Enable RLS for student_results
+ALTER TABLE student_results ENABLE ROW LEVEL SECURITY;
+
+-- Policy: Users can only select their own results (matching reg_no)
+CREATE POLICY "Users can view their own results" 
+ON student_results FOR SELECT 
+USING (reg_no = (SELECT du_reg FROM profiles WHERE id = auth.uid()));
+
+-- Policy: Users can insert their own results
+CREATE POLICY "Users can insert their own results" 
+ON student_results FOR INSERT 
+WITH CHECK (reg_no = (SELECT du_reg FROM profiles WHERE id = auth.uid()));
+
+-- Enable RLS for DUCMC_exams_id and DUCMC_sessions_id (Read only for all authenticated)
+ALTER TABLE "DUCMC_exams_id" ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Anyone can read exams" ON "DUCMC_exams_id" FOR SELECT USING (auth.role() = 'authenticated');
+
+ALTER TABLE "DUCMC_sessions_id" ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Anyone can read sessions" ON "DUCMC_sessions_id" FOR SELECT USING (auth.role() = 'authenticated');
+
