@@ -7,7 +7,15 @@ import 'package:ShEC_CSE/features/department/screens/department_screen.dart';
 import 'package:ShEC_CSE/features/club/screens/club_screen.dart';
 import 'package:ShEC_CSE/features/gallery/models/gallery_state.dart';
 import 'package:ShEC_CSE/backend/services/gallery_service.dart';
+import 'package:ShEC_CSE/backend/services/notice_service.dart';
+import 'package:ShEC_CSE/backend/services/contest_service.dart';
+import 'package:ShEC_CSE/features/notices/models/notice_state.dart';
+import 'package:ShEC_CSE/features/contests/models/contest_state.dart';
+import 'package:ShEC_CSE/features/gallery/screens/gallery_screen.dart';
+import 'package:ShEC_CSE/features/notices/screens/notice_detail_screen.dart';
 import 'dart:async';
+
+import '../../jobs/screens/jobs_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
   final Function(int)? onNavigateToTab;
@@ -27,6 +35,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
   void initState() {
     super.initState();
     GalleryService.fetchGalleryItems();
+    NoticeService.fetchNotices();
+    ContestService.fetchContestsAndCourses();
     _startCarouselTimer();
   }
 
@@ -60,8 +70,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
     switch (id) {
       case 'tab_notices': widget.onNavigateToTab?.call(1); break;
       case 'tab_messenger': widget.onNavigateToTab?.call(2); break;
-      case 'tab_jobs': widget.onNavigateToTab?.call(3); break;
-      case 'tab_contests': widget.onNavigateToTab?.call(4); break;
+      case 'tab_jobs': Navigator.push(context, MaterialPageRoute(builder: (_) => const JobsScreen())); break;
+      case 'tab_contests': widget.onNavigateToTab?.call(3); break;
       case 'cgpa_calc': Navigator.push(context, MaterialPageRoute(builder: (_) => const CGPACalculatorScreen())); break;
       case 'res_main': Navigator.push(context, MaterialPageRoute(builder: (_) => const YearsScreen())); break;
       case 'dept_info': Navigator.push(context, MaterialPageRoute(builder: (_) => const DepartmentScreen())); break;
@@ -94,7 +104,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             return Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _buildSectionHeader('Gallery Highlights', () {}),
+                _buildSectionHeader('Gallery Highlights', () => Navigator.push(context, MaterialPageRoute(builder: (_) => const GalleryScreen()))),
                 const SizedBox(height: 12),
                 SizedBox(
                   height: 200,
@@ -161,12 +171,47 @@ class _DashboardScreenState extends State<DashboardScreen> {
         const SizedBox(height: 32),
 
         _buildSectionHeader('Latest Notices', () => widget.onNavigateToTab?.call(1)),
-        _buildListCard(context, icon: Icons.lightbulb, iconColor: Colors.blue, title: 'Workshop on Machine Learning Basics', subtitle: 'Join us for an introductory workshop on ML fundamentals.', tag: 'Workshop', date: 'May 15, 2026'),
-        _buildListCard(context, icon: Icons.code, iconColor: Colors.blueAccent, title: 'Hackathon Registration Open', subtitle: 'Annual coding hackathon registration is now open.', tag: 'Event', date: 'May 20, 2026'),
+        ValueListenableBuilder<List<NoticeItem>>(
+          valueListenable: clubNoticesState,
+          builder: (context, notices, _) {
+            final latest = notices.where((n) => n.isApproved && n.isVisible).take(2).toList();
+            if (latest.isEmpty) return const Text('No recent notices');
+            return Column(
+              children: latest.map((n) => _buildListCard(
+                context, 
+                icon: n.icon, 
+                iconColor: n.iconColor, 
+                title: n.title, 
+                subtitle: n.subtitle, 
+                tag: n.tags.first, 
+                date: n.date,
+                onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => NoticeDetailScreen(notice: n))),
+              )).toList(),
+            );
+          },
+        ),
 
         const SizedBox(height: 24),
-        _buildSectionHeader('Upcoming Contests', () => widget.onNavigateToTab?.call(4)),
-        _buildListCard(context, icon: Icons.emoji_events, iconColor: Colors.orange, title: 'Codeforces Round #892', subtitle: 'Div. 2 competitive programming contest.', tag: 'Contest', date: 'Tomorrow'),
+        _buildSectionHeader('Upcoming Contests', () => widget.onNavigateToTab?.call(3)),
+        ValueListenableBuilder<List<ContestItem>>(
+          valueListenable: contestState,
+          builder: (context, contests, _) {
+            final latest = contests.where((c) => c.isApproved && c.isVisible).take(2).toList();
+            if (latest.isEmpty) return const Text('No upcoming contests');
+            return Column(
+              children: latest.map((c) => _buildListCard(
+                context, 
+                icon: Icons.emoji_events, 
+                iconColor: Colors.orange, 
+                title: c.title, 
+                subtitle: '${c.platform} | ${c.level}', 
+                tag: 'Contest', 
+                date: c.date,
+                onTap: () => widget.onNavigateToTab?.call(3),
+              )).toList(),
+            );
+          },
+        ),
       ],
     );
   }
@@ -334,11 +379,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
           value = _pageController.page! - index;
           value = (1 - (value.abs() * 0.3)).clamp(0.0, 1.0);
         }
-        return Center(
-          child: SizedBox(
-            height: Curves.easeOut.transform(value) * 200,
-            width: Curves.easeOut.transform(value) * 350,
-            child: child,
+        return GestureDetector(
+          onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const GalleryScreen())),
+          child: Center(
+            child: SizedBox(
+              height: Curves.easeOut.transform(value) * 200,
+              width: Curves.easeOut.transform(value) * 350,
+              child: child,
+            ),
           ),
         );
       },
@@ -386,7 +434,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 overflow: TextOverflow.ellipsis,
               ),
               Text(
-                item.subtitle,
+                item.description,
                 style: const TextStyle(
                   color: Colors.white70,
                   fontSize: 12,
@@ -401,7 +449,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  Widget _buildListCard(BuildContext context, {required IconData icon, required Color iconColor, required String title, required String subtitle, required String tag, required String date}) {
+  Widget _buildListCard(BuildContext context, {required IconData icon, required Color iconColor, required String title, required String subtitle, required String tag, required String date, VoidCallback? onTap}) {
     final colors = Theme.of(context).colorScheme;
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
@@ -409,14 +457,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
       color: colors.surface,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12), side: BorderSide(color: colors.outline.withOpacity(0.1))),
       child: ListTile(
+        onTap: onTap,
         contentPadding: const EdgeInsets.all(16),
         leading: CircleAvatar(backgroundColor: iconColor.withOpacity(0.1), child: Icon(icon, color: iconColor)),
-        title: Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
+        title: Text(title, style: const TextStyle(fontWeight: FontWeight.bold), maxLines: 1, overflow: TextOverflow.ellipsis),
         subtitle: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const SizedBox(height: 4),
-            Text(subtitle, style: TextStyle(color: colors.onSurface.withOpacity(0.6))),
+            Text(subtitle, style: TextStyle(color: colors.onSurface.withOpacity(0.6)), maxLines: 1, overflow: TextOverflow.ellipsis),
             const SizedBox(height: 8),
             Row(
               children: [

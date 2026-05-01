@@ -65,7 +65,7 @@ class GalleryDetailScreen extends StatelessWidget {
                     children: [
                       Icon(item.icon, color: Colors.white, size: 16),
                       const SizedBox(width: 8),
-                      Text(item.subtitle, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                      Text(item.description, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
                     ],
                   ),
                 ),

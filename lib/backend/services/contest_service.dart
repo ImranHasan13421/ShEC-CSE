@@ -10,32 +10,32 @@ class ContestService {
 
     var query = _client.from('contests').select();
     if (!isAdmin) {
-      query = query.eq('is_approved', true);
+      query = query.eq('is_approved', true).eq('is_visible', true);
     }
+    // Only fetch non-courses as user wants to remove courses feature
+    query = query.eq('is_course', false);
     
     final response = await query.order('created_at', ascending: false);
 
-    final List<ContestItem> contests = [];
-    final List<ContestItem> courses = [];
-
+    final List<ContestItem> fetchedContests = [];
     for (var row in response) {
       final item = ContestItem.fromJson(row);
-      if (item.isCourse) {
-        courses.add(item);
-      } else {
-        contests.add(item);
-      }
+      fetchedContests.add(item);
     }
 
-    contestState.value = contests;
-    courseState.value = courses;
+    contestState.value = fetchedContests;
+    courseState.value = [];
   }
 
   static Future<void> addContestToDB(ContestItem item) async {
-    final isSuperUser = currentProfile.value.role == UserRole.superUser;
+    final profile = currentProfile.value;
+    final isSuperUser = profile.designation == 'President' || profile.designation == 'Vice President';
     
     final data = item.toJson();
     data['is_approved'] = isSuperUser;
+    data['is_visible'] = true;
+    data['created_by_name'] = profile.name;
+    data['is_course'] = false; // Always false now
     
     final response = await _client
         .from('contests')
@@ -44,11 +44,12 @@ class ContestService {
         .single();
 
     final newItem = ContestItem.fromJson(response);
-    if (newItem.isCourse) {
-      courseState.value = List.from(courseState.value)..insert(0, newItem);
-    } else {
-      contestState.value = List.from(contestState.value)..insert(0, newItem);
-    }
+    contestState.value = List.from(contestState.value)..insert(0, newItem);
+  }
+
+  static Future<void> toggleContestVisibility(String id, bool isVisible) async {
+    await _client.from('contests').update({'is_visible': isVisible}).eq('id', id);
+    fetchContestsAndCourses();
   }
 
   static Future<void> updateContestInDB(ContestItem item) async {
@@ -72,10 +73,6 @@ class ContestService {
         .delete()
         .eq('id', item.id);
 
-    if (item.isCourse) {
-      courseState.value = List.from(courseState.value)..removeWhere((i) => i.id == item.id);
-    } else {
-      contestState.value = List.from(contestState.value)..removeWhere((i) => i.id == item.id);
-    }
+    contestState.value = List.from(contestState.value)..removeWhere((i) => i.id == item.id);
   }
 }

@@ -46,6 +46,7 @@ class ResultService {
       final response = await _client
           .from('student_results')
           .select()
+          .eq('reg_no', currentProfile.value.duRegNo)
           .order('created_at', ascending: false);
 
       final List<ExamResult> results = [];

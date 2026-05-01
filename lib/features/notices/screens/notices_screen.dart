@@ -4,6 +4,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:ShEC_CSE/features/profile/models/profile_state.dart';
 import '../models/notice_state.dart';
 import '../../../backend/services/notice_service.dart';
+import 'notice_detail_screen.dart';
 
 class NoticesScreen extends StatefulWidget {
   const NoticesScreen({super.key});
@@ -13,6 +14,9 @@ class NoticesScreen extends StatefulWidget {
 }
 
 class _NoticesScreenState extends State<NoticesScreen> {
+  String _searchQuery = '';
+  String _selectedTagFilter = 'All';
+
   @override
   void initState() {
     super.initState();
@@ -22,12 +26,17 @@ class _NoticesScreenState extends State<NoticesScreen> {
   // --- Toggle Logic ---
   void _togglePin(NoticeItem notice, ValueNotifier<List<NoticeItem>> stateNotifier) async {
     try {
-      notice.isPinned = !notice.isPinned;
-      // Trigger a rebuild of the list by re-assigning the value
-      stateNotifier.value = List.from(stateNotifier.value);
+      final updatedNotice = notice.copyWith(isPinned: !notice.isPinned);
+      
+      final index = stateNotifier.value.indexOf(notice);
+      if (index != -1) {
+        final updatedList = List<NoticeItem>.from(stateNotifier.value);
+        updatedList[index] = updatedNotice;
+        stateNotifier.value = updatedList;
+      }
       
       String category = stateNotifier == clubNoticesState ? 'club' : 'department';
-      await NoticeService.updateNoticeInDB(notice, category);
+      await NoticeService.updateNoticeInDB(updatedNotice, category);
     } catch (e) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error updating pin: $e')));
     }
@@ -53,7 +62,9 @@ class _NoticesScreenState extends State<NoticesScreen> {
     
     // Available tags and selected tags
     final List<String> availableTags = ['Academic', 'Event', 'Workshop', 'Maintenance', 'Job', 'Lecture', 'General', 'Research'];
-    List<String> selectedTags = existingNotice?.tags.toList() ?? ['General'];
+    List<String> selectedTags = existingNotice?.tags.toList() ?? [];
+
+    bool isVisible = existingNotice?.isVisible ?? true;
 
     File? selectedImage;
     String? currentImageUrl = existingNotice?.imagePath;
@@ -179,7 +190,7 @@ class _NoticesScreenState extends State<NoticesScreen> {
                         ),
                       ),
                     const SizedBox(height: 16),
-                    
+
                     // Tags Selection
                     const Text('Tags', style: TextStyle(fontWeight: FontWeight.bold)),
                     const SizedBox(height: 8),
@@ -207,6 +218,14 @@ class _NoticesScreenState extends State<NoticesScreen> {
                           },
                         );
                       }).toList(),
+                    ),
+                    
+                    const SizedBox(height: 16),
+                    SwitchListTile(
+                      title: const Text('Show to Members', style: TextStyle(fontWeight: FontWeight.bold)),
+                      subtitle: const Text('If off, only admins can see this'),
+                      value: isVisible,
+                      onChanged: (val) => setModalState(() => isVisible = val),
                     ),
                     
                     const SizedBox(height: 24),
@@ -238,27 +257,23 @@ class _NoticesScreenState extends State<NoticesScreen> {
                                     subtitle: subtitleController.text,
                                     description: descriptionController.text,
                                     imagePath: finalImageUrl,
-                                    tags: selectedTags,
+                                    tags: selectedTags.isEmpty ? ['General'] : selectedTags,
                                     tagColor: Colors.blue,
                                     date: 'Just now',
+                                    isVisible: isVisible,
                                   );
                                   String category = selectedNotifier == clubNoticesState ? 'club' : 'department';
                                   await NoticeService.addNoticeToDB(newNotice, category);
                                   if (mounted) messenger.showSnackBar(const SnackBar(content: Text('Notice created successfully')));
                                 } else {
                                   // Edit existing
-                                  final updatedNotice = NoticeItem(
-                                    id: existingNotice.id,
-                                    icon: existingNotice.icon,
-                                    iconColor: existingNotice.iconColor,
+                                  final updatedNotice = existingNotice.copyWith(
                                     title: titleController.text,
                                     subtitle: subtitleController.text,
                                     description: descriptionController.text,
                                     imagePath: finalImageUrl,
                                     tags: selectedTags,
-                                    tagColor: existingNotice.tagColor,
-                                    date: existingNotice.date,
-                                    isPinned: existingNotice.isPinned,
+                                    isVisible: isVisible,
                                   );
                                   final index = defaultStateNotifier.value.indexOf(existingNotice);
                                   if (index != -1) {
@@ -301,9 +316,12 @@ class _NoticesScreenState extends State<NoticesScreen> {
       child: Scaffold(
         body: Column(
           children: [
+            // 0. Filter Bar
+            _buildFilterBar(colors),
+
             // 1. The TabBar
             Container(
-              color: colors.primary, // Matches your original AppBar background
+              color: colors.primary, 
               child: const TabBar(
                 labelColor: Colors.white,
                 unselectedLabelColor: Colors.white70,
@@ -351,6 +369,34 @@ class _NoticesScreenState extends State<NoticesScreen> {
     );
   }
 
+  Widget _buildFilterBar(ColorScheme colors) {
+    final tags = ['All', 'Academic', 'Event', 'Workshop', 'Job', 'Lecture', 'General'];
+    return Container(
+      height: 50,
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: ListView.builder(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        itemCount: tags.length,
+        itemBuilder: (context, index) {
+          final tag = tags[index];
+          final isSelected = _selectedTagFilter == tag;
+          return Padding(
+            padding: const EdgeInsets.only(right: 8),
+            child: FilterChip(
+              label: Text(tag, style: TextStyle(fontSize: 12, color: isSelected ? Colors.white : colors.primary)),
+              selected: isSelected,
+              selectedColor: colors.primary,
+              onSelected: (val) => setState(() => _selectedTagFilter = tag),
+              showCheckmark: false,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
   Widget _buildNoticesTab(ValueNotifier<List<NoticeItem>> stateNotifier) {
     return ValueListenableBuilder<List<NoticeItem>>(
       valueListenable: stateNotifier,
@@ -360,8 +406,13 @@ class _NoticesScreenState extends State<NoticesScreen> {
 
         // Filter notices: students only see approved ones. Admins see all.
         final visibleNotices = notices.where((n) {
-          if (n.isApproved) return true;
-          return isAdmin; // Only admins see unapproved
+          final matchesSearch = n.title.toLowerCase().contains(_searchQuery.toLowerCase());
+          final matchesTag = _selectedTagFilter == 'All' || n.tags.contains(_selectedTagFilter);
+          
+          if (!matchesSearch || !matchesTag) return false;
+
+          if (isAdmin) return true;
+          return n.isApproved && n.isVisible; 
         }).toList();
 
         final pinnedNotices = visibleNotices.where((n) => n.isPinned).toList();
@@ -418,166 +469,148 @@ class _NoticesScreenState extends State<NoticesScreen> {
         borderRadius: BorderRadius.circular(12),
         side: BorderSide(color: borderColor, width: notice.isPinned ? 1.5 : 1.0),
       ),
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: notice.isPinned ? Colors.white : notice.iconColor.withOpacity(0.1),
-                    shape: BoxShape.circle,
+      child: InkWell(
+        onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => NoticeDetailScreen(notice: notice))),
+        borderRadius: BorderRadius.circular(12),
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: notice.isPinned ? Colors.white : notice.iconColor.withOpacity(0.1),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(notice.icon, color: notice.iconColor, size: 24),
                   ),
-                  child: Icon(notice.icon, color: notice.iconColor, size: 24),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Expanded(
-                            child: Row(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Expanded(
-                                  child: Text(
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
                                     notice.title,
                                     style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, height: 1.2),
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
                                   ),
-                                ),
-                                if (!notice.isApproved)
-                                  Container(
-                                    margin: const EdgeInsets.only(left: 8),
-                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                    decoration: BoxDecoration(
-                                      color: Colors.red.withOpacity(0.1),
-                                      border: Border.all(color: Colors.red),
-                                      borderRadius: BorderRadius.circular(4),
-                                    ),
-                                    child: const Text('PENDING', style: TextStyle(color: Colors.red, fontSize: 10, fontWeight: FontWeight.bold)),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    notice.subtitle,
+                                    style: TextStyle(color: colors.onSurface.withOpacity(0.6), fontSize: 13),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
                                   ),
-                              ],
-                            ),
-                          ),
-                          // Pinned Button
-                          Padding(
-                            padding: const EdgeInsets.only(left: 8.0),
-                            child: IconButton(
-                              icon: Icon(
-                                notice.isPinned ? Icons.push_pin : Icons.push_pin_outlined,
-                                color: notice.isPinned ? Colors.redAccent : colors.onSurface.withOpacity(0.3),
-                                size: 22,
+                                ],
                               ),
-                              onPressed: () => _togglePin(notice, stateNotifier),
-                              padding: EdgeInsets.zero,
-                              constraints: const BoxConstraints(),
-                              splashRadius: 24,
                             ),
-                          ),
-                          ValueListenableBuilder<ProfileData>(
-                            valueListenable: currentProfile,
-                            builder: (context, profile, _) {
-                              if (profile.role == UserRole.committeeMember || profile.role == UserRole.superUser) {
-                                return PopupMenuButton<String>(
-                                  icon: const Icon(Icons.more_vert, size: 20),
-                                  onSelected: (value) {
-                                    if (value == 'edit') {
-                                      _showNoticeForm(context, stateNotifier, existingNotice: notice);
-                                    } else if (value == 'delete') {
-                                      _deleteNotice(notice, stateNotifier);
-                                    } else if (value == 'approve') {
-                                      NoticeService.approveNotice(notice.id);
-                                    }
-                                  },
-                                  itemBuilder: (context) => [
-                                    if (!notice.isApproved && profile.role == UserRole.superUser)
-                                      const PopupMenuItem(value: 'approve', child: Text('Approve', style: TextStyle(color: Colors.green))),
-                                    const PopupMenuItem(value: 'edit', child: Text('Edit')),
-                                    const PopupMenuItem(value: 'delete', child: Text('Delete', style: TextStyle(color: Colors.red))),
-                                  ],
-                                );
-                              }
-                              return const SizedBox.shrink();
-                            },
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 6),
-                      Text(
-                        notice.subtitle,
-                        style: TextStyle(color: colors.onSurface.withOpacity(0.9), fontSize: 14, fontWeight: FontWeight.w600, height: 1.4),
-                      ),
-                      if (notice.description.isNotEmpty) ...[
-                        const SizedBox(height: 6),
-                        Text(
-                          notice.description,
-                          style: TextStyle(color: colors.onSurface.withOpacity(0.7), fontSize: 13, height: 1.4),
+                            if (!notice.isVisible || !notice.isApproved)
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.end,
+                                children: [
+                                  if (!notice.isApproved)
+                                    _buildStatusBadge('PENDING', Colors.red),
+                                  if (!notice.isVisible)
+                                    _buildStatusBadge('HIDDEN', Colors.orange),
+                                ],
+                              ),
+                          ],
                         ),
                       ],
-                      if (notice.imagePath != null && notice.imagePath!.isNotEmpty) ...[
-                        const SizedBox(height: 12),
-                        ClipRRect(
-                          borderRadius: BorderRadius.circular(8),
-                          child: Image.network(
-                            notice.imagePath!,
-                            width: double.infinity,
-                            fit: BoxFit.cover,
-                            errorBuilder: (context, error, stackTrace) {
-                              return Container(
-                                height: 100,
-                                color: colors.surfaceContainerHighest,
-                                child: const Center(child: Icon(Icons.broken_image, color: Colors.grey)),
-                              );
-                            },
-                          ),
-                        ),
-                      ],
-                    ],
+                    ),
                   ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            Row(
-              children: [
-                Expanded(
-                  child: Wrap(
-                    spacing: 6.0,
-                    runSpacing: 4.0,
-                    children: notice.tags.map((tag) {
-                      return Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: notice.isPinned ? Colors.white : notice.tagColor.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(6),
-                          border: Border.all(color: notice.tagColor.withOpacity(0.3)),
+                  ValueListenableBuilder<ProfileData>(
+                    valueListenable: currentProfile,
+                    builder: (context, profile, _) {
+                      if (profile.role != UserRole.student) {
+                        return _buildAdminMenu(notice, stateNotifier, profile);
+                      }
+                      return IconButton(
+                        icon: Icon(
+                          notice.isPinned ? Icons.push_pin : Icons.push_pin_outlined,
+                          color: notice.isPinned ? Colors.redAccent : colors.onSurface.withOpacity(0.3),
+                          size: 20,
                         ),
-                        child: Text(
-                          tag,
-                          style: TextStyle(color: notice.tagColor, fontSize: 11, fontWeight: FontWeight.bold),
-                        ),
+                        onPressed: () => _togglePin(notice, stateNotifier),
                       );
-                    }).toList(),
+                    },
                   ),
-                ),
-                Icon(Icons.calendar_today, size: 12, color: colors.onSurface.withOpacity(0.5)),
-                const SizedBox(width: 4),
-                Text(
-                  notice.date,
-                  style: TextStyle(color: colors.onSurface.withOpacity(0.5), fontSize: 12, fontWeight: FontWeight.w500),
-                ),
-              ],
-            ),
-          ],
+                ],
+              ),
+              const SizedBox(height: 12),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Row(
+                    children: notice.tags.take(2).map((tag) => Container(
+                      margin: const EdgeInsets.only(right: 4),
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: notice.tagColor.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Text(tag, style: TextStyle(color: notice.tagColor, fontSize: 10, fontWeight: FontWeight.bold)),
+                    )).toList(),
+                  ),
+                  Text(notice.date, style: TextStyle(color: colors.onSurface.withOpacity(0.4), fontSize: 11)),
+                ],
+              ),
+            ],
+          ),
         ),
       ),
+    );
+  }
+
+  Widget _buildStatusBadge(String text, Color color) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 4, left: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.1),
+        border: Border.all(color: color),
+        borderRadius: BorderRadius.circular(4),
+      ),
+      child: Text(text, style: TextStyle(color: color, fontSize: 8, fontWeight: FontWeight.bold)),
+    );
+  }
+
+  Widget _buildAdminMenu(NoticeItem notice, ValueNotifier<List<NoticeItem>> stateNotifier, ProfileData profile) {
+    return PopupMenuButton<String>(
+      icon: const Icon(Icons.more_vert, size: 20),
+      onSelected: (value) {
+        if (value == 'edit') {
+          _showNoticeForm(context, stateNotifier, existingNotice: notice);
+        } else if (value == 'delete') {
+          _deleteNotice(notice, stateNotifier);
+        } else if (value == 'approve') {
+          NoticeService.approveNotice(notice.id);
+        } else if (value == 'pin') {
+          _togglePin(notice, stateNotifier);
+        } else if (value == 'visibility') {
+          NoticeService.toggleNoticeVisibility(notice.id, !notice.isVisible);
+        }
+      },
+      itemBuilder: (context) => [
+        if (!notice.isApproved && (profile.designation == 'President' || profile.designation == 'Vice President'))
+          const PopupMenuItem(value: 'approve', child: Text('Approve', style: TextStyle(color: Colors.green))),
+        PopupMenuItem(value: 'visibility', child: Text(notice.isVisible ? 'Hide from Members' : 'Show to Members')),
+        PopupMenuItem(value: 'pin', child: Text(notice.isPinned ? 'Unpin' : 'Pin')),
+        const PopupMenuItem(value: 'edit', child: Text('Edit')),
+        const PopupMenuItem(value: 'delete', child: Text('Delete', style: TextStyle(color: Colors.red))),
+      ],
     );
   }
 }

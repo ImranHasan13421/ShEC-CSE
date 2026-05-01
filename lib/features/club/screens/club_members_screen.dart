@@ -12,14 +12,16 @@ class ClubMembersScreen extends StatefulWidget {
 class _ClubMembersScreenState extends State<ClubMembersScreen> with SingleTickerProviderStateMixin {
   late TabController _tabController;
   List<ProfileData> _allMembers = [];
+  String _searchQuery = '';
   bool _isLoading = true;
+
+  bool get isAdmin => currentProfile.value.role != UserRole.student;
 
   @override
   void initState() {
     super.initState();
-    // 4 Tabs: Members, Committees, Superusers, Pending
-    // Only show 4 tabs if user is committee/superuser. Otherwise 3 tabs.
-    int tabCount = currentProfile.value.role != UserRole.student ? 4 : 3;
+    // 3 Tabs: Members, Committees, Pending (if admin)
+    int tabCount = currentProfile.value.role != UserRole.student ? 3 : 2;
     _tabController = TabController(length: tabCount, vsync: this);
     _fetchMembers();
   }
@@ -38,8 +40,9 @@ class _ClubMembersScreenState extends State<ClubMembersScreen> with SingleTicker
 
   void _showMemberDetails(ProfileData member) {
     final colors = Theme.of(context).colorScheme;
-    final isSuperuser = currentProfile.value.role == UserRole.superUser;
-    final isCommittee = currentProfile.value.role == UserRole.committeeMember;
+    final currentP = currentProfile.value;
+    final isSuperuser = currentP.designation == 'President' || currentP.designation == 'Vice President';
+    final isCommittee = currentP.role == UserRole.committeeMember;
     final canManage = isSuperuser || isCommittee;
 
     showModalBottomSheet(
@@ -66,7 +69,7 @@ class _ClubMembersScreenState extends State<ClubMembersScreen> with SingleTicker
                 ),
                 const SizedBox(height: 16),
                 Text(member.name, style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
-                Text(member.role.name.toUpperCase(), style: TextStyle(color: colors.primary, fontWeight: FontWeight.bold)),
+                Text(member.designation, style: TextStyle(color: colors.primary, fontWeight: FontWeight.bold, fontSize: 16)),
                 const Divider(height: 32),
                 
                 _buildInfoRow(Icons.badge, 'Class ID', member.studentId),
@@ -91,18 +94,16 @@ class _ClubMembersScreenState extends State<ClubMembersScreen> with SingleTicker
                       },
                     ),
                   
-                  // Only superusers can change designations or delete
-                  if (isSuperuser && member.isApproved)
-                    Wrap(
-                      spacing: 8,
-                      children: [
-                        if (member.role != UserRole.student)
-                          ActionChip(label: const Text('Make Member'), onPressed: () => _changeRole(member, UserRole.student)),
-                        if (member.role != UserRole.committeeMember)
-                          ActionChip(label: const Text('Make Committee'), onPressed: () => _changeRole(member, UserRole.committeeMember)),
-                        if (member.role != UserRole.superUser)
-                          ActionChip(label: const Text('Make Superuser'), onPressed: () => _changeRole(member, UserRole.superUser)),
-                      ],
+                  if (isSuperuser)
+                    ElevatedButton(
+                      onPressed: () => _showDesignationPicker(member),
+                      child: const Text('Change Designation / Promote'),
+                    ),
+                  
+                  if (isSuperuser && member.designation != 'Student')
+                    TextButton(
+                      onPressed: () => _changeRole(member, UserRole.student, designation: 'Student'),
+                      child: const Text('Remove from Committee', style: TextStyle(color: Colors.orange)),
                     ),
                     
                   if (isSuperuser)
@@ -139,14 +140,65 @@ class _ClubMembersScreenState extends State<ClubMembersScreen> with SingleTicker
     );
   }
 
-  Future<void> _changeRole(ProfileData member, UserRole newRole) async {
-    Navigator.pop(context); // close bottom sheet
+  void _showDesignationPicker(ProfileData member) {
+    final List<String> standardDesignations = [
+      'President', 'Vice President', 'General Secretary', 'Joint Secretary', 
+      'Treasurer', 'Press Secretary', 'Executive Member', 'Member'
+    ];
+    String? selected = standardDesignations.contains(member.designation) ? member.designation : null;
+    final customController = TextEditingController(text: selected == null ? member.designation : '');
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Select Designation'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            DropdownButtonFormField<String>(
+              value: selected,
+              items: standardDesignations.map((d) => DropdownMenuItem(value: d, child: Text(d))).toList(),
+              onChanged: (val) => setState(() => selected = val),
+              decoration: const InputDecoration(labelText: 'Standard Designation'),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: customController,
+              decoration: const InputDecoration(labelText: 'Custom Designation (Optional)', hintText: 'Enter if not in list'),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+          ElevatedButton(
+            onPressed: () {
+              final finalDesignation = (customController.text.isNotEmpty) ? customController.text : (selected ?? 'Student');
+              Navigator.pop(context);
+              UserRole role = UserRole.student;
+              if (finalDesignation != 'Student') {
+                role = (finalDesignation == 'President' || finalDesignation == 'Vice President') 
+                    ? UserRole.superUser 
+                    : UserRole.committeeMember;
+              }
+              _changeRole(member, role, designation: finalDesignation);
+            },
+            child: const Text('Update'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _changeRole(ProfileData member, UserRole newRole, {String? designation}) async {
     try {
-      await AuthService.updateUserRole(member.id, newRole);
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Role updated successfully')));
+      await AuthService.updateUserRole(member.id, newRole, designation: designation);
+      if (mounted) {
+        Navigator.pop(context); // Close details sheet if open
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Profile updated successfully')));
+      }
       _fetchMembers();
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error updating role: $e')));
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error updating: $e')));
     }
   }
 
@@ -179,41 +231,63 @@ class _ClubMembersScreenState extends State<ClubMembersScreen> with SingleTicker
 
   @override
   Widget build(BuildContext context) {
-    final isAdmin = currentProfile.value.role != UserRole.student;
+    final filteredAll = _allMembers.where((m) => 
+      m.name.toLowerCase().contains(_searchQuery.toLowerCase()) || 
+      m.studentId.contains(_searchQuery)
+    ).toList();
 
-    final members = _allMembers.where((m) => m.role == UserRole.student && m.isApproved).toList();
-    final committees = _allMembers.where((m) => m.role == UserRole.committeeMember && m.isApproved).toList();
-    final superusers = _allMembers.where((m) => m.role == UserRole.superUser && m.isApproved).toList();
-    final pending = _allMembers.where((m) => !m.isApproved).toList();
+    final members = filteredAll.where((m) => m.role == UserRole.student && m.isApproved && m.designation == 'Student').toList();
+    final committees = filteredAll.where((m) => (m.role == UserRole.committeeMember || m.role == UserRole.superUser) && m.isApproved).toList();
+    final pending = filteredAll.where((m) => !m.isApproved).toList();
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('Club Directory'),
-        actions: [
-          IconButton(icon: const Icon(Icons.refresh), onPressed: _fetchMembers),
-        ],
-        bottom: TabBar(
-          controller: _tabController,
-          isScrollable: true,
-          tabs: [
-            const Tab(text: 'Members'),
-            const Tab(text: 'Committee'),
-            const Tab(text: 'Superusers'),
-            if (isAdmin)
-              Tab(
-                child: Row(
-                  children: [
-                    const Text('Pending '),
-                    if (pending.isNotEmpty)
-                      Container(
-                        padding: const EdgeInsets.all(6),
-                        decoration: const BoxDecoration(color: Colors.red, shape: BoxShape.circle),
-                        child: Text('${pending.length}', style: const TextStyle(fontSize: 10, color: Colors.white)),
-                      )
-                  ],
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(110),
+          child: Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                child: TextField(
+                  decoration: InputDecoration(
+                    hintText: 'Search members...',
+                    prefixIcon: const Icon(Icons.search),
+                    filled: true,
+                    fillColor: Theme.of(context).colorScheme.surfaceContainerHighest,
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                    contentPadding: const EdgeInsets.symmetric(vertical: 0),
+                  ),
+                  onChanged: (val) => setState(() => _searchQuery = val),
                 ),
               ),
-          ],
+              TabBar(
+                controller: _tabController,
+                labelColor: Theme.of(context).colorScheme.primary,
+                unselectedLabelColor: Colors.grey,
+                indicatorColor: Theme.of(context).colorScheme.primary,
+                tabs: [
+                  const Tab(text: 'Members'),
+                  const Tab(text: 'Committee'),
+                  if (isAdmin)
+                    Tab(
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Text('Pending '),
+                          if (pending.isNotEmpty)
+                            Container(
+                              padding: const EdgeInsets.all(4),
+                              decoration: const BoxDecoration(color: Colors.red, shape: BoxShape.circle),
+                              child: Text('${pending.length}', style: const TextStyle(fontSize: 10, color: Colors.white)),
+                            )
+                        ],
+                      ),
+                    ),
+                ],
+              ),
+            ],
+          ),
         ),
       ),
       body: _isLoading
@@ -223,7 +297,6 @@ class _ClubMembersScreenState extends State<ClubMembersScreen> with SingleTicker
               children: [
                 _buildList(members),
                 _buildList(committees),
-                _buildList(superusers),
                 if (isAdmin) _buildList(pending, isPendingList: true),
               ],
             ),
@@ -257,7 +330,7 @@ class _ClubMembersScreenState extends State<ClubMembersScreen> with SingleTicker
                 : null,
             ),
             title: Text(member.name, style: const TextStyle(fontWeight: FontWeight.bold)),
-            subtitle: Text('ID: ${member.studentId} | Session: ${member.session}'),
+            subtitle: Text('${member.designation} • ID: ${member.studentId}'),
             trailing: const Icon(Icons.chevron_right),
           ),
         );

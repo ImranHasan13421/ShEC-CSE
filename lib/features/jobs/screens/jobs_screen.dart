@@ -45,6 +45,7 @@ class _JobsScreenState extends State<JobsScreen> {
     final salaryController = TextEditingController(text: existingJob?.salary ?? '');
     final deadlineController = TextEditingController(text: existingJob?.deadline ?? '');
     final jobTypeController = TextEditingController(text: existingJob?.jobType ?? '');
+    bool isVisible = existingJob?.isVisible ?? true;
 
     ValueNotifier<List<JobItem>> selectedNotifier = defaultStateNotifier ?? recommendedJobsState;
 
@@ -118,6 +119,12 @@ class _JobsScreenState extends State<JobsScreen> {
                       controller: jobTypeController,
                       decoration: const InputDecoration(labelText: 'Job Type (e.g., Internship)', border: OutlineInputBorder()),
                     ),
+                    const SizedBox(height: 12),
+                    SwitchListTile(
+                      title: const Text('Visible to Members'),
+                      value: isVisible,
+                      onChanged: (val) => setModalState(() => isVisible = val),
+                    ),
                     const SizedBox(height: 24),
                     SizedBox(
                       width: double.infinity,
@@ -139,6 +146,8 @@ class _JobsScreenState extends State<JobsScreen> {
                                   typeColor: Colors.teal,
                                   iconColor: Colors.blue,
                                   icon: Icons.work,
+                                  isVisible: isVisible,
+                                  createdByName: currentProfile.value.name,
                                 );
                                 String category = selectedNotifier == recommendedJobsState ? 'recommended' : 'recent';
                                 await JobService.addJobToDB(newJob, category);
@@ -157,6 +166,8 @@ class _JobsScreenState extends State<JobsScreen> {
                                   iconColor: existingJob.iconColor,
                                   icon: existingJob.icon,
                                   isStarred: existingJob.isStarred,
+                                  isVisible: isVisible,
+                                  createdByName: existingJob.createdByName,
                                 );
                                 final index = targetNotifier.value.indexOf(existingJob);
                                 if (index != -1) {
@@ -199,7 +210,10 @@ class _JobsScreenState extends State<JobsScreen> {
             builder: (context, jobs, _) {
               final profile = currentProfile.value;
               final isAdmin = profile.role != UserRole.student;
-              final visibleJobs = jobs.where((j) => j.isApproved || isAdmin).toList();
+              final visibleJobs = jobs.where((j) {
+                if (isAdmin) return true;
+                return j.isApproved && j.isVisible;
+              }).toList();
 
               if (visibleJobs.isEmpty) {
                 return const Padding(padding: EdgeInsets.all(16), child: Center(child: Text('No recommended jobs.')));
@@ -216,7 +230,10 @@ class _JobsScreenState extends State<JobsScreen> {
             builder: (context, jobs, _) {
               final profile = currentProfile.value;
               final isAdmin = profile.role != UserRole.student;
-              final visibleJobs = jobs.where((j) => j.isApproved || isAdmin).toList();
+              final visibleJobs = jobs.where((j) {
+                if (isAdmin) return true;
+                return j.isApproved && j.isVisible;
+              }).toList();
 
               if (visibleJobs.isEmpty) {
                 return const Padding(padding: EdgeInsets.all(16), child: Center(child: Text('No recent jobs.')));
@@ -318,6 +335,11 @@ class _JobsScreenState extends State<JobsScreen> {
                                       decoration: BoxDecoration(color: Colors.red.withOpacity(0.1), borderRadius: BorderRadius.circular(4)),
                                       child: const Text('PENDING', style: TextStyle(color: Colors.red, fontSize: 10, fontWeight: FontWeight.bold)),
                                     ),
+                                  if (!job.isVisible)
+                                    const Padding(
+                                      padding: EdgeInsets.only(left: 8.0),
+                                      child: Text('HIDDEN', style: TextStyle(color: Colors.orange, fontSize: 10, fontWeight: FontWeight.bold)),
+                                    ),
                                 ],
                               ),
                             ),
@@ -347,13 +369,14 @@ class _JobsScreenState extends State<JobsScreen> {
                                         JobService.approveJob(job.id);
                                       }
                                     },
-                                    itemBuilder: (context) => [
-                                      if (!job.isApproved && profile.role == UserRole.superUser)
-                                        const PopupMenuItem(value: 'approve', child: Text('Approve', style: TextStyle(color: Colors.green))),
-                                      const PopupMenuItem(value: 'edit', child: Text('Edit')),
-                                      const PopupMenuItem(value: 'delete', child: Text('Delete', style: TextStyle(color: Colors.red))),
-                                    ],
-                                  );
+                                      itemBuilder: (context) => [
+                                        if (!job.isApproved && (profile.designation == 'President' || profile.designation == 'Vice President'))
+                                          const PopupMenuItem(value: 'approve', child: Text('Approve', style: TextStyle(color: Colors.green))),
+                                        PopupMenuItem(value: 'visibility', child: Text(job.isVisible ? 'Hide' : 'Show')),
+                                        const PopupMenuItem(value: 'edit', child: Text('Edit')),
+                                        const PopupMenuItem(value: 'delete', child: Text('Delete', style: TextStyle(color: Colors.red))),
+                                      ],
+                                    );
                                 }
                                 return const SizedBox.shrink();
                               },

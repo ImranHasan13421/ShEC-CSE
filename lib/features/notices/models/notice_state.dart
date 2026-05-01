@@ -12,8 +12,10 @@ class NoticeItem {
   final List<String> tags;
   final Color tagColor;
   final String date;
-  bool isPinned;
+   final bool isPinned;
   final bool isApproved;
+  final bool isVisible;
+  final String createdByName;
 
   NoticeItem({
     required this.id,
@@ -28,7 +30,43 @@ class NoticeItem {
     required this.date,
     this.isPinned = false,
     this.isApproved = false,
+    this.isVisible = true,
+    this.createdByName = '',
   });
+
+  NoticeItem copyWith({
+    String? id,
+    IconData? icon,
+    Color? iconColor,
+    String? title,
+    String? subtitle,
+    String? description,
+    String? imagePath,
+    List<String>? tags,
+    Color? tagColor,
+    String? date,
+    bool? isPinned,
+    bool? isApproved,
+    bool? isVisible,
+    String? createdByName,
+  }) {
+    return NoticeItem(
+      id: id ?? this.id,
+      icon: icon ?? this.icon,
+      iconColor: iconColor ?? this.iconColor,
+      title: title ?? this.title,
+      subtitle: subtitle ?? this.subtitle,
+      description: description ?? this.description,
+      imagePath: imagePath ?? this.imagePath,
+      tags: tags ?? this.tags,
+      tagColor: tagColor ?? this.tagColor,
+      date: date ?? this.date,
+      isPinned: isPinned ?? this.isPinned,
+      isApproved: isApproved ?? this.isApproved,
+      isVisible: isVisible ?? this.isVisible,
+      createdByName: createdByName ?? this.createdByName,
+    );
+  }
 
   factory NoticeItem.fromJson(Map<String, dynamic> json) {
     return NoticeItem(
@@ -44,6 +82,8 @@ class NoticeItem {
       date: json['date'] as String,
       isPinned: json['is_pinned'] as bool? ?? false,
       isApproved: json['is_approved'] as bool? ?? false,
+      isVisible: json['is_visible'] as bool? ?? true,
+      createdByName: json['created_by_name'] as String? ?? '',
     );
   }
 
@@ -59,6 +99,8 @@ class NoticeItem {
       'date': date,
       'is_pinned': isPinned,
       'is_approved': isApproved,
+      'is_visible': isVisible,
+      'created_by_name': createdByName,
       'icon_code_point': icon.codePoint,
       'icon_color': iconColor.value,
     };

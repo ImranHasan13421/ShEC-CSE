@@ -12,7 +12,7 @@ class TeacherService {
     
     var query = _client.from('teachers').select();
     if (!isAdmin) {
-      query = query.eq('is_approved', true);
+      query = query.eq('is_approved', true).eq('is_visible', true);
     }
     
     final response = await query.order('created_at', ascending: false);
@@ -25,12 +25,20 @@ class TeacherService {
   }
 
   static Future<void> addTeacher(TeacherContact teacher) async {
-    final isSuperUser = currentProfile.value.role == UserRole.superUser;
+    final profile = currentProfile.value;
+    final isSuperUser = profile.designation == 'President' || profile.designation == 'Vice President';
     
     final data = teacher.toJson();
     data['is_approved'] = isSuperUser; 
+    data['is_visible'] = teacher.isVisible;
+    data['created_by_name'] = profile.name;
     
     await _client.from('teachers').insert(data);
+    fetchTeachers();
+  }
+
+  static Future<void> toggleTeacherVisibility(String id, bool isVisible) async {
+    await _client.from('teachers').update({'is_visible': isVisible}).eq('id', id);
     fetchTeachers();
   }
 

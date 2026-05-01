@@ -106,6 +106,7 @@ class AuthService {
           phone: data['phone'],
           imagePath: data['profile_pic'],
           role: parsedRole,
+          designation: data['designation'] ?? 'Student',
           isApproved: data['is_approved'] ?? false,
         );
       } catch (e) {
@@ -148,13 +149,14 @@ class AuthService {
         phone: data['phone'],
         imagePath: data['profile_pic'],
         role: parsedRole,
+        designation: data['designation'] ?? 'Student',
         isApproved: data['is_approved'] ?? false,
       ));
     }
     return members;
   }
 
-  static Future<void> updateUserRole(String userId, UserRole newRole) async {
+  static Future<void> updateUserRole(String userId, UserRole newRole, {String? designation}) async {
     String roleString;
     switch (newRole) {
       case UserRole.superUser:
@@ -169,10 +171,28 @@ class AuthService {
         break;
     }
 
+    final Map<String, dynamic> updateData = {'role': roleString};
+    if (designation != null) {
+      updateData['designation'] = designation;
+    }
+
     await _client
         .from('profiles')
-        .update({'role': roleString})
+        .update(updateData)
         .eq('id', userId);
+  }
+
+  static Future<void> updateProfile(ProfileData profile) async {
+    await _client.from('profiles').update({
+      'first_name': profile.firstName,
+      'last_name': profile.lastName,
+      'class_id': profile.studentId,
+      'batch': profile.batch,
+      'session': profile.session,
+      'phone': profile.phone,
+      'profile_pic': profile.imagePath,
+    }).eq('id', profile.id);
+    await fetchCurrentUserProfile();
   }
 
   static Future<void> approveUser(String userId) async {

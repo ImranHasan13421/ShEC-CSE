@@ -30,95 +30,102 @@ class _ContestsScreenState extends State<ContestsScreen> {
     final levelController = TextEditingController(text: existingItem?.level ?? '');
     final dateController = TextEditingController(text: existingItem?.date ?? '');
     final urlController = TextEditingController(text: existingItem?.url ?? '');
+    bool isVisible = existingItem?.isVisible ?? true;
 
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
       builder: (modalContext) {
-        return Padding(
-          padding: EdgeInsets.only(
-            bottom: MediaQuery.of(modalContext).viewInsets.bottom,
-            left: 24,
-            right: 24,
-            top: 24,
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(existingItem == null ? (isCourse ? 'Add Course' : 'Add Contest') : (isCourse ? 'Edit Course' : 'Edit Contest'), style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-              const SizedBox(height: 16),
-              TextField(
-                controller: titleController,
-                decoration: const InputDecoration(labelText: 'Title', border: OutlineInputBorder()),
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            return Padding(
+              padding: EdgeInsets.only(
+                bottom: MediaQuery.of(modalContext).viewInsets.bottom,
+                left: 24,
+                right: 24,
+                top: 24,
               ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: platformController,
-                decoration: const InputDecoration(labelText: 'Platform / Provider', border: OutlineInputBorder()),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: levelController,
-                decoration: const InputDecoration(labelText: 'Level / Tag', border: OutlineInputBorder()),
-              ),
-              if (!isCourse) ...[
-                const SizedBox(height: 12),
-                TextField(
-                  controller: dateController,
-                  decoration: const InputDecoration(labelText: 'Date / Frequency', border: OutlineInputBorder()),
-                ),
-              ],
-              const SizedBox(height: 12),
-              TextField(
-                controller: urlController,
-                decoration: const InputDecoration(labelText: 'URL', border: OutlineInputBorder()),
-              ),
-              const SizedBox(height: 24),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: () async {
-                    if (titleController.text.isNotEmpty) {
-                      final messenger = ScaffoldMessenger.of(context);
-                      Navigator.pop(modalContext);
-                      try {
-                        final newItem = ContestItem(
-                          id: existingItem?.id ?? '',
-                          title: titleController.text,
-                          platform: platformController.text,
-                          level: levelController.text,
-                          date: dateController.text,
-                          url: urlController.text,
-                          iconColor: existingItem?.iconColor ?? Colors.blue,
-                          isCourse: isCourse,
-                        );
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(existingItem == null ? 'Add Contest' : 'Edit Contest', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+                    const SizedBox(height: 16),
+                    TextField(
+                      controller: titleController,
+                      decoration: const InputDecoration(labelText: 'Contest Name (e.g. Codeforces Round #892)', border: OutlineInputBorder()),
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: platformController,
+                      decoration: const InputDecoration(labelText: 'Platform (e.g. Codeforces, VJudge)', border: OutlineInputBorder()),
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: levelController,
+                      decoration: const InputDecoration(labelText: 'Level / Division', border: OutlineInputBorder()),
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: dateController,
+                      decoration: const InputDecoration(labelText: 'Date & Time', border: OutlineInputBorder()),
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: urlController,
+                      decoration: const InputDecoration(labelText: 'Contest Link / URL', border: OutlineInputBorder()),
+                    ),
+                    const SizedBox(height: 12),
+                    SwitchListTile(
+                      title: const Text('Visible to Members'),
+                      value: isVisible,
+                      onChanged: (val) => setModalState(() => isVisible = val),
+                    ),
+                    const SizedBox(height: 24),
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        onPressed: () async {
+                          if (titleController.text.isNotEmpty && urlController.text.isNotEmpty) {
+                            final messenger = ScaffoldMessenger.of(context);
+                            Navigator.pop(modalContext);
+                            try {
+                              final newItem = ContestItem(
+                                id: existingItem?.id ?? '',
+                                title: titleController.text,
+                                platform: platformController.text,
+                                level: levelController.text,
+                                date: dateController.text,
+                                url: urlController.text,
+                                iconColor: existingItem?.iconColor ?? Colors.blue,
+                                isCourse: false,
+                                isVisible: isVisible,
+                                createdByName: existingItem?.createdByName ?? currentProfile.value.name,
+                              );
 
-                        if (existingItem == null) {
-                          await ContestService.addContestToDB(newItem);
-                          if (mounted) messenger.showSnackBar(SnackBar(content: Text('${isCourse ? 'Course' : 'Contest'} created successfully')));
-                        } else {
-                          final index = stateNotifier.value.indexOf(existingItem);
-                          if (index != -1) {
-                            final updatedList = List<ContestItem>.from(stateNotifier.value);
-                            updatedList[index] = newItem;
-                            stateNotifier.value = updatedList;
+                              if (existingItem == null) {
+                                await ContestService.addContestToDB(newItem);
+                                if (mounted) messenger.showSnackBar(const SnackBar(content: Text('Contest added successfully')));
+                              } else {
+                                await ContestService.updateContestInDB(newItem);
+                                if (mounted) messenger.showSnackBar(const SnackBar(content: Text('Contest updated successfully')));
+                              }
+                            } catch (e) {
+                              if (mounted) messenger.showSnackBar(SnackBar(content: Text('Error: $e')));
+                            }
                           }
-                          await ContestService.updateContestInDB(newItem);
-                          if (mounted) messenger.showSnackBar(SnackBar(content: Text('${isCourse ? 'Course' : 'Contest'} updated successfully')));
-                        }
-                      } catch (e) {
-                        if (mounted) messenger.showSnackBar(SnackBar(content: Text('Error: $e')));
-                      }
-                    }
-                  },
-                  child: Text(existingItem == null ? 'Create' : 'Update'),
+                        },
+                        child: Text(existingItem == null ? 'Create' : 'Update'),
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+                  ],
                 ),
               ),
-              const SizedBox(height: 24),
-            ],
-          ),
+            );
+          },
         );
       },
     );
@@ -137,57 +144,22 @@ class _ContestsScreenState extends State<ContestsScreen> {
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
 
-    return DefaultTabController(
-      length: 2,
-      child: Scaffold(
-        body: Column(
-          children: [
-            Container(
-              color: colors.primary,
-              child: const TabBar(
-                labelColor: Colors.white,
-                unselectedLabelColor: Colors.white70,
-                indicatorColor: Colors.white,
-                indicatorWeight: 3,
-                tabs: [
-                  Tab(text: 'Contests'),
-                  Tab(text: 'Events & Courses'),
-                ],
-              ),
-            ),
-            Expanded(
-              child: TabBarView(
-                children: [
-                  _buildTab(context, contestState, false),
-                  _buildTab(context, courseState, true),
-                ],
-              ),
-            ),
-          ],
-        ),
-        floatingActionButton: ValueListenableBuilder<ProfileData>(
-          valueListenable: currentProfile,
-          builder: (context, profile, _) {
-            if (profile.role == UserRole.committeeMember || profile.role == UserRole.superUser) {
-              return Builder(
-                builder: (context) {
-                  return FloatingActionButton(
-                    onPressed: () {
-                      final tabIndex = DefaultTabController.of(context).index;
-                      if (tabIndex == 0) {
-                        _showForm(context, contestState, false);
-                      } else {
-                        _showForm(context, courseState, true);
-                      }
-                    },
-                    child: const Icon(Icons.add),
-                  );
-                }
-              );
-            }
-            return const SizedBox.shrink();
-          },
-        ),
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Programming Contests'),
+      ),
+      body: _buildTab(context, contestState, false),
+      floatingActionButton: ValueListenableBuilder<ProfileData>(
+        valueListenable: currentProfile,
+        builder: (context, profile, _) {
+          if (profile.role != UserRole.student) {
+            return FloatingActionButton(
+              onPressed: () => _showForm(context, contestState, false),
+              child: const Icon(Icons.add),
+            );
+          }
+          return const SizedBox.shrink();
+        },
       ),
     );
   }
@@ -198,7 +170,10 @@ class _ContestsScreenState extends State<ContestsScreen> {
       builder: (context, items, _) {
         final profile = currentProfile.value;
         final isAdmin = profile.role != UserRole.student;
-        final visibleItems = items.where((j) => j.isApproved || isAdmin).toList();
+        final visibleItems = items.where((j) {
+          if (isAdmin) return true;
+          return j.isApproved && j.isVisible;
+        }).toList();
 
         return ListView.builder(
           padding: const EdgeInsets.all(16.0),
@@ -262,9 +237,14 @@ class _ContestsScreenState extends State<ContestsScreen> {
                               ],
                             ),
                           ),
-                          _buildAdminMenu(item, stateNotifier),
+                            _buildAdminMenu(item, stateNotifier, currentProfile.value),
                         ],
                       ),
+                      if (!item.isVisible)
+                        const Padding(
+                          padding: EdgeInsets.only(top: 4.0),
+                          child: Text('HIDDEN FROM MEMBERS', style: TextStyle(color: Colors.orange, fontSize: 10, fontWeight: FontWeight.bold)),
+                        ),
                       const SizedBox(height: 6),
                       Row(
                         children: [
@@ -351,7 +331,7 @@ class _ContestsScreenState extends State<ContestsScreen> {
                 ],
               ),
             ),
-            _buildAdminMenu(item, stateNotifier),
+            _buildAdminMenu(item, stateNotifier, currentProfile.value),
           ],
         ),
         subtitle: Padding(
@@ -389,32 +369,27 @@ class _ContestsScreenState extends State<ContestsScreen> {
     );
   }
 
-  Widget _buildAdminMenu(ContestItem item, ValueNotifier<List<ContestItem>> stateNotifier) {
-    return ValueListenableBuilder<ProfileData>(
-      valueListenable: currentProfile,
-      builder: (context, profile, _) {
-        if (profile.role == UserRole.committeeMember || profile.role == UserRole.superUser) {
-          return PopupMenuButton<String>(
-            icon: const Icon(Icons.more_vert, size: 20),
-            onSelected: (value) {
-              if (value == 'edit') {
-                _showForm(context, stateNotifier, item.isCourse, existingItem: item);
-              } else if (value == 'delete') {
-                _deleteItem(item, stateNotifier);
-              } else if (value == 'approve') {
-                ContestService.approveContest(item.id);
-              }
-            },
-            itemBuilder: (context) => [
-              if (!item.isApproved && profile.role == UserRole.superUser)
-                const PopupMenuItem(value: 'approve', child: Text('Approve', style: TextStyle(color: Colors.green))),
-              const PopupMenuItem(value: 'edit', child: Text('Edit')),
-              const PopupMenuItem(value: 'delete', child: Text('Delete', style: TextStyle(color: Colors.red))),
-            ],
-          );
+  Widget _buildAdminMenu(ContestItem item, ValueNotifier<List<ContestItem>> stateNotifier, ProfileData profile) {
+    return PopupMenuButton<String>(
+      icon: const Icon(Icons.more_vert, size: 20),
+      onSelected: (value) {
+        if (value == 'edit') {
+          _showForm(context, stateNotifier, false, existingItem: item);
+        } else if (value == 'delete') {
+          _deleteItem(item, stateNotifier);
+        } else if (value == 'approve') {
+          ContestService.approveContest(item.id);
+        } else if (value == 'visibility') {
+          ContestService.toggleContestVisibility(item.id, !item.isVisible);
         }
-        return const SizedBox.shrink();
       },
+      itemBuilder: (context) => [
+        if (!item.isApproved && (profile.designation == 'President' || profile.designation == 'Vice President'))
+          const PopupMenuItem(value: 'approve', child: Text('Approve', style: TextStyle(color: Colors.green))),
+        PopupMenuItem(value: 'visibility', child: Text(item.isVisible ? 'Hide' : 'Show')),
+        const PopupMenuItem(value: 'edit', child: Text('Edit')),
+        const PopupMenuItem(value: 'delete', child: Text('Delete', style: TextStyle(color: Colors.red))),
+      ],
     );
   }
 }

@@ -25,6 +25,7 @@ class _TeacherContactsScreenState extends State<TeacherContactsScreen> {
     final descController = TextEditingController(text: existingTeacher?.designation ?? '');
     final phoneController = TextEditingController(text: existingTeacher?.phone ?? '');
     final emailController = TextEditingController(text: existingTeacher?.email ?? '');
+    bool isVisible = existingTeacher?.isVisible ?? true;
     
     File? selectedImage;
     String? currentImageUrl = existingTeacher?.imagePath;
@@ -82,6 +83,12 @@ class _TeacherContactsScreenState extends State<TeacherContactsScreen> {
                     TextField(controller: phoneController, decoration: const InputDecoration(labelText: 'Phone (Optional)', border: OutlineInputBorder()), keyboardType: TextInputType.phone),
                     const SizedBox(height: 12),
                     TextField(controller: emailController, decoration: const InputDecoration(labelText: 'Email (Optional)', border: OutlineInputBorder()), keyboardType: TextInputType.emailAddress),
+                    const SizedBox(height: 12),
+                    SwitchListTile(
+                      title: const Text('Visible to Members'),
+                      value: isVisible,
+                      onChanged: (val) => setModalState(() => isVisible = val),
+                    ),
                     const SizedBox(height: 24),
                     
                     SizedBox(
@@ -102,6 +109,8 @@ class _TeacherContactsScreenState extends State<TeacherContactsScreen> {
                               phone: phoneController.text,
                               email: emailController.text,
                               imagePath: finalImageUrl ?? '',
+                              isVisible: isVisible,
+                              createdByName: existingTeacher?.createdByName ?? currentProfile.value.name,
                             );
 
                             if (mounted) {
@@ -145,6 +154,8 @@ class _TeacherContactsScreenState extends State<TeacherContactsScreen> {
             itemCount: teachers.length,
             itemBuilder: (context, index) {
               final teacher = teachers[index];
+              final isAdmin = currentProfile.value.role != UserRole.student;
+              if (!isAdmin && (!teacher.isApproved || !teacher.isVisible)) return const SizedBox.shrink();
               return _buildTeacherCard(teacher);
             },
           );
@@ -210,9 +221,12 @@ class _TeacherContactsScreenState extends State<TeacherContactsScreen> {
                                 if (val == 'edit') _showTeacherForm(existingTeacher: teacher);
                                 if (val == 'delete') TeacherService.deleteTeacher(teacher.id);
                                 if (val == 'approve') TeacherService.approveTeacher(teacher.id);
+                                if (val == 'visibility') TeacherService.toggleTeacherVisibility(teacher.id, !teacher.isVisible);
                               },
                               itemBuilder: (_) => [
-                                if (!teacher.isApproved && isSuper) const PopupMenuItem(value: 'approve', child: Text('Approve', style: TextStyle(color: Colors.green))),
+                                if (!teacher.isApproved && (profile.designation == 'President' || profile.designation == 'Vice President')) 
+                                  const PopupMenuItem(value: 'approve', child: Text('Approve', style: TextStyle(color: Colors.green))),
+                                PopupMenuItem(value: 'visibility', child: Text(teacher.isVisible ? 'Hide from Members' : 'Show to Members')),
                                 const PopupMenuItem(value: 'edit', child: Text('Edit')),
                                 const PopupMenuItem(value: 'delete', child: Text('Delete', style: TextStyle(color: Colors.red))),
                               ],
@@ -220,6 +234,11 @@ class _TeacherContactsScreenState extends State<TeacherContactsScreen> {
                         ],
                       ),
                       Text(teacher.designation, style: TextStyle(color: colors.primary, fontWeight: FontWeight.bold)),
+                      if (!teacher.isVisible)
+                        const Padding(
+                          padding: EdgeInsets.only(top: 4.0),
+                          child: Text('HIDDEN FROM MEMBERS', style: TextStyle(color: Colors.orange, fontSize: 10, fontWeight: FontWeight.bold)),
+                        ),
                     ],
                   ),
                 ),

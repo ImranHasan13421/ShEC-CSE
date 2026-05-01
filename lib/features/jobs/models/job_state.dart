@@ -15,6 +15,8 @@ class JobItem {
   final IconData icon;
   bool isStarred;
   final bool isApproved;
+  final bool isVisible;
+  final String createdByName;
 
   JobItem({
     required this.id,
@@ -29,6 +31,8 @@ class JobItem {
     required this.icon,
     this.isStarred = false,
     this.isApproved = false,
+    this.isVisible = true,
+    this.createdByName = '',
   });
 
   factory JobItem.fromJson(Map<String, dynamic> json) {
@@ -45,6 +49,8 @@ class JobItem {
       icon: IconData(json['icon_code_point'] as int, fontFamily: 'MaterialIcons'),
       isStarred: json['is_starred'] as bool? ?? false,
       isApproved: json['is_approved'] as bool? ?? false,
+      isVisible: json['is_visible'] as bool? ?? true,
+      createdByName: json['created_by_name'] as String? ?? '',
     );
   }
 
@@ -62,6 +68,8 @@ class JobItem {
       'icon_color': iconColor.value,
       'is_starred': isStarred,
       'is_approved': isApproved,
+      'is_visible': isVisible,
+      'created_by_name': createdByName,
     };
   }
 }

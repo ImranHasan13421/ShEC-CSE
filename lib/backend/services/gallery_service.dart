@@ -12,7 +12,7 @@ class GalleryService {
     
     var query = _client.from('gallery').select();
     if (!isAdmin) {
-      query = query.eq('is_approved', true);
+      query = query.eq('is_approved', true).eq('is_visible', true);
     }
     
     final response = await query.order('created_at', ascending: false);
@@ -26,10 +26,13 @@ class GalleryService {
   }
 
   static Future<void> addGalleryItemToDB(GalleryItem item) async {
-    final isSuperUser = currentProfile.value.role == UserRole.superUser;
+    final profile = currentProfile.value;
+    final isSuperUser = profile.designation == 'President' || profile.designation == 'Vice President';
     
     final data = item.toJson();
     data['is_approved'] = isSuperUser;
+    data['is_visible'] = true;
+    data['created_by_name'] = profile.name;
     
     final response = await _client
         .from('gallery')
@@ -53,6 +56,11 @@ class GalleryService {
 
   static Future<void> approveGalleryItem(String id) async {
     await _client.from('gallery').update({'is_approved': true}).eq('id', id);
+    fetchGalleryItems();
+  }
+
+  static Future<void> toggleGalleryVisibility(String id, bool isVisible) async {
+    await _client.from('gallery').update({'is_visible': isVisible}).eq('id', id);
     fetchGalleryItems();
   }
 

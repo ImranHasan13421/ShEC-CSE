@@ -87,11 +87,19 @@ class _HomeLayoutState extends State<HomeLayout> {
                     onTap: () {
                       Navigator.push(context, MaterialPageRoute(builder: (_) => const ProfileScreen()));
                     },
-                    child: CircleAvatar(
-                      radius: 16,
-                      backgroundColor: Colors.white24,
-                      backgroundImage: profile.imagePath != null ? FileImage(File(profile.imagePath!)) : null,
-                      child: profile.imagePath == null ? const Icon(Icons.person, color: Colors.white, size: 20) : null,
+                    child: TweenAnimationBuilder<double>(
+                      tween: Tween(begin: 0.8, end: 1.0),
+                      duration: const Duration(seconds: 1),
+                      curve: Curves.elasticOut,
+                      builder: (context, scale, child) {
+                        return Transform.scale(scale: scale, child: child);
+                      },
+                      child: CircleAvatar(
+                        radius: 16,
+                        backgroundColor: colors.primaryContainer,
+                        backgroundImage: profile.imagePath != null ? FileImage(File(profile.imagePath!)) : null,
+                        child: profile.imagePath == null ? Icon(Icons.person, color: colors.primary, size: 20) : null,
+                      ),
                     ),
                   ),
                 );
@@ -143,7 +151,7 @@ class _HomeLayoutState extends State<HomeLayout> {
               return UserAccountsDrawerHeader(
                 decoration: BoxDecoration(color: colors.primary),
                 accountName: Text(profile.name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
-                accountEmail: Text(profile.email),
+                accountEmail: Text('${profile.designation} • ${profile.email}'),
                 currentAccountPicture: GestureDetector(
                   onTap: () {
                     Navigator.pop(context); // Close Drawer

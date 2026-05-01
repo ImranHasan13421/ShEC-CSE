@@ -10,7 +10,7 @@ class JobService {
     
     var query = _client.from('jobs').select();
     if (!isAdmin) {
-      query = query.eq('is_approved', true);
+      query = query.eq('is_approved', true).eq('is_visible', true);
     }
     
     final response = await query.order('created_at', ascending: false);
@@ -32,10 +32,13 @@ class JobService {
   }
 
   static Future<void> addJobToDB(JobItem job, String category) async {
-    final isSuperUser = currentProfile.value.role == UserRole.superUser;
+    final profile = currentProfile.value;
+    final isSuperUser = profile.designation == 'President' || profile.designation == 'Vice President';
     
     final data = job.toJson(category);
     data['is_approved'] = isSuperUser;
+    data['is_visible'] = true;
+    data['created_by_name'] = profile.name;
     
     final response = await _client
         .from('jobs')
@@ -63,6 +66,11 @@ class JobService {
 
   static Future<void> approveJob(String id) async {
     await _client.from('jobs').update({'is_approved': true}).eq('id', id);
+    fetchJobs();
+  }
+
+  static Future<void> toggleJobVisibility(String id, bool isVisible) async {
+    await _client.from('jobs').update({'is_visible': isVisible}).eq('id', id);
     fetchJobs();
   }
 

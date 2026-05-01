@@ -22,7 +22,8 @@ class _GalleryScreenState extends State<GalleryScreen> {
 
   void _showGalleryForm(BuildContext context, {GalleryItem? existingItem}) {
     final titleController = TextEditingController(text: existingItem?.title ?? '');
-    final subtitleController = TextEditingController(text: existingItem?.subtitle ?? '');
+    final descriptionController = TextEditingController(text: existingItem?.description ?? '');
+    bool isVisible = existingItem?.isVisible ?? true;
     
     File? selectedImage;
     String? currentImageUrl = existingItem?.imagePath;
@@ -59,9 +60,19 @@ class _GalleryScreenState extends State<GalleryScreen> {
                     Text(existingItem == null ? 'Add Gallery Item' : 'Edit Gallery Item', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
                     const SizedBox(height: 16),
                     
-                    TextField(controller: titleController, decoration: const InputDecoration(labelText: 'Title', border: OutlineInputBorder())),
+                    TextField(controller: titleController, decoration: const InputDecoration(labelText: 'Event Title', border: OutlineInputBorder())),
                     const SizedBox(height: 12),
-                    TextField(controller: subtitleController, decoration: const InputDecoration(labelText: 'Subtitle', border: OutlineInputBorder())),
+                    TextField(
+                      controller: descriptionController, 
+                      decoration: const InputDecoration(labelText: 'Description / Location', border: OutlineInputBorder()),
+                      maxLines: 3,
+                    ),
+                    const SizedBox(height: 12),
+                    SwitchListTile(
+                      title: const Text('Visible to Members'),
+                      value: isVisible,
+                      onChanged: (val) => setModalState(() => isVisible = val),
+                    ),
                     const SizedBox(height: 16),
                     
                     const Text('Attach Image', style: TextStyle(fontWeight: FontWeight.bold)),
@@ -105,10 +116,12 @@ class _GalleryScreenState extends State<GalleryScreen> {
                               final item = GalleryItem(
                                 id: existingItem?.id ?? '',
                                 title: titleController.text,
-                                subtitle: subtitleController.text,
+                                description: descriptionController.text,
                                 imagePath: finalImageUrl,
                                 icon: existingItem?.icon ?? Icons.photo,
                                 color: existingItem?.color ?? Colors.blue,
+                                isVisible: isVisible,
+                                createdByName: existingItem?.createdByName ?? currentProfile.value.name,
                               );
                               
                               if (existingItem == null) {
@@ -144,8 +157,8 @@ class _GalleryScreenState extends State<GalleryScreen> {
           final isAdmin = profile.role != UserRole.student;
 
           final visibleItems = items.where((n) {
-            if (n.isApproved) return true;
-            return isAdmin; 
+            if (isAdmin) return true;
+            return n.isApproved && n.isVisible; 
           }).toList();
 
           if (visibleItems.isEmpty) return const Center(child: Text('No gallery items found.'));
@@ -243,11 +256,16 @@ class _GalleryScreenState extends State<GalleryScreen> {
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          item.subtitle,
+                          item.description,
                           style: TextStyle(color: colors.onSurface.withOpacity(0.6), fontSize: 11),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
+                        if (!item.isVisible)
+                          const Padding(
+                            padding: EdgeInsets.only(top: 4.0),
+                            child: Text('HIDDEN', style: TextStyle(color: Colors.orange, fontSize: 8, fontWeight: FontWeight.bold)),
+                          ),
                       ],
                     ),
                   ),
@@ -267,9 +285,12 @@ class _GalleryScreenState extends State<GalleryScreen> {
                     if (value == 'edit') _showGalleryForm(context, existingItem: item);
                     if (value == 'delete') GalleryService.deleteGalleryItemFromDB(item);
                     if (value == 'approve') GalleryService.approveGalleryItem(item.id);
+                    if (value == 'visibility') GalleryService.toggleGalleryVisibility(item.id, !item.isVisible);
                   },
                   itemBuilder: (context) => [
-                    if (!item.isApproved && isSuper) const PopupMenuItem(value: 'approve', child: Text('Approve', style: TextStyle(color: Colors.green))),
+                    if (!item.isApproved && (profile.designation == 'President' || profile.designation == 'Vice President'))
+                      const PopupMenuItem(value: 'approve', child: Text('Approve', style: TextStyle(color: Colors.green))),
+                    PopupMenuItem(value: 'visibility', child: Text(item.isVisible ? 'Hide' : 'Show')),
                     const PopupMenuItem(value: 'edit', child: Text('Edit')),
                     const PopupMenuItem(value: 'delete', child: Text('Delete', style: TextStyle(color: Colors.red))),
                   ],

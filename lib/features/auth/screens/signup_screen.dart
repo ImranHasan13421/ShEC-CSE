@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../backend/services/auth_service.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'login_screen.dart';
 
 class SignupScreen extends StatefulWidget {
@@ -23,6 +24,28 @@ class _SignupScreenState extends State<SignupScreen> {
   final _profilePicController = TextEditingController();
 
   bool _isLoading = false;
+  List<Map<String, dynamic>> _sessions = [];
+  String? _selectedSession;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchSessions();
+  }
+
+  Future<void> _fetchSessions() async {
+    try {
+      final data = await Supabase.instance.client
+          .from('DUCMC_sessions_id')
+          .select()
+          .order('session', ascending: false);
+      setState(() {
+        _sessions = List<Map<String, dynamic>>.from(data);
+      });
+    } catch (e) {
+      debugPrint('Error fetching sessions: $e');
+    }
+  }
 
   Future<void> _signUp() async {
     if (!_formKey.currentState!.validate()) return;
@@ -37,7 +60,7 @@ class _SignupScreenState extends State<SignupScreen> {
         lastName: _lastNameController.text.trim(),
         classId: _classIdController.text.trim(),
         batch: _batchController.text.trim(),
-        session: _sessionController.text.trim(),
+        session: _selectedSession ?? '',
         duReg: _duRegController.text.trim(),
         phone: _phoneController.text.trim(),
         profilePic: _profilePicController.text.trim().isNotEmpty ? _profilePicController.text.trim() : null,
@@ -142,10 +165,20 @@ class _SignupScreenState extends State<SignupScreen> {
                 Row(
                   children: [
                     Expanded(
-                      child: TextFormField(
-                        controller: _sessionController,
-                        decoration: InputDecoration(labelText: 'Session', border: OutlineInputBorder(borderRadius: BorderRadius.circular(12))),
-                        validator: (value) => value == null || value.isEmpty ? 'Required' : null,
+                      child: DropdownButtonFormField<String>(
+                        value: _selectedSession,
+                        decoration: InputDecoration(
+                          labelText: 'Session',
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                        ),
+                        items: _sessions.map((s) {
+                          return DropdownMenuItem<String>(
+                            value: s['session'],
+                            child: Text(s['session']),
+                          );
+                        }).toList(),
+                        onChanged: (value) => setState(() => _selectedSession = value),
+                        validator: (value) => value == null ? 'Required' : null,
                       ),
                     ),
                     const SizedBox(width: 16),

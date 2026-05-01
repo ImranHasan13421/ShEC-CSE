@@ -12,7 +12,7 @@ class NoticeService {
     
     var query = _client.from('notices').select();
     if (!isAdmin) {
-      query = query.eq('is_approved', true);
+      query = query.eq('is_approved', true).eq('is_visible', true);
     }
     
     final response = await query.order('created_at', ascending: false);
@@ -34,10 +34,13 @@ class NoticeService {
   }
 
   static Future<void> addNoticeToDB(NoticeItem notice, String category) async {
-    final isSuperUser = currentProfile.value.role == UserRole.superUser;
+    final profile = currentProfile.value;
+    final isSuperUser = profile.designation == 'President' || profile.designation == 'Vice President';
     
     final data = notice.toJson(category);
     data['is_approved'] = isSuperUser; // Superusers auto-approve, committee needs approval
+    data['is_visible'] = true;
+    data['created_by_name'] = profile.name;
     
     final response = await _client
         .from('notices')
@@ -54,7 +57,8 @@ class NoticeService {
   }
 
   static Future<void> updateNoticeInDB(NoticeItem notice, String category) async {
-    final isSuperUser = currentProfile.value.role == UserRole.superUser;
+    final profile = currentProfile.value;
+    final isSuperUser = profile.designation == 'President' || profile.designation == 'Vice President';
     
     final data = notice.toJson(category);
     // Optional: If committee edits an approved notice, does it go back to pending?
@@ -71,6 +75,11 @@ class NoticeService {
   static Future<void> approveNotice(String id) async {
     await _client.from('notices').update({'is_approved': true}).eq('id', id);
     fetchNotices(); // Refresh to update UI
+  }
+
+  static Future<void> toggleNoticeVisibility(String id, bool isVisible) async {
+    await _client.from('notices').update({'is_visible': isVisible}).eq('id', id);
+    fetchNotices();
   }
 
   static Future<void> deleteNoticeFromDB(String id, String category) async {

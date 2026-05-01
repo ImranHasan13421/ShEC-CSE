@@ -20,6 +20,7 @@ class ProfileData {
   final String phone;
   final String? imagePath;
   final UserRole role;
+  final String designation;
   final bool isApproved;
 
   ProfileData({
@@ -36,6 +37,7 @@ class ProfileData {
     this.phone = '',
     this.imagePath,
     this.role = UserRole.student,
+    this.designation = 'Student',
     this.isApproved = false,
   });
 
@@ -53,6 +55,7 @@ class ProfileData {
     String? phone,
     String? imagePath,
     UserRole? role,
+    String? designation,
     bool? isApproved,
   }) {
     return ProfileData(
@@ -69,6 +72,7 @@ class ProfileData {
       phone: phone ?? this.phone,
       imagePath: imagePath ?? this.imagePath,
       role: role ?? this.role,
+      designation: designation ?? this.designation,
       isApproved: isApproved ?? this.isApproved,
     );
   }
@@ -87,6 +91,7 @@ final ValueNotifier<ProfileData> currentProfile = ValueNotifier(
     batch: '',
     phone: '',
     role: UserRole.student,
+    designation: 'Student',
     isApproved: false,
   ),
 );

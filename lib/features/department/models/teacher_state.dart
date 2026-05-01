@@ -6,8 +6,10 @@ class TeacherContact {
   final String designation;
   final String phone;
   final String email;
-  final String imagePath;
+   final String imagePath;
   final bool isApproved;
+  final bool isVisible;
+  final String createdByName;
 
   TeacherContact({
     required this.id,
@@ -17,6 +19,8 @@ class TeacherContact {
     this.email = '',
     this.imagePath = '',
     this.isApproved = false,
+    this.isVisible = true,
+    this.createdByName = '',
   });
 
   factory TeacherContact.fromJson(Map<String, dynamic> json) {
@@ -28,6 +32,8 @@ class TeacherContact {
       email: json['email'] as String? ?? '',
       imagePath: json['image_path'] as String? ?? '',
       isApproved: json['is_approved'] as bool? ?? false,
+      isVisible: json['is_visible'] as bool? ?? true,
+      createdByName: json['created_by_name'] as String? ?? '',
     );
   }
 
@@ -39,6 +45,8 @@ class TeacherContact {
       'email': email,
       'image_path': imagePath,
       'is_approved': isApproved,
+      'is_visible': isVisible,
+      'created_by_name': createdByName,
     };
   }
 }
