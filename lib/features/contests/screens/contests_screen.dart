@@ -196,11 +196,15 @@ class _ContestsScreenState extends State<ContestsScreen> {
     return ValueListenableBuilder<List<ContestItem>>(
       valueListenable: stateNotifier,
       builder: (context, items, _) {
+        final profile = currentProfile.value;
+        final isAdmin = profile.role != UserRole.student;
+        final visibleItems = items.where((j) => j.isApproved || isAdmin).toList();
+
         return ListView.builder(
           padding: const EdgeInsets.all(16.0),
-          itemCount: items.length,
+          itemCount: visibleItems.length,
           itemBuilder: (context, index) {
-            final item = items[index];
+            final item = visibleItems[index];
             if (isCourse) {
               return _buildCourseCard(context, item, stateNotifier);
             } else {
@@ -245,7 +249,19 @@ class _ContestsScreenState extends State<ContestsScreen> {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Expanded(child: Text(item.title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16))),
+                          Expanded(
+                            child: Row(
+                              children: [
+                                Expanded(child: Text(item.title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16))),
+                                if (!item.isApproved)
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                    decoration: BoxDecoration(color: Colors.red.withOpacity(0.1), borderRadius: BorderRadius.circular(4)),
+                                    child: const Text('PENDING', style: TextStyle(color: Colors.red, fontSize: 10, fontWeight: FontWeight.bold)),
+                                  ),
+                              ],
+                            ),
+                          ),
                           _buildAdminMenu(item, stateNotifier),
                         ],
                       ),
@@ -322,7 +338,19 @@ class _ContestsScreenState extends State<ContestsScreen> {
         title: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Expanded(child: Text(item.title, style: const TextStyle(fontWeight: FontWeight.bold))),
+            Expanded(
+              child: Row(
+                children: [
+                  Expanded(child: Text(item.title, style: const TextStyle(fontWeight: FontWeight.bold))),
+                  if (!item.isApproved)
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(color: Colors.red.withOpacity(0.1), borderRadius: BorderRadius.circular(4)),
+                      child: const Text('PENDING', style: TextStyle(color: Colors.red, fontSize: 10, fontWeight: FontWeight.bold)),
+                    ),
+                ],
+              ),
+            ),
             _buildAdminMenu(item, stateNotifier),
           ],
         ),
@@ -373,9 +401,13 @@ class _ContestsScreenState extends State<ContestsScreen> {
                 _showForm(context, stateNotifier, item.isCourse, existingItem: item);
               } else if (value == 'delete') {
                 _deleteItem(item, stateNotifier);
+              } else if (value == 'approve') {
+                ContestService.approveContest(item.id);
               }
             },
             itemBuilder: (context) => [
+              if (!item.isApproved && profile.role == UserRole.superUser)
+                const PopupMenuItem(value: 'approve', child: Text('Approve', style: TextStyle(color: Colors.green))),
               const PopupMenuItem(value: 'edit', child: Text('Edit')),
               const PopupMenuItem(value: 'delete', child: Text('Delete', style: TextStyle(color: Colors.red))),
             ],

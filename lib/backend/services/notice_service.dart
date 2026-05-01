@@ -2,15 +2,20 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../features/notices/models/notice_state.dart';
+import '../../features/profile/models/profile_state.dart';
 
 class NoticeService {
   static final SupabaseClient _client = Supabase.instance.client;
 
   static Future<void> fetchNotices() async {
-    final response = await _client
-        .from('notices')
-        .select()
-        .order('created_at', ascending: false);
+    final isAdmin = currentProfile.value.role != UserRole.student;
+    
+    var query = _client.from('notices').select();
+    if (!isAdmin) {
+      query = query.eq('is_approved', true);
+    }
+    
+    final response = await query.order('created_at', ascending: false);
 
     final List<NoticeItem> clubNotices = [];
     final List<NoticeItem> deptNotices = [];
@@ -29,7 +34,11 @@ class NoticeService {
   }
 
   static Future<void> addNoticeToDB(NoticeItem notice, String category) async {
+    final isSuperUser = currentProfile.value.role == UserRole.superUser;
+    
     final data = notice.toJson(category);
+    data['is_approved'] = isSuperUser; // Superusers auto-approve, committee needs approval
+    
     final response = await _client
         .from('notices')
         .insert(data)
@@ -45,11 +54,23 @@ class NoticeService {
   }
 
   static Future<void> updateNoticeInDB(NoticeItem notice, String category) async {
+    final isSuperUser = currentProfile.value.role == UserRole.superUser;
+    
     final data = notice.toJson(category);
+    // Optional: If committee edits an approved notice, does it go back to pending?
+    // Let's assume editing doesn't change approval status, but we don't overwrite it here
+    // unless explicitly approving.
+    data.remove('is_approved'); // Don't overwrite existing status on normal edit
+    
     await _client
         .from('notices')
         .update(data)
         .eq('id', notice.id);
+  }
+
+  static Future<void> approveNotice(String id) async {
+    await _client.from('notices').update({'is_approved': true}).eq('id', id);
+    fetchNotices(); // Refresh to update UI
   }
 
   static Future<void> deleteNoticeFromDB(String id, String category) async {

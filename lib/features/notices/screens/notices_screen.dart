@@ -355,8 +355,17 @@ class _NoticesScreenState extends State<NoticesScreen> {
     return ValueListenableBuilder<List<NoticeItem>>(
       valueListenable: stateNotifier,
       builder: (context, notices, _) {
-        final pinnedNotices = notices.where((n) => n.isPinned).toList();
-        final unpinnedNotices = notices.where((n) => !n.isPinned).toList();
+        final profile = currentProfile.value;
+        final isAdmin = profile.role != UserRole.student;
+
+        // Filter notices: students only see approved ones. Admins see all.
+        final visibleNotices = notices.where((n) {
+          if (n.isApproved) return true;
+          return isAdmin; // Only admins see unapproved
+        }).toList();
+
+        final pinnedNotices = visibleNotices.where((n) => n.isPinned).toList();
+        final unpinnedNotices = visibleNotices.where((n) => !n.isPinned).toList();
 
         return ListView(
           padding: const EdgeInsets.all(16.0),
@@ -434,9 +443,27 @@ class _NoticesScreenState extends State<NoticesScreen> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Expanded(
-                            child: Text(
-                              notice.title,
-                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, height: 1.2),
+                            child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    notice.title,
+                                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, height: 1.2),
+                                  ),
+                                ),
+                                if (!notice.isApproved)
+                                  Container(
+                                    margin: const EdgeInsets.only(left: 8),
+                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                    decoration: BoxDecoration(
+                                      color: Colors.red.withOpacity(0.1),
+                                      border: Border.all(color: Colors.red),
+                                      borderRadius: BorderRadius.circular(4),
+                                    ),
+                                    child: const Text('PENDING', style: TextStyle(color: Colors.red, fontSize: 10, fontWeight: FontWeight.bold)),
+                                  ),
+                              ],
                             ),
                           ),
                           // Pinned Button
@@ -465,9 +492,13 @@ class _NoticesScreenState extends State<NoticesScreen> {
                                       _showNoticeForm(context, stateNotifier, existingNotice: notice);
                                     } else if (value == 'delete') {
                                       _deleteNotice(notice, stateNotifier);
+                                    } else if (value == 'approve') {
+                                      NoticeService.approveNotice(notice.id);
                                     }
                                   },
                                   itemBuilder: (context) => [
+                                    if (!notice.isApproved && profile.role == UserRole.superUser)
+                                      const PopupMenuItem(value: 'approve', child: Text('Approve', style: TextStyle(color: Colors.green))),
                                     const PopupMenuItem(value: 'edit', child: Text('Edit')),
                                     const PopupMenuItem(value: 'delete', child: Text('Delete', style: TextStyle(color: Colors.red))),
                                   ],

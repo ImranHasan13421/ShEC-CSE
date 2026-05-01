@@ -10,6 +10,7 @@ class ContestItem {
   final String url;
   final Color iconColor;
   final bool isCourse; // To distinguish between contests and courses
+  final bool isApproved;
 
   ContestItem({
     required this.id,
@@ -20,6 +21,7 @@ class ContestItem {
     required this.url,
     required this.iconColor,
     this.isCourse = false,
+    this.isApproved = false,
   });
 
   factory ContestItem.fromJson(Map<String, dynamic> json) {
@@ -32,6 +34,7 @@ class ContestItem {
       url: json['url'] as String,
       iconColor: Color(json['icon_color'] as int),
       isCourse: json['is_course'] as bool? ?? false,
+      isApproved: json['is_approved'] as bool? ?? false,
     );
   }
 
@@ -44,6 +47,7 @@ class ContestItem {
       'url': url,
       'icon_color': iconColor.value,
       'is_course': isCourse,
+      'is_approved': isApproved,
     };
   }
 }

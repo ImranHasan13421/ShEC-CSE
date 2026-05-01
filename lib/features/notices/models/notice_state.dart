@@ -13,6 +13,7 @@ class NoticeItem {
   final Color tagColor;
   final String date;
   bool isPinned;
+  final bool isApproved;
 
   NoticeItem({
     required this.id,
@@ -26,6 +27,7 @@ class NoticeItem {
     required this.tagColor,
     required this.date,
     this.isPinned = false,
+    this.isApproved = false,
   });
 
   factory NoticeItem.fromJson(Map<String, dynamic> json) {
@@ -41,6 +43,7 @@ class NoticeItem {
       tagColor: Color(json['tag_color'] as int),
       date: json['date'] as String,
       isPinned: json['is_pinned'] as bool? ?? false,
+      isApproved: json['is_approved'] as bool? ?? false,
     );
   }
 
@@ -55,6 +58,7 @@ class NoticeItem {
       'tag_color': tagColor.value,
       'date': date,
       'is_pinned': isPinned,
+      'is_approved': isApproved,
       'icon_code_point': icon.codePoint,
       'icon_color': iconColor.value,
     };

@@ -197,11 +197,15 @@ class _JobsScreenState extends State<JobsScreen> {
           ValueListenableBuilder<List<JobItem>>(
             valueListenable: recommendedJobsState,
             builder: (context, jobs, _) {
-              if (jobs.isEmpty) {
+              final profile = currentProfile.value;
+              final isAdmin = profile.role != UserRole.student;
+              final visibleJobs = jobs.where((j) => j.isApproved || isAdmin).toList();
+
+              if (visibleJobs.isEmpty) {
                 return const Padding(padding: EdgeInsets.all(16), child: Center(child: Text('No recommended jobs.')));
               }
               return Column(
-                children: jobs.map((job) => _buildJobCard(job, recommendedJobsState)).toList(),
+                children: visibleJobs.map((job) => _buildJobCard(job, recommendedJobsState)).toList(),
               );
             },
           ),
@@ -210,11 +214,15 @@ class _JobsScreenState extends State<JobsScreen> {
           ValueListenableBuilder<List<JobItem>>(
             valueListenable: recentJobsState,
             builder: (context, jobs, _) {
-              if (jobs.isEmpty) {
+              final profile = currentProfile.value;
+              final isAdmin = profile.role != UserRole.student;
+              final visibleJobs = jobs.where((j) => j.isApproved || isAdmin).toList();
+
+              if (visibleJobs.isEmpty) {
                 return const Padding(padding: EdgeInsets.all(16), child: Center(child: Text('No recent jobs.')));
               }
               return Column(
-                children: jobs.map((job) => _buildJobCard(job, recentJobsState)).toList(),
+                children: visibleJobs.map((job) => _buildJobCard(job, recentJobsState)).toList(),
               );
             },
           ),
@@ -296,9 +304,21 @@ class _JobsScreenState extends State<JobsScreen> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Expanded(
-                              child: Text(
-                                job.role,
-                                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                              child: Row(
+                                children: [
+                                  Expanded(
+                                    child: Text(
+                                      job.role,
+                                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                                    ),
+                                  ),
+                                  if (!job.isApproved)
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                      decoration: BoxDecoration(color: Colors.red.withOpacity(0.1), borderRadius: BorderRadius.circular(4)),
+                                      child: const Text('PENDING', style: TextStyle(color: Colors.red, fontSize: 10, fontWeight: FontWeight.bold)),
+                                    ),
+                                ],
                               ),
                             ),
                             // The Star Button
@@ -323,9 +343,13 @@ class _JobsScreenState extends State<JobsScreen> {
                                         _showJobForm(context, existingJob: job, defaultStateNotifier: stateNotifier);
                                       } else if (value == 'delete') {
                                         _deleteJob(job, stateNotifier);
+                                      } else if (value == 'approve') {
+                                        JobService.approveJob(job.id);
                                       }
                                     },
                                     itemBuilder: (context) => [
+                                      if (!job.isApproved && profile.role == UserRole.superUser)
+                                        const PopupMenuItem(value: 'approve', child: Text('Approve', style: TextStyle(color: Colors.green))),
                                       const PopupMenuItem(value: 'edit', child: Text('Edit')),
                                       const PopupMenuItem(value: 'delete', child: Text('Delete', style: TextStyle(color: Colors.red))),
                                     ],

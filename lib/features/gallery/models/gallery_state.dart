@@ -7,6 +7,7 @@ class GalleryItem {
   final String imagePath;
   final IconData icon;
   final Color color;
+  final bool isApproved;
 
   GalleryItem({
     required this.id,
@@ -15,6 +16,7 @@ class GalleryItem {
     required this.imagePath,
     required this.icon,
     required this.color,
+    this.isApproved = false,
   });
   factory GalleryItem.fromJson(Map<String, dynamic> json) {
     return GalleryItem(
@@ -24,6 +26,7 @@ class GalleryItem {
       imagePath: json['image_path'] as String,
       icon: IconData(json['icon_code_point'] as int, fontFamily: 'MaterialIcons'),
       color: Color(json['icon_color'] as int),
+      isApproved: json['is_approved'] as bool? ?? false,
     );
   }
 
@@ -34,6 +37,7 @@ class GalleryItem {
       'image_path': imagePath,
       'icon_code_point': icon.codePoint,
       'icon_color': color.value,
+      'is_approved': isApproved,
     };
   }
 }

@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import '../../features/profile/models/profile_state.dart';
 import '../../features/results/models/result_state.dart';
 
@@ -110,7 +111,8 @@ class ResultService {
 
   // Helper to fetch from API and save to DB
   static Future<bool> _fetchAndSaveResult(String regNo, String examId, String sessId, String examName) async {
-    final url = Uri.parse('https://saifur2025-ducmc-info-scrapper.hf.space/result?reg_no=$regNo&exam_id=$examId&sess_id=$sessId');
+    final baseUrl = dotenv.env['RESULT_API_URL'] ?? 'https://saifur2025-ducmc-info-scrapper.hf.space';
+    final url = Uri.parse('$baseUrl/result?reg_no=$regNo&exam_id=$examId&sess_id=$sessId');
     
     try {
       final response = await http.get(url);

@@ -106,6 +106,7 @@ class AuthService {
           phone: data['phone'],
           imagePath: data['profile_pic'],
           role: parsedRole,
+          isApproved: data['is_approved'] ?? false,
         );
       } catch (e) {
         debugPrint('Error fetching user profile: $e');
@@ -147,6 +148,7 @@ class AuthService {
         phone: data['phone'],
         imagePath: data['profile_pic'],
         role: parsedRole,
+        isApproved: data['is_approved'] ?? false,
       ));
     }
     return members;
@@ -171,6 +173,10 @@ class AuthService {
         .from('profiles')
         .update({'role': roleString})
         .eq('id', userId);
+  }
+
+  static Future<void> approveUser(String userId) async {
+    await _client.from('profiles').update({'is_approved': true}).eq('id', userId);
   }
 
   static Future<void> deleteUser(String userId) async {

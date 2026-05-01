@@ -20,6 +20,7 @@ class ProfileData {
   final String phone;
   final String? imagePath;
   final UserRole role;
+  final bool isApproved;
 
   ProfileData({
     this.id = '',
@@ -35,6 +36,7 @@ class ProfileData {
     this.phone = '',
     this.imagePath,
     this.role = UserRole.student,
+    this.isApproved = false,
   });
 
   ProfileData copyWith({
@@ -51,6 +53,7 @@ class ProfileData {
     String? phone,
     String? imagePath,
     UserRole? role,
+    bool? isApproved,
   }) {
     return ProfileData(
       id: id ?? this.id,
@@ -66,6 +69,7 @@ class ProfileData {
       phone: phone ?? this.phone,
       imagePath: imagePath ?? this.imagePath,
       role: role ?? this.role,
+      isApproved: isApproved ?? this.isApproved,
     );
   }
 }
@@ -83,5 +87,6 @@ final ValueNotifier<ProfileData> currentProfile = ValueNotifier(
     batch: '',
     phone: '',
     role: UserRole.student,
+    isApproved: false,
   ),
 );

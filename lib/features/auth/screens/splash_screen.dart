@@ -3,6 +3,8 @@
 import 'package:flutter/material.dart';
 import 'package:ShEC_CSE/features/dashboard/screens/main_screen.dart';
 import 'package:ShEC_CSE/features/auth/screens/login_screen.dart';
+import 'package:ShEC_CSE/features/auth/screens/pending_approval_screen.dart';
+import 'package:ShEC_CSE/features/profile/models/profile_state.dart';
 
 enum GifSize { small, medium, large, custom }
 
@@ -53,8 +55,16 @@ class _SplashScreenState extends State<SplashScreen> {
   void _navigateToNext() {
     if (!mounted) return;
 
-    // Use the passed login status to route to Dashboard or Login
-    final Widget nextScreen = widget.isLoggedIn ? const HomeLayout() : const LoginScreen();
+    Widget nextScreen;
+    if (widget.isLoggedIn) {
+      if (currentProfile.value.id.isNotEmpty && !currentProfile.value.isApproved) {
+        nextScreen = const PendingApprovalScreen();
+      } else {
+        nextScreen = const HomeLayout();
+      }
+    } else {
+      nextScreen = const LoginScreen();
+    }
 
     // Premium Cross-Fade to App
     Navigator.of(context).pushReplacement(

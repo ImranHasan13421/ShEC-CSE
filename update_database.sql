@@ -83,3 +83,72 @@ CREATE POLICY "Anyone can read exams" ON "DUCMC_exams_id" FOR SELECT USING (auth
 ALTER TABLE "DUCMC_sessions_id" ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Anyone can read sessions" ON "DUCMC_sessions_id" FOR SELECT USING (auth.role() = 'authenticated');
 
+-- ==========================================
+-- Verification System & Enhancements
+-- ==========================================
+
+-- 7. Add is_approved to existing tables
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS is_approved BOOLEAN DEFAULT FALSE;
+ALTER TABLE notices ADD COLUMN IF NOT EXISTS is_approved BOOLEAN DEFAULT FALSE;
+ALTER TABLE jobs ADD COLUMN IF NOT EXISTS is_approved BOOLEAN DEFAULT FALSE;
+-- Ensure contests table exists, assuming it was created previously
+ALTER TABLE contests ADD COLUMN IF NOT EXISTS is_approved BOOLEAN DEFAULT FALSE;
+-- Ensure gallery table exists
+ALTER TABLE gallery ADD COLUMN IF NOT EXISTS is_approved BOOLEAN DEFAULT FALSE;
+-- Also, gallery needs an image_path
+ALTER TABLE gallery ADD COLUMN IF NOT EXISTS image_path TEXT DEFAULT '';
+
+-- 8. Create Teachers Table
+CREATE TABLE IF NOT EXISTS teachers (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    name TEXT NOT NULL,
+    designation TEXT NOT NULL,
+    phone TEXT DEFAULT '',
+    email TEXT DEFAULT '',
+    image_path TEXT DEFAULT '',
+    is_approved BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- 9. Create 'gallery_images' Storage Bucket
+INSERT INTO storage.buckets (id, name, public) 
+VALUES ('gallery_images', 'gallery_images', true)
+ON CONFLICT (id) DO NOTHING;
+
+-- Policies for 'gallery_images'
+CREATE POLICY "Give public access to gallery images" 
+ON storage.objects FOR SELECT USING (bucket_id = 'gallery_images');
+
+CREATE POLICY "Allow authenticated users to upload gallery images" 
+ON storage.objects FOR INSERT 
+WITH CHECK (bucket_id = 'gallery_images' AND auth.role() = 'authenticated');
+
+CREATE POLICY "Allow authenticated users to update gallery images" 
+ON storage.objects FOR UPDATE 
+USING (bucket_id = 'gallery_images' AND auth.role() = 'authenticated');
+
+CREATE POLICY "Allow authenticated users to delete gallery images" 
+ON storage.objects FOR DELETE 
+USING (bucket_id = 'gallery_images' AND auth.role() = 'authenticated');
+
+-- 10. Create 'teacher_images' Storage Bucket
+INSERT INTO storage.buckets (id, name, public) 
+VALUES ('teacher_images', 'teacher_images', true)
+ON CONFLICT (id) DO NOTHING;
+
+-- Policies for 'teacher_images'
+CREATE POLICY "Give public access to teacher images" 
+ON storage.objects FOR SELECT USING (bucket_id = 'teacher_images');
+
+CREATE POLICY "Allow authenticated users to upload teacher images" 
+ON storage.objects FOR INSERT 
+WITH CHECK (bucket_id = 'teacher_images' AND auth.role() = 'authenticated');
+
+CREATE POLICY "Allow authenticated users to update teacher images" 
+ON storage.objects FOR UPDATE 
+USING (bucket_id = 'teacher_images' AND auth.role() = 'authenticated');
+
+CREATE POLICY "Allow authenticated users to delete teacher images" 
+ON storage.objects FOR DELETE 
+USING (bucket_id = 'teacher_images' AND auth.role() = 'authenticated');
+

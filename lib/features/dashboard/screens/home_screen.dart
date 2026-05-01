@@ -5,19 +5,63 @@ import 'package:ShEC_CSE/features/cgpa_calculator/screens/cgpa_calculator_screen
 import 'package:ShEC_CSE/features/resources/screens/resources_screen.dart';
 import 'package:ShEC_CSE/features/department/screens/department_screen.dart';
 import 'package:ShEC_CSE/features/club/screens/club_screen.dart';
+import 'package:ShEC_CSE/features/gallery/models/gallery_state.dart';
+import 'package:ShEC_CSE/backend/services/gallery_service.dart';
+import 'dart:async';
 
-class DashboardScreen extends StatelessWidget {
+class DashboardScreen extends StatefulWidget {
   final Function(int)? onNavigateToTab;
 
   const DashboardScreen({super.key, this.onNavigateToTab});
 
+  @override
+  State<DashboardScreen> createState() => _DashboardScreenState();
+}
+
+class _DashboardScreenState extends State<DashboardScreen> {
+  final PageController _pageController = PageController(viewportFraction: 0.85);
+  Timer? _carouselTimer;
+  int _currentPage = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    GalleryService.fetchGalleryItems();
+    _startCarouselTimer();
+  }
+
+  @override
+  void dispose() {
+    _carouselTimer?.cancel();
+    _pageController.dispose();
+    super.dispose();
+  }
+
+  void _startCarouselTimer() {
+    _carouselTimer = Timer.periodic(const Duration(seconds: 4), (Timer timer) {
+      if (_pageController.hasClients && galleryState.value.where((item) => item.isApproved).isNotEmpty) {
+        final itemCount = galleryState.value.where((item) => item.isApproved).length;
+        if (_currentPage < itemCount - 1) {
+          _currentPage++;
+        } else {
+          _currentPage = 0;
+        }
+        _pageController.animateToPage(
+          _currentPage,
+          duration: const Duration(milliseconds: 800),
+          curve: Curves.fastOutSlowIn,
+        );
+      }
+    });
+  }
+
   // --- Central Routing Engine for Shortcuts ---
   void _executeShortcut(BuildContext context, String id) {
     switch (id) {
-      case 'tab_notices': onNavigateToTab?.call(1); break;
-      case 'tab_messenger': onNavigateToTab?.call(2); break;
-      case 'tab_jobs': onNavigateToTab?.call(3); break;
-      case 'tab_contests': onNavigateToTab?.call(4); break;
+      case 'tab_notices': widget.onNavigateToTab?.call(1); break;
+      case 'tab_messenger': widget.onNavigateToTab?.call(2); break;
+      case 'tab_jobs': widget.onNavigateToTab?.call(3); break;
+      case 'tab_contests': widget.onNavigateToTab?.call(4); break;
       case 'cgpa_calc': Navigator.push(context, MaterialPageRoute(builder: (_) => const CGPACalculatorScreen())); break;
       case 'res_main': Navigator.push(context, MaterialPageRoute(builder: (_) => const YearsScreen())); break;
       case 'dept_info': Navigator.push(context, MaterialPageRoute(builder: (_) => const DepartmentScreen())); break;
@@ -39,6 +83,39 @@ class DashboardScreen extends StatelessWidget {
         const SizedBox(height: 4),
         Text('Stay updated with departmental & club activities.', style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6))),
         const SizedBox(height: 24),
+
+        // --- ANIMATED GALLERY CAROUSEL ---
+        ValueListenableBuilder<List<GalleryItem>>(
+          valueListenable: galleryState,
+          builder: (context, items, _) {
+            final approvedItems = items.where((item) => item.isApproved).take(5).toList();
+            if (approvedItems.isEmpty) return const SizedBox.shrink();
+
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _buildSectionHeader('Gallery Highlights', () {}),
+                const SizedBox(height: 12),
+                SizedBox(
+                  height: 200,
+                  child: PageView.builder(
+                    controller: _pageController,
+                    onPageChanged: (int page) {
+                      setState(() {
+                        _currentPage = page;
+                      });
+                    },
+                    itemCount: approvedItems.length,
+                    itemBuilder: (context, index) {
+                      return _buildCarouselItem(approvedItems[index], index);
+                    },
+                  ),
+                ),
+                const SizedBox(height: 24),
+              ],
+            );
+          },
+        ),
 
         // --- EDITABLE QUICK ACCESS SECTION ---
         Row(
@@ -83,12 +160,12 @@ class DashboardScreen extends StatelessWidget {
 
         const SizedBox(height: 32),
 
-        _buildSectionHeader('Latest Notices', () => onNavigateToTab?.call(1)),
+        _buildSectionHeader('Latest Notices', () => widget.onNavigateToTab?.call(1)),
         _buildListCard(context, icon: Icons.lightbulb, iconColor: Colors.blue, title: 'Workshop on Machine Learning Basics', subtitle: 'Join us for an introductory workshop on ML fundamentals.', tag: 'Workshop', date: 'May 15, 2026'),
         _buildListCard(context, icon: Icons.code, iconColor: Colors.blueAccent, title: 'Hackathon Registration Open', subtitle: 'Annual coding hackathon registration is now open.', tag: 'Event', date: 'May 20, 2026'),
 
         const SizedBox(height: 24),
-        _buildSectionHeader('Upcoming Contests', () => onNavigateToTab?.call(4)),
+        _buildSectionHeader('Upcoming Contests', () => widget.onNavigateToTab?.call(4)),
         _buildListCard(context, icon: Icons.emoji_events, iconColor: Colors.orange, title: 'Codeforces Round #892', subtitle: 'Div. 2 competitive programming contest.', tag: 'Contest', date: 'Tomorrow'),
       ],
     );
@@ -245,6 +322,82 @@ class DashboardScreen extends StatelessWidget {
         Text(title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
         TextButton(onPressed: onViewAll, child: const Text('View All')),
       ],
+    );
+  }
+
+  Widget _buildCarouselItem(GalleryItem item, int index) {
+    return AnimatedBuilder(
+      animation: _pageController,
+      builder: (context, child) {
+        double value = 1.0;
+        if (_pageController.position.haveDimensions) {
+          value = _pageController.page! - index;
+          value = (1 - (value.abs() * 0.3)).clamp(0.0, 1.0);
+        }
+        return Center(
+          child: SizedBox(
+            height: Curves.easeOut.transform(value) * 200,
+            width: Curves.easeOut.transform(value) * 350,
+            child: child,
+          ),
+        );
+      },
+      child: Container(
+        margin: const EdgeInsets.symmetric(horizontal: 8.0),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(16),
+          image: DecorationImage(
+            image: NetworkImage(item.imagePath),
+            fit: BoxFit.cover,
+            onError: (_, __) => const AssetImage('assets/gallery/placeholder.jpg'), // fallback
+          ),
+          boxShadow: const [
+            BoxShadow(
+              color: Colors.black26,
+              offset: Offset(0, 4),
+              blurRadius: 8,
+            ),
+          ],
+        ),
+        child: Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            gradient: const LinearGradient(
+              colors: [Colors.transparent, Colors.black87],
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              stops: [0.5, 1.0],
+            ),
+          ),
+          padding: const EdgeInsets.all(16.0),
+          alignment: Alignment.bottomLeft,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                item.title,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+              Text(
+                item.subtitle,
+                style: const TextStyle(
+                  color: Colors.white70,
+                  fontSize: 12,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 

@@ -1,15 +1,21 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../features/gallery/models/gallery_state.dart';
+import '../../features/profile/models/profile_state.dart';
 
 class GalleryService {
   static final SupabaseClient _client = Supabase.instance.client;
 
   static Future<void> fetchGalleryItems() async {
-    final response = await _client
-        .from('gallery')
-        .select()
-        .order('created_at', ascending: false);
+    final isAdmin = currentProfile.value.role != UserRole.student;
+    
+    var query = _client.from('gallery').select();
+    if (!isAdmin) {
+      query = query.eq('is_approved', true);
+    }
+    
+    final response = await query.order('created_at', ascending: false);
 
     final List<GalleryItem> items = [];
     for (var row in response) {
@@ -20,7 +26,11 @@ class GalleryService {
   }
 
   static Future<void> addGalleryItemToDB(GalleryItem item) async {
+    final isSuperUser = currentProfile.value.role == UserRole.superUser;
+    
     final data = item.toJson();
+    data['is_approved'] = isSuperUser;
+    
     final response = await _client
         .from('gallery')
         .insert(data)
@@ -33,10 +43,17 @@ class GalleryService {
 
   static Future<void> updateGalleryItemInDB(GalleryItem item) async {
     final data = item.toJson();
+    data.remove('is_approved'); // Don't overwrite existing status on normal edit
+    
     await _client
         .from('gallery')
         .update(data)
         .eq('id', item.id);
+  }
+
+  static Future<void> approveGalleryItem(String id) async {
+    await _client.from('gallery').update({'is_approved': true}).eq('id', id);
+    fetchGalleryItems();
   }
 
   static Future<void> deleteGalleryItemFromDB(GalleryItem item) async {
@@ -46,5 +63,16 @@ class GalleryService {
         .eq('id', item.id);
 
     galleryState.value = List.from(galleryState.value)..removeWhere((i) => i.id == item.id);
+  }
+
+  static Future<String?> uploadImage(File file) async {
+    try {
+      final fileName = '${DateTime.now().millisecondsSinceEpoch}_${file.path.split('/').last}';
+      await _client.storage.from('gallery_images').upload(fileName, file);
+      return _client.storage.from('gallery_images').getPublicUrl(fileName);
+    } catch (e) {
+      debugPrint('Error uploading gallery image: $e');
+      return null;
+    }
   }
 }
