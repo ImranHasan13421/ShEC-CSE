@@ -24,6 +24,7 @@ class ProfileData {
   final UserRole role;
   final String designation;
   final bool isApproved;
+  final bool isAlumni; // New field for alumni login support
 
   ProfileData({
     this.id = '',
@@ -43,6 +44,7 @@ class ProfileData {
     this.role = UserRole.student,
     this.designation = 'Student',
     this.isApproved = false,
+    this.isAlumni = false,
   });
 
   ProfileData copyWith({
@@ -63,6 +65,7 @@ class ProfileData {
     UserRole? role,
     String? designation,
     bool? isApproved,
+    bool? isAlumni,
   }) {
     return ProfileData(
       id: id ?? this.id,
@@ -82,11 +85,11 @@ class ProfileData {
       role: role ?? this.role,
       designation: designation ?? this.designation,
       isApproved: isApproved ?? this.isApproved,
+      isAlumni: isAlumni ?? this.isAlumni,
     );
   }
 }
 
-// Global Notifier initialized with empty data. Will be populated on login.
 final ValueNotifier<ProfileData> currentProfile = ValueNotifier(
   ProfileData(
     id: '',
@@ -103,5 +106,6 @@ final ValueNotifier<ProfileData> currentProfile = ValueNotifier(
     role: UserRole.student,
     designation: 'Student',
     isApproved: false,
+    isAlumni: false,
   ),
 );

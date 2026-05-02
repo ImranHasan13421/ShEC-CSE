@@ -21,8 +21,8 @@ class _SignupScreenState extends State<SignupScreen> {
   final _confirmPasswordController = TextEditingController();
   final _firstNameController = TextEditingController();
   final _lastNameController = TextEditingController();
-  final _universityIdController = TextEditingController(); // e.g. 54/21
-  final _classRollController = TextEditingController();    // e.g. CSE-10
+  final _universityIdController = TextEditingController();
+  final _classRollController = TextEditingController();
   final _batchController = TextEditingController();
   final _duRegController = TextEditingController();
   final _phoneController = TextEditingController();
@@ -33,6 +33,7 @@ class _SignupScreenState extends State<SignupScreen> {
 
   List<Map<String, dynamic>> _sessions = [];
   String? _selectedSession;
+  bool _isSessionsLoading = true;
 
   File? _profileImageFile;
 
@@ -48,10 +49,36 @@ class _SignupScreenState extends State<SignupScreen> {
       if (mounted) {
         setState(() {
           _sessions = data;
+          _isSessionsLoading = false;
+          // Fallback if data is empty
+          if (_sessions.isEmpty) {
+            _sessions = [
+              {'session': '2025-2026'},
+              {'session': '2024-2025'},
+              {'session': '2023-2024'},
+              {'session': '2022-2023'},
+              {'session': '2021-2022'},
+              {'session': '2020-2021'},
+              {'session': '2019-2020'},
+            ];
+          }
         });
       }
     } catch (e) {
       debugPrint('Error fetching sessions: $e');
+      if (mounted) {
+        setState(() {
+          _isSessionsLoading = false;
+          // Robust fallback
+          _sessions = [
+            {'session': '2025-2026'},
+            {'session': '2024-2025'},
+            {'session': '2023-2024'},
+            {'session': '2022-2023'},
+            {'session': '2021-2022'},
+          ];
+        });
+      }
     }
   }
 
@@ -77,17 +104,19 @@ class _SignupScreenState extends State<SignupScreen> {
 
   Future<void> _signUp() async {
     if (!_formKey.currentState!.validate()) return;
+    if (_selectedSession == null) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please select a session')));
+      return;
+    }
 
     setState(() => _isLoading = true);
 
     try {
-      // Upload profile picture if selected
       String? profilePicUrl;
       if (_profileImageFile != null) {
         profilePicUrl = await _uploadProfilePic(_profileImageFile!);
       }
 
-      // Combine university_id + class_roll into class_id for backward compat
       final classId = '${_universityIdController.text.trim()} / ${_classRollController.text.trim()}';
 
       await AuthService.signUp(
@@ -97,7 +126,7 @@ class _SignupScreenState extends State<SignupScreen> {
         lastName: _lastNameController.text.trim(),
         classId: classId,
         batch: _batchController.text.trim(),
-        session: _selectedSession ?? '',
+        session: _selectedSession!,
         duReg: _duRegController.text.trim(),
         phone: _phoneController.text.trim(),
         profilePic: profilePicUrl,
@@ -133,6 +162,8 @@ class _SignupScreenState extends State<SignupScreen> {
       prefixIcon: prefixIcon != null ? Icon(prefixIcon) : null,
       suffixIcon: suffix,
       isDense: true,
+      filled: true,
+      fillColor: Colors.grey.withOpacity(0.05),
     );
   }
 
@@ -159,15 +190,8 @@ class _SignupScreenState extends State<SignupScreen> {
                   style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
                   textAlign: TextAlign.center,
                 ),
-                const SizedBox(height: 8),
-                Text(
-                  'Fill in your details to register as a Member',
-                  style: TextStyle(fontSize: 14, color: colors.onSurface.withOpacity(0.6)),
-                  textAlign: TextAlign.center,
-                ),
                 const SizedBox(height: 24),
 
-                // ── Profile Picture ──
                 Center(
                   child: GestureDetector(
                     onTap: _pickProfileImage,
@@ -184,10 +208,7 @@ class _SignupScreenState extends State<SignupScreen> {
                         Positioned(
                           bottom: 0, right: 0,
                           child: Container(
-                            decoration: BoxDecoration(
-                              color: colors.primary,
-                              shape: BoxShape.circle,
-                            ),
+                            decoration: BoxDecoration(color: colors.primary, shape: BoxShape.circle),
                             padding: const EdgeInsets.all(6),
                             child: const Icon(Icons.camera_alt, color: Colors.white, size: 16),
                           ),
@@ -196,12 +217,10 @@ class _SignupScreenState extends State<SignupScreen> {
                     ),
                   ),
                 ),
-                const SizedBox(height: 24),
+                const SizedBox(height: 32),
 
-                // ── Section Label ──
                 _sectionLabel('Personal Information'),
                 const SizedBox(height: 12),
-
                 Row(children: [
                   Expanded(
                     child: TextFormField(
@@ -221,15 +240,13 @@ class _SignupScreenState extends State<SignupScreen> {
                 ]),
                 const SizedBox(height: 16),
 
-                // ── Academic Info ──
                 _sectionLabel('Academic Information'),
                 const SizedBox(height: 12),
-
                 Row(children: [
                   Expanded(
                     child: TextFormField(
                       controller: _universityIdController,
-                      decoration: _decoration('University ID (e.g. 54/21)'),
+                      decoration: _decoration('Univ ID (54/21)'),
                       validator: (v) => v == null || v.isEmpty ? 'Required' : null,
                     ),
                   ),
@@ -237,7 +254,7 @@ class _SignupScreenState extends State<SignupScreen> {
                   Expanded(
                     child: TextFormField(
                       controller: _classRollController,
-                      decoration: _decoration('Class Roll (e.g. CSE-10)'),
+                      decoration: _decoration('Roll (CSE-10)'),
                       validator: (v) => v == null || v.isEmpty ? 'Required' : null,
                     ),
                   ),
@@ -250,16 +267,15 @@ class _SignupScreenState extends State<SignupScreen> {
                       value: _selectedSession,
                       decoration: _decoration('Session'),
                       isExpanded: true,
-                      items: _sessions.isEmpty 
-                        ? [const DropdownMenuItem(value: '', child: Text('Loading sessions...'))]
-                        : _sessions.map((s) {
-                          return DropdownMenuItem<String>(
-                            value: s['session'] as String,
-                            child: Text(s['session'] as String),
-                          );
-                        }).toList(),
+                      hint: Text(_isSessionsLoading ? 'Loading...' : 'Select Session'),
+                      items: _sessions.map((s) {
+                        return DropdownMenuItem<String>(
+                          value: s['session'] as String,
+                          child: Text(s['session'] as String),
+                        );
+                      }).toList(),
                       onChanged: (value) => setState(() => _selectedSession = value),
-                      validator: (v) => v == null || v.isEmpty ? 'Select session' : null,
+                      validator: (v) => v == null ? 'Required' : null,
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -280,10 +296,8 @@ class _SignupScreenState extends State<SignupScreen> {
                 ),
                 const SizedBox(height: 24),
 
-                // ── Contact Info ──
                 _sectionLabel('Contact & Account'),
                 const SizedBox(height: 12),
-
                 TextFormField(
                   controller: _phoneController,
                   decoration: _decoration('Phone Number', prefixIcon: Icons.phone),
@@ -291,16 +305,13 @@ class _SignupScreenState extends State<SignupScreen> {
                   validator: (v) => v == null || v.isEmpty ? 'Required' : null,
                 ),
                 const SizedBox(height: 16),
-
                 TextFormField(
                   controller: _emailController,
                   decoration: _decoration('Email Address', prefixIcon: Icons.email),
                   keyboardType: TextInputType.emailAddress,
-                  validator: (v) => v == null || !v.contains('@') ? 'Enter a valid email' : null,
+                  validator: (v) => v == null || !v.contains('@') ? 'Enter valid email' : null,
                 ),
                 const SizedBox(height: 16),
-
-                // Password
                 TextFormField(
                   controller: _passwordController,
                   obscureText: !_passwordVisible,
@@ -315,8 +326,6 @@ class _SignupScreenState extends State<SignupScreen> {
                   validator: (v) => v == null || v.length < 6 ? 'Min 6 characters' : null,
                 ),
                 const SizedBox(height: 16),
-
-                // Confirm Password
                 TextFormField(
                   controller: _confirmPasswordController,
                   obscureText: !_confirmPasswordVisible,
@@ -344,7 +353,7 @@ class _SignupScreenState extends State<SignupScreen> {
                       ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
                       : const Text('Create Account', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                 ),
-                const SizedBox(height: 24),
+                const SizedBox(height: 40),
               ],
             ),
           ),
@@ -356,12 +365,7 @@ class _SignupScreenState extends State<SignupScreen> {
   Widget _sectionLabel(String text) {
     return Text(
       text,
-      style: TextStyle(
-        fontWeight: FontWeight.bold,
-        fontSize: 13,
-        color: Theme.of(context).colorScheme.primary,
-        letterSpacing: 0.5,
-      ),
+      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Theme.of(context).colorScheme.primary, letterSpacing: 0.5),
     );
   }
 }

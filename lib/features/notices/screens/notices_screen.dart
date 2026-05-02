@@ -4,7 +4,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:ShEC_CSE/features/profile/models/profile_state.dart';
 import '../models/notice_state.dart';
 import '../../../backend/services/notice_service.dart';
-import 'notice_detail_screen.dart';
+import '../widgets/notice_card.dart';
 
 class NoticesScreen extends StatefulWidget {
   const NoticesScreen({super.key});
@@ -34,13 +34,11 @@ class _NoticesScreenState extends State<NoticesScreen> {
 
   void _showNoticeForm(BuildContext context, ValueNotifier<List<NoticeItem>> defaultStateNotifier, {NoticeItem? existingNotice}) {
     final titleController = TextEditingController(text: existingNotice?.title ?? '');
-    final subtitleController = TextEditingController(text: existingNotice?.subtitle ?? '');
     final descriptionController = TextEditingController(text: existingNotice?.description ?? '');
     
     ValueNotifier<List<NoticeItem>> selectedNotifier = defaultStateNotifier;
     
     final List<String> availableTags = ['Academic', 'Event', 'Workshop', 'Maintenance', 'Job', 'Lecture', 'General', 'Research'];
-    // For new notices, tags should be empty by default as per user request
     List<String> selectedTags = existingNotice?.tags.toList() ?? [];
 
     bool isVisible = existingNotice?.isVisible ?? true;
@@ -96,11 +94,6 @@ class _NoticesScreenState extends State<NoticesScreen> {
                     TextField(
                       controller: titleController,
                       decoration: const InputDecoration(labelText: 'Title *', border: OutlineInputBorder()),
-                    ),
-                    const SizedBox(height: 12),
-                    TextField(
-                      controller: subtitleController,
-                      decoration: const InputDecoration(labelText: 'Short Subtitle', border: OutlineInputBorder()),
                     ),
                     const SizedBox(height: 12),
                     TextField(
@@ -198,7 +191,6 @@ class _NoticesScreenState extends State<NoticesScreen> {
                           }
 
                           if (!context.mounted) return;
-                          Navigator.pop(modalContext);
                           
                           try {
                             final noticeItem = NoticeItem(
@@ -206,12 +198,11 @@ class _NoticesScreenState extends State<NoticesScreen> {
                               icon: Icons.notifications,
                               iconColor: Colors.blue,
                               title: titleController.text.trim(),
-                              subtitle: subtitleController.text.trim(),
                               description: descriptionController.text.trim(),
                               imagePath: finalImageUrl,
                               tags: selectedTags,
                               tagColor: Colors.blue,
-                              date: existingNotice?.date ?? 'Just now',
+                              date: existingNotice?.date ?? '${DateTime.now().day}/${DateTime.now().month}/${DateTime.now().year}',
                               isVisible: isVisible,
                               createdByName: existingNotice?.createdByName ?? currentProfile.value.name,
                             );
@@ -222,8 +213,10 @@ class _NoticesScreenState extends State<NoticesScreen> {
                             } else {
                               await NoticeService.updateNoticeInDB(noticeItem, category);
                             }
+                            if (context.mounted) Navigator.pop(modalContext);
                           } catch (e) {
                             debugPrint('Error saving notice: $e');
+                            setModalState(() => isUploading = false);
                           }
                         },
                         child: isUploading 
@@ -323,6 +316,7 @@ class _NoticesScreenState extends State<NoticesScreen> {
       builder: (context, notices, _) {
         final profile = currentProfile.value;
         final isAdmin = profile.role != UserRole.student;
+        final isSuperUser = profile.designation == 'President' || profile.designation == 'Vice President';
 
         var filtered = notices.where((n) {
           if (!isAdmin && (!n.isApproved || !n.isVisible)) return false;
@@ -348,103 +342,21 @@ class _NoticesScreenState extends State<NoticesScreen> {
           child: ListView.builder(
             padding: const EdgeInsets.all(16),
             itemCount: filtered.length,
-            itemBuilder: (context, index) => _buildMinimalNoticeCard(filtered[index], notifier),
+            itemBuilder: (context, index) {
+              final notice = filtered[index];
+              return NoticeCard(
+                notice: notice,
+                isAdmin: isAdmin,
+                isSuperUser: isSuperUser,
+                onEdit: () => _showNoticeForm(context, notifier, existingNotice: notice),
+                onDelete: () => _deleteNotice(notice, notifier),
+                onApprove: () => NoticeService.approveNotice(notice.id),
+                onToggleVisibility: () => NoticeService.toggleNoticeVisibility(notice.id, !notice.isVisible),
+              );
+            },
           ),
         );
       },
-    );
-  }
-
-  Widget _buildMinimalNoticeCard(NoticeItem notice, ValueNotifier<List<NoticeItem>> notifier) {
-    final colors = Theme.of(context).colorScheme;
-    final isAdmin = currentProfile.value.role != UserRole.student;
-    final isSuperUser = currentProfile.value.designation == 'President' || currentProfile.value.designation == 'Vice President';
-
-    return Card(
-      margin: const EdgeInsets.only(bottom: 12),
-      elevation: 0,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-        side: BorderSide(color: colors.outline.withValues(alpha: 0.1)),
-      ),
-      child: InkWell(
-        onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => NoticeDetailScreen(notice: notice))),
-        borderRadius: BorderRadius.circular(12),
-        child: Padding(
-          padding: const EdgeInsets.all(12),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: notice.iconColor.withValues(alpha: 0.1),
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(notice.icon, color: notice.iconColor, size: 20),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Text(notice.title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
-                        ),
-                        if (!notice.isApproved)
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-                            decoration: BoxDecoration(color: Colors.red.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(4)),
-                            child: const Text('PENDING', style: TextStyle(color: Colors.red, fontSize: 8, fontWeight: FontWeight.bold)),
-                          ),
-                        if (isAdmin)
-                          PopupMenuButton<String>(
-                            icon: const Icon(Icons.more_vert, size: 18),
-                            onSelected: (val) {
-                              if (val == 'edit') _showNoticeForm(context, notifier, existingNotice: notice);
-                              if (val == 'delete') _deleteNotice(notice, notifier);
-                              if (val == 'approve') NoticeService.approveNotice(notice.id);
-                              if (val == 'visibility') NoticeService.toggleNoticeVisibility(notice.id, !notice.isVisible);
-                            },
-                            itemBuilder: (_) => [
-                              if (!notice.isApproved && isSuperUser)
-                                const PopupMenuItem(value: 'approve', child: Text('Approve', style: TextStyle(color: Colors.green))),
-                              PopupMenuItem(value: 'visibility', child: Text(notice.isVisible ? 'Hide' : 'Show')),
-                              const PopupMenuItem(value: 'edit', child: Text('Edit')),
-                              const PopupMenuItem(value: 'delete', child: Text('Delete', style: TextStyle(color: Colors.red))),
-                            ],
-                          ),
-                      ],
-                    ),
-                    const SizedBox(height: 2),
-                    Text(notice.subtitle, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: colors.onSurface.withValues(alpha: 0.6), fontSize: 13)),
-                    const SizedBox(height: 6),
-                    Row(
-                      children: [
-                        Text(notice.date, style: TextStyle(color: colors.onSurface.withValues(alpha: 0.4), fontSize: 11)),
-                        const Spacer(),
-                        if (notice.tags.isNotEmpty)
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                            decoration: BoxDecoration(color: notice.tagColor.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(4)),
-                            child: Text(notice.tags.first, style: TextStyle(color: notice.tagColor, fontSize: 10, fontWeight: FontWeight.bold)),
-                          ),
-                        if (!notice.isVisible)
-                          const Padding(
-                            padding: EdgeInsets.only(left: 8.0),
-                            child: Text('HIDDEN', style: TextStyle(color: Colors.orange, fontSize: 10, fontWeight: FontWeight.bold)),
-                          ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
     );
   }
 }

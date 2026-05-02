@@ -5,12 +5,10 @@ import '../../features/profile/models/profile_state.dart';
 class AuthService {
   static final SupabaseClient _client = Supabase.instance.client;
 
-  // Listen to auth state changes to update currentProfile
   static void initializeAuthListener() {
     _client.auth.onAuthStateChange.listen((data) async {
       final Session? session = data.session;
       if (session != null) {
-        // User is logged in, fetch their profile
         await fetchCurrentUserProfile();
       }
     });
@@ -30,7 +28,6 @@ class AuthService {
     String universityId = '',
     String classRoll = '',
   }) async {
-    // 1. Sign up the user in Supabase Auth
     final AuthResponse res = await _client.auth.signUp(
       email: email,
       password: password,
@@ -41,7 +38,6 @@ class AuthService {
       throw Exception('Failed to create user account.');
     }
 
-    // 2. Insert into profiles table
     await _client.from('profiles').insert({
       'id': user.id,
       'first_name': firstName,
@@ -55,9 +51,8 @@ class AuthService {
       'phone': phone,
       'profile_pic': profilePic,
       'role': 'member',
+      'is_alumni': false,
     });
-    
-    // Automatically sets session and triggers the auth listener
   }
 
   static Future<void> signIn({
@@ -65,7 +60,6 @@ class AuthService {
     required String password,
   }) async {
     await _client.auth.signInWithPassword(email: email, password: password);
-    // Profile is fetched via auth state listener
   }
 
   static Future<void> signOut() async {
@@ -84,16 +78,9 @@ class AuthService {
 
         UserRole parsedRole;
         switch (data['role']) {
-          case 'superuser':
-            parsedRole = UserRole.superUser;
-            break;
-          case 'committee':
-            parsedRole = UserRole.committeeMember;
-            break;
-          case 'member':
-          default:
-            parsedRole = UserRole.student;
-            break;
+          case 'superuser': parsedRole = UserRole.superUser; break;
+          case 'committee': parsedRole = UserRole.committeeMember; break;
+          default: parsedRole = UserRole.student; break;
         }
 
         currentProfile.value = ProfileData(
@@ -114,6 +101,7 @@ class AuthService {
           role: parsedRole,
           designation: data['designation'] ?? 'Student',
           isApproved: data['is_approved'] ?? false,
+          isAlumni: data['is_alumni'] ?? false,
         );
       } catch (e) {
         debugPrint('Error fetching user profile: $e');
@@ -121,24 +109,21 @@ class AuthService {
     }
   }
 
-  // Superuser capabilities
   static Future<List<ProfileData>> fetchAllMembers() async {
-    final response = await _client.from('profiles').select().order('created_at', ascending: false);
+    // Only fetch active members (non-alumni) for the member list
+    final response = await _client
+        .from('profiles')
+        .select()
+        .eq('is_alumni', false)
+        .order('created_at', ascending: false);
     
     List<ProfileData> members = [];
     for (var data in response) {
       UserRole parsedRole;
       switch (data['role']) {
-        case 'superuser':
-          parsedRole = UserRole.superUser;
-          break;
-        case 'committee':
-          parsedRole = UserRole.committeeMember;
-          break;
-        case 'member':
-        default:
-          parsedRole = UserRole.student;
-          break;
+        case 'superuser': parsedRole = UserRole.superUser; break;
+        case 'committee': parsedRole = UserRole.committeeMember; break;
+        default: parsedRole = UserRole.student; break;
       }
 
       members.add(ProfileData(
@@ -159,6 +144,7 @@ class AuthService {
         role: parsedRole,
         designation: data['designation'] ?? 'Student',
         isApproved: data['is_approved'] ?? false,
+        isAlumni: data['is_alumni'] ?? false,
       ));
     }
     return members;
@@ -167,27 +153,15 @@ class AuthService {
   static Future<void> updateUserRole(String userId, UserRole newRole, {String? designation}) async {
     String roleString;
     switch (newRole) {
-      case UserRole.superUser:
-        roleString = 'superuser';
-        break;
-      case UserRole.committeeMember:
-        roleString = 'committee';
-        break;
-      case UserRole.student:
-      default:
-        roleString = 'member';
-        break;
+      case UserRole.superUser: roleString = 'superuser'; break;
+      case UserRole.committeeMember: roleString = 'committee'; break;
+      default: roleString = 'member'; break;
     }
 
     final Map<String, dynamic> updateData = {'role': roleString};
-    if (designation != null) {
-      updateData['designation'] = designation;
-    }
+    if (designation != null) updateData['designation'] = designation;
 
-    await _client
-        .from('profiles')
-        .update(updateData)
-        .eq('id', userId);
+    await _client.from('profiles').update(updateData).eq('id', userId);
   }
 
   static Future<void> updateProfile(ProfileData profile) async {
@@ -215,12 +189,25 @@ class AuthService {
   }
 
   static Future<List<Map<String, dynamic>>> fetchSessions() async {
-    final data = await _client.from('DUCMC_sessions_id').select().order('session', ascending: false);
-    return List<Map<String, dynamic>>.from(data);
+    try {
+      final data = await _client.from('DUCMC_sessions_id').select().order('session', ascending: false);
+      return List<Map<String, dynamic>>.from(data);
+    } catch (e) {
+      debugPrint('Sessions fetch error: $e');
+      return [];
+    }
   }
 
   static Future<void> moveToAlumni(ProfileData member) async {
-    // 1. Insert into alumni table
+    // 1. Update profiles table to set is_alumni = true
+    // This allows them to still login.
+    await _client.from('profiles').update({
+      'is_alumni': true,
+      'role': 'member',
+      'designation': 'Alumnus',
+    }).eq('id', member.id);
+
+    // 2. Also insert into public alumni table for the gallery/directory
     await _client.from('alumni').insert({
       'user_id': member.id,
       'name': member.name,
@@ -233,9 +220,7 @@ class AuthService {
       'session': member.session,
       'is_approved': true,
       'is_visible': true,
+      'profile_id': member.id,
     });
-
-    // 2. Delete from profiles table
-    await _client.from('profiles').delete().eq('id', member.id);
   }
 }

@@ -92,11 +92,6 @@ class NoticeDetailScreen extends StatelessWidget {
                     style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold, height: 1.2),
                   ),
                   const SizedBox(height: 12),
-                  if (notice.subtitle.isNotEmpty)
-                    Text(
-                      notice.subtitle,
-                      style: TextStyle(fontSize: 18, color: colors.onSurface.withValues(alpha: 0.7), fontWeight: FontWeight.w500),
-                    ),
                   const SizedBox(height: 16),
                   if (notice.tags.isNotEmpty)
                     Wrap(

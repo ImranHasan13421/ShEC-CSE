@@ -7,13 +7,12 @@ class NoticeItem {
   final IconData icon;
   final Color iconColor;
   final String title;
-  final String subtitle;
   final String description;
   final String? imagePath;
   final List<String> tags;
   final Color tagColor;
   final String date;
-   final bool isPinned;
+  final bool isPinned;
   final bool isApproved;
   final bool isVisible;
   final String createdByName;
@@ -23,7 +22,6 @@ class NoticeItem {
     required this.icon,
     required this.iconColor,
     required this.title,
-    required this.subtitle,
     this.description = '',
     this.imagePath,
     required this.tags,
@@ -40,7 +38,6 @@ class NoticeItem {
     IconData? icon,
     Color? iconColor,
     String? title,
-    String? subtitle,
     String? description,
     String? imagePath,
     List<String>? tags,
@@ -56,7 +53,6 @@ class NoticeItem {
       icon: icon ?? this.icon,
       iconColor: iconColor ?? this.iconColor,
       title: title ?? this.title,
-      subtitle: subtitle ?? this.subtitle,
       description: description ?? this.description,
       imagePath: imagePath ?? this.imagePath,
       tags: tags ?? this.tags,
@@ -75,7 +71,6 @@ class NoticeItem {
       icon: IconMapper.getIcon(json['icon_key'] as String?, defaultIcon: Icons.notifications),
       iconColor: Color(json['icon_color'] as int),
       title: json['title'] as String,
-      subtitle: json['subtitle'] as String,
       description: json['description'] as String? ?? '',
       imagePath: json['image_path'] as String?,
       tags: List<String>.from(json['tags'] ?? []),
@@ -92,7 +87,6 @@ class NoticeItem {
     return {
       'category': category,
       'title': title,
-      'subtitle': subtitle,
       'description': description,
       'image_path': imagePath ?? '',
       'tags': tags,
@@ -111,5 +105,3 @@ class NoticeItem {
 // Global Notifiers for Notices
 final ValueNotifier<List<NoticeItem>> clubNoticesState = ValueNotifier([]);
 final ValueNotifier<List<NoticeItem>> deptNoticesState = ValueNotifier([]);
-
-

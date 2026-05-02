@@ -12,7 +12,7 @@ import 'package:ShEC_CSE/backend/services/contest_service.dart';
 import 'package:ShEC_CSE/features/notices/models/notice_state.dart';
 import 'package:ShEC_CSE/features/contests/models/contest_state.dart';
 import 'package:ShEC_CSE/features/gallery/screens/gallery_screen.dart';
-import 'package:ShEC_CSE/features/notices/screens/notice_detail_screen.dart';
+import 'package:ShEC_CSE/features/notices/widgets/notice_card.dart';
 import 'dart:async';
 
 import '../../jobs/screens/jobs_screen.dart';
@@ -65,7 +65,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
     });
   }
 
-  // --- Central Routing Engine for Shortcuts ---
   void _executeShortcut(BuildContext context, String id) {
     switch (id) {
       case 'tab_notices': widget.onNavigateToTab?.call(1); break;
@@ -76,8 +75,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
       case 'res_main': Navigator.push(context, MaterialPageRoute(builder: (_) => const YearsScreen())); break;
       case 'dept_info': Navigator.push(context, MaterialPageRoute(builder: (_) => const DepartmentScreen())); break;
       case 'prog_club': Navigator.push(context, MaterialPageRoute(builder: (_) => const ClubScreen())); break;
-
-    // DEEP LINK: Direct to 3rd Year, Semester 1, Session 20-21
       case 'res_3_1_20':
         Navigator.push(context, MaterialPageRoute(builder: (_) => const PdfsScreen(title: 'Session 20-21 Resources', color: Colors.teal, session: '',)));
         break;
@@ -91,7 +88,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       children: [
         const Text('Welcome Back!', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
         const SizedBox(height: 4),
-        Text('Stay updated with departmental & club activities.', style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6))),
+        Text('Stay updated with departmental & club activities.', style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6))),
         const SizedBox(height: 24),
 
         // --- ANIMATED GALLERY CAROUSEL ---
@@ -127,7 +124,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           },
         ),
 
-        // --- EDITABLE QUICK ACCESS SECTION ---
+        // --- QUICK ACCESS SECTION ---
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
@@ -142,25 +139,23 @@ class _DashboardScreenState extends State<DashboardScreen> {
         ),
         const SizedBox(height: 12),
 
-        // Dynamically build the shortcut grid
         ValueListenableBuilder<List<ShortcutItem>>(
           valueListenable: activeShortcuts,
           builder: (context, shortcuts, _) {
             if (shortcuts.isEmpty) {
               return Container(
                 padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(color: Theme.of(context).colorScheme.surface, borderRadius: BorderRadius.circular(12), border: Border.all(color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.1))),
+                decoration: BoxDecoration(color: Theme.of(context).colorScheme.surface, borderRadius: BorderRadius.circular(12), border: Border.all(color: Theme.of(context).colorScheme.outline.withOpacity(0.1))),
                 child: const Center(child: Text('Tap Edit to add shortcuts.')),
               );
             }
             return Wrap(
-              spacing: 16, // Horizontal spacing
-              runSpacing: 16, // Vertical spacing
+              spacing: 16,
+              runSpacing: 16,
               alignment: WrapAlignment.start,
               children: shortcuts.map((shortcut) {
-                // Determine width so 4 items fit nicely, and the 5th wraps below
                 return SizedBox(
-                  width: (MediaQuery.of(context).size.width - 32 - (16 * 3)) / 4, // screen width - padding - spacing
+                  width: (MediaQuery.of(context).size.width - 32 - (16 * 3)) / 4,
                   child: _buildQuickAccessIcon(context, shortcut.icon, shortcut.title, shortcut.color, () => _executeShortcut(context, shortcut.id)),
                 );
               }).toList(),
@@ -173,20 +168,20 @@ class _DashboardScreenState extends State<DashboardScreen> {
         _buildSectionHeader('Latest Notices', () => widget.onNavigateToTab?.call(1)),
         ValueListenableBuilder<List<NoticeItem>>(
           valueListenable: clubNoticesState,
-          builder: (context, notices, _) {
-            final latest = notices.where((n) => n.isApproved && n.isVisible).take(2).toList();
-            if (latest.isEmpty) return const Text('No recent notices');
-            return Column(
-              children: latest.map((n) => _buildListCard(
-                context, 
-                icon: n.icon, 
-                iconColor: n.iconColor, 
-                title: n.title, 
-                subtitle: n.subtitle, 
-                tag: n.tags.first, 
-                date: n.date,
-                onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => NoticeDetailScreen(notice: n))),
-              )).toList(),
+          builder: (context, clubNotices, _) {
+            return ValueListenableBuilder<List<NoticeItem>>(
+              valueListenable: deptNoticesState,
+              builder: (context, deptNotices, _) {
+                // Combine and sort by date/latest
+                final allNotices = [...clubNotices, ...deptNotices];
+                final latest = allNotices.where((n) => n.isApproved && n.isVisible).take(3).toList();
+                
+                if (latest.isEmpty) return const Padding(padding: EdgeInsets.all(20), child: Center(child: Text('No recent notices')));
+                
+                return Column(
+                  children: latest.map((n) => NoticeCard(notice: n)).toList(),
+                );
+              },
             );
           },
         ),
@@ -197,7 +192,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           valueListenable: contestState,
           builder: (context, contests, _) {
             final latest = contests.where((c) => c.isApproved && c.isVisible).take(2).toList();
-            if (latest.isEmpty) return const Text('No upcoming contests');
+            if (latest.isEmpty) return const Padding(padding: EdgeInsets.all(20), child: Center(child: Text('No upcoming contests')));
             return Column(
               children: latest.map((c) => _buildListCard(
                 context, 
@@ -216,24 +211,21 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  // --- THE EDIT BOTTOM SHEET ---
   void _showEditQuickAccessSheet(BuildContext context) {
     showModalBottomSheet(
       context: context,
-      isScrollControlled: true, // Allows sheet to take up more screen space
+      isScrollControlled: true,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
       builder: (context) {
-        return StatefulBuilder( // StatefulBuilder allows the bottom sheet to update its UI without rebuilding the whole screen
+        return StatefulBuilder(
             builder: (BuildContext context, StateSetter setModalState) {
               final colors = Theme.of(context).colorScheme;
 
               void toggleShortcut(ShortcutItem item) {
                 setModalState(() {
                   if (activeShortcuts.value.contains(item)) {
-                    // Remove it
                     activeShortcuts.value = List.from(activeShortcuts.value)..remove(item);
                   } else {
-                    // Add it (if under limit)
                     if (activeShortcuts.value.length < 4) {
                       activeShortcuts.value = List.from(activeShortcuts.value)..add(item);
                     } else {
@@ -246,12 +238,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
               final unselectedShortcuts = availableShortcuts.where((item) => !activeShortcuts.value.contains(item)).toList();
 
               return Container(
-                height: MediaQuery.of(context).size.height * 0.8, // Take 80% of screen height
+                height: MediaQuery.of(context).size.height * 0.8,
                 padding: const EdgeInsets.all(24.0),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Center(child: Container(width: 40, height: 4, margin: const EdgeInsets.only(bottom: 24), decoration: BoxDecoration(color: colors.onSurface.withValues(alpha: 0.2), borderRadius: BorderRadius.circular(2)))),
+                    Center(child: Container(width: 40, height: 4, margin: const EdgeInsets.only(bottom: 24), decoration: BoxDecoration(color: colors.onSurface.withOpacity(0.2), borderRadius: BorderRadius.circular(2)))),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
@@ -260,7 +252,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       ],
                     ),
                     const SizedBox(height: 8),
-                    Text('Select and drag up to 4 shortcuts for your dashboard.', style: TextStyle(color: colors.onSurface.withValues(alpha: 0.6))),
+                    Text('Select and drag up to 4 shortcuts for your dashboard.', style: TextStyle(color: colors.onSurface.withOpacity(0.6))),
                     const SizedBox(height: 16),
 
                     if (activeShortcuts.value.isNotEmpty) ...[
@@ -283,7 +275,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           return ListTile(
                             key: ValueKey('active_${item.id}'),
                             contentPadding: EdgeInsets.zero,
-                            leading: CircleAvatar(backgroundColor: item.color.withValues(alpha: 0.1), child: Icon(item.icon, color: item.color, size: 20)),
+                            leading: CircleAvatar(backgroundColor: item.color.withOpacity(0.1), child: Icon(item.icon, color: item.color, size: 20)),
                             title: Text(item.title, style: const TextStyle(fontWeight: FontWeight.w600)),
                             trailing: Row(
                               mainAxisSize: MainAxisSize.min,
@@ -303,7 +295,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
                     const Text('Available Shortcuts', style: TextStyle(fontWeight: FontWeight.bold)),
                     const SizedBox(height: 8),
-                    // List of available shortcuts
                     Expanded(
                       child: ListView.separated(
                         itemCount: unselectedShortcuts.length,
@@ -312,7 +303,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           final item = unselectedShortcuts[index];
                           return ListTile(
                             contentPadding: EdgeInsets.zero,
-                            leading: CircleAvatar(backgroundColor: item.color.withValues(alpha: 0.1), child: Icon(item.icon, color: item.color, size: 20)),
+                            leading: CircleAvatar(backgroundColor: item.color.withOpacity(0.1), child: Icon(item.icon, color: item.color, size: 20)),
                             title: Text(item.title, style: const TextStyle(fontWeight: FontWeight.w600)),
                             trailing: IconButton(
                               icon: const Icon(Icons.add_circle, color: Colors.green),
@@ -324,7 +315,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       ),
                     ),
 
-                    // Done Button
                     SizedBox(
                       width: double.infinity,
                       child: ElevatedButton(
@@ -350,7 +340,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         children: [
           CircleAvatar(
             radius: 28,
-            backgroundColor: color.withValues(alpha: 0.15),
+            backgroundColor: color.withOpacity(0.15),
             child: Icon(icon, color: color, size: 28),
           ),
           const SizedBox(height: 8),
@@ -397,7 +387,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           image: DecorationImage(
             image: NetworkImage(item.imagePath),
             fit: BoxFit.cover,
-            onError: (_, __) => const AssetImage('assets/gallery/placeholder.jpg'), // fallback
+            onError: (_, __) => const AssetImage('assets/gallery/placeholder.jpg'), 
           ),
           boxShadow: const [
             BoxShadow(
@@ -455,23 +445,23 @@ class _DashboardScreenState extends State<DashboardScreen> {
       margin: const EdgeInsets.only(bottom: 12),
       elevation: 0,
       color: colors.surface,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12), side: BorderSide(color: colors.outline.withValues(alpha: 0.1))),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12), side: BorderSide(color: colors.outline.withOpacity(0.1))),
       child: ListTile(
         onTap: onTap,
         contentPadding: const EdgeInsets.all(16),
-        leading: CircleAvatar(backgroundColor: iconColor.withValues(alpha: 0.1), child: Icon(icon, color: iconColor)),
+        leading: CircleAvatar(backgroundColor: iconColor.withOpacity(0.1), child: Icon(icon, color: iconColor)),
         title: Text(title, style: const TextStyle(fontWeight: FontWeight.bold), maxLines: 1, overflow: TextOverflow.ellipsis),
         subtitle: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const SizedBox(height: 4),
-            Text(subtitle, style: TextStyle(color: colors.onSurface.withValues(alpha: 0.6)), maxLines: 1, overflow: TextOverflow.ellipsis),
+            Text(subtitle, style: TextStyle(color: colors.onSurface.withOpacity(0.6)), maxLines: 1, overflow: TextOverflow.ellipsis),
             const SizedBox(height: 8),
             Row(
               children: [
-                Container(padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2), decoration: BoxDecoration(color: colors.primary.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(4)), child: Text(tag, style: TextStyle(color: colors.primary, fontSize: 10, fontWeight: FontWeight.bold))),
+                Container(padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2), decoration: BoxDecoration(color: colors.primary.withOpacity(0.1), borderRadius: BorderRadius.circular(4)), child: Text(tag, style: TextStyle(color: colors.primary, fontSize: 10, fontWeight: FontWeight.bold))),
                 const Spacer(),
-                Text(date, style: TextStyle(color: colors.onSurface.withValues(alpha: 0.5), fontSize: 12)),
+                Text(date, style: TextStyle(color: colors.onSurface.withOpacity(0.5), fontSize: 12)),
               ],
             )
           ],
