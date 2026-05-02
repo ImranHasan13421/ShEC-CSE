@@ -23,7 +23,6 @@ class _SignupScreenState extends State<SignupScreen> {
   final _lastNameController = TextEditingController();
   final _universityIdController = TextEditingController();
   final _classRollController = TextEditingController();
-  final _batchController = TextEditingController();
   final _duRegController = TextEditingController();
   final _phoneController = TextEditingController();
 
@@ -33,9 +32,12 @@ class _SignupScreenState extends State<SignupScreen> {
 
   List<Map<String, dynamic>> _sessions = [];
   String? _selectedSession;
+  String? _selectedBatch; // Changed to String for dropdown
   bool _isSessionsLoading = true;
 
   File? _profileImageFile;
+
+  final List<String> _batches = List.generate(10, (index) => (index + 1).toString());
 
   @override
   void initState() {
@@ -50,7 +52,6 @@ class _SignupScreenState extends State<SignupScreen> {
         setState(() {
           _sessions = data;
           _isSessionsLoading = false;
-          // Fallback if data is empty
           if (_sessions.isEmpty) {
             _sessions = [
               {'session': '2025-2026'},
@@ -69,7 +70,6 @@ class _SignupScreenState extends State<SignupScreen> {
       if (mounted) {
         setState(() {
           _isSessionsLoading = false;
-          // Robust fallback
           _sessions = [
             {'session': '2025-2026'},
             {'session': '2024-2025'},
@@ -108,6 +108,10 @@ class _SignupScreenState extends State<SignupScreen> {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please select a session')));
       return;
     }
+    if (_selectedBatch == null) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please select a batch')));
+      return;
+    }
 
     setState(() => _isLoading = true);
 
@@ -125,7 +129,7 @@ class _SignupScreenState extends State<SignupScreen> {
         firstName: _firstNameController.text.trim(),
         lastName: _lastNameController.text.trim(),
         classId: classId,
-        batch: _batchController.text.trim(),
+        batch: _selectedBatch!,
         session: _selectedSession!,
         duReg: _duRegController.text.trim(),
         phone: _phoneController.text.trim(),
@@ -280,10 +284,18 @@ class _SignupScreenState extends State<SignupScreen> {
                   ),
                   const SizedBox(width: 12),
                   Expanded(
-                    child: TextFormField(
-                      controller: _batchController,
+                    child: DropdownButtonFormField<String>(
+                      value: _selectedBatch,
                       decoration: _decoration('Batch'),
-                      validator: (v) => v == null || v.isEmpty ? 'Required' : null,
+                      isExpanded: true,
+                      items: _batches.map((b) {
+                        return DropdownMenuItem<String>(
+                          value: b,
+                          child: Text('Batch $b'),
+                        );
+                      }).toList(),
+                      onChanged: (value) => setState(() => _selectedBatch = value),
+                      validator: (v) => v == null ? 'Required' : null,
                     ),
                   ),
                 ]),

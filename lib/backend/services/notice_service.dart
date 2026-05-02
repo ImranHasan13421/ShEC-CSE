@@ -11,9 +11,12 @@ class NoticeService {
   static Future<void> fetchNotices({bool forceRefresh = false}) async {
     if (!forceRefresh && !CacheService.isStale(CacheKeys.notices)) return;
 
-    final isAdmin = currentProfile.value.role != UserRole.student;
-    
+    final profile = currentProfile.value;
+    final isAdmin = profile.role != UserRole.student;
+
     var query = _client.from('notices').select();
+    
+    // Only filter for non-admins
     if (!isAdmin) {
       query = query.eq('is_approved', true).eq('is_visible', true);
     }
@@ -24,11 +27,11 @@ class NoticeService {
     final List<NoticeItem> deptNotices = [];
 
     for (var row in response) {
-      final notice = NoticeItem.fromJson(row);
+      final item = NoticeItem.fromJson(row);
       if (row['category'] == 'club') {
-        clubNotices.add(notice);
-      } else if (row['category'] == 'department') {
-        deptNotices.add(notice);
+        clubNotices.add(item);
+      } else {
+        deptNotices.add(item);
       }
     }
 
@@ -37,41 +40,88 @@ class NoticeService {
     CacheService.markFresh(CacheKeys.notices);
   }
 
+  static Future<String?> uploadImage(File file) async {
+    try {
+      final fileName = 'notice_${DateTime.now().millisecondsSinceEpoch}.jpg';
+      await _client.storage.from('notice_images').upload(fileName, file);
+      return _client.storage.from('notice_images').getPublicUrl(fileName);
+    } catch (e) {
+      debugPrint('Notice image upload error: $e');
+      return null;
+    }
+  }
+
   static Future<void> addNoticeToDB(NoticeItem notice, String category) async {
     final profile = currentProfile.value;
     final isSuperUser = profile.designation == 'President' || profile.designation == 'Vice President';
     
-    final data = notice.toJson(category);
-    data['is_approved'] = isSuperUser; // Superusers auto-approve, committee needs approval
-    data['is_visible'] = true;
-    data['created_by_name'] = profile.name;
+    // Create data map manually to ensure correct field names
+    final Map<String, dynamic> data = {
+      'category': category,
+      'title': notice.title,
+      'description': notice.description,
+      'image_path': notice.imagePath ?? '',
+      'tags': notice.tags,
+      'tag_color': notice.tagColor.value,
+      'is_pinned': notice.isPinned,
+      'is_approved': isSuperUser, // Superusers auto-approve their own
+      'is_visible': true,
+      'created_by_name': profile.name,
+      'icon_key': 'notifications', // Default icon key
+      'icon_color': Colors.blue.value,
+    };
     
-    final response = await _client
-        .from('notices')
-        .insert(data)
-        .select()
-        .single();
+    // Remove null date to let DB default work, or set it explicitly
+    final now = DateTime.now();
+    data['date'] = '${now.day}/${now.month}/${now.year}';
 
-    final newNotice = NoticeItem.fromJson(response);
-    if (category == 'club') {
-      clubNoticesState.value = List.from(clubNoticesState.value)..insert(0, newNotice);
-    } else {
-      deptNoticesState.value = List.from(deptNoticesState.value)..insert(0, newNotice);
+    try {
+      final response = await _client
+          .from('notices')
+          .insert(data)
+          .select()
+          .single();
+
+      final newItem = NoticeItem.fromJson(response);
+      if (category == 'club') {
+        clubNoticesState.value = List.from(clubNoticesState.value)..insert(0, newItem);
+      } else {
+        deptNoticesState.value = List.from(deptNoticesState.value)..insert(0, newItem);
+      }
+      CacheService.invalidate(CacheKeys.notices);
+    } catch (e) {
+      debugPrint('Error inserting notice: $e');
+      rethrow;
     }
-    CacheService.invalidate(CacheKeys.notices);
   }
 
   static Future<void> updateNoticeInDB(NoticeItem notice, String category) async {
     final data = notice.toJson(category);
     data.remove('is_approved'); // Don't overwrite existing status on normal edit
     
-    await _client
-        .from('notices')
-        .update(data)
-        .eq('id', notice.id);
+    try {
+      await _client
+          .from('notices')
+          .update(data)
+          .eq('id', notice.id);
+      
+      CacheService.invalidate(CacheKeys.notices);
+      fetchNotices(forceRefresh: true);
+    } catch (e) {
+      debugPrint('Error updating notice: $e');
+      rethrow;
+    }
+  }
+
+  static Future<void> deleteNoticeFromDB(String id, String category) async {
+    await _client.from('notices').delete().eq('id', id);
     
+    if (category == 'club') {
+      clubNoticesState.value = List.from(clubNoticesState.value)..removeWhere((n) => n.id == id);
+    } else {
+      deptNoticesState.value = List.from(deptNoticesState.value)..removeWhere((n) => n.id == id);
+    }
     CacheService.invalidate(CacheKeys.notices);
-    fetchNotices(forceRefresh: true);
   }
 
   static Future<void> approveNotice(String id) async {
@@ -84,32 +134,5 @@ class NoticeService {
     await _client.from('notices').update({'is_visible': isVisible}).eq('id', id);
     CacheService.invalidate(CacheKeys.notices);
     fetchNotices(forceRefresh: true);
-  }
-
-  static Future<void> deleteNoticeFromDB(String id, String category) async {
-    await _client
-        .from('notices')
-        .delete()
-        .eq('id', id);
-
-    if (category == 'club') {
-      clubNoticesState.value = List.from(clubNoticesState.value)
-        ..removeWhere((notice) => notice.id == id);
-    } else {
-      deptNoticesState.value = List.from(deptNoticesState.value)
-        ..removeWhere((notice) => notice.id == id);
-    }
-    CacheService.invalidate(CacheKeys.notices);
-  }
-
-  static Future<String?> uploadImage(File file) async {
-    try {
-      final fileName = 'notice_${DateTime.now().millisecondsSinceEpoch}_${file.path.split('/').last}';
-      await _client.storage.from('notice_images').upload(fileName, file);
-      return _client.storage.from('notice_images').getPublicUrl(fileName);
-    } catch (e) {
-      debugPrint('Error uploading notice image: $e');
-      return null;
-    }
   }
 }

@@ -21,15 +21,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
   late TextEditingController _emailController;
   late TextEditingController _universityIdController;
   late TextEditingController _classRollController;
-  late TextEditingController _batchController;
   late TextEditingController _phoneController;
   late TextEditingController _duRegController;
 
   String? _selectedSession;
+  String? _selectedBatch;
   List<Map<String, dynamic>> _sessions = [];
+  final List<String> _batches = List.generate(10, (index) => (index + 1).toString());
 
-  String? _imageUrl;  // Supabase Storage URL
-  File? _newImageFile; // Newly picked local file
+  String? _imageUrl;  
+  File? _newImageFile; 
   bool _isUploading = false;
 
   @override
@@ -42,7 +43,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     _universityIdController = TextEditingController(text: profile.universityId);
     _classRollController = TextEditingController(text: profile.classRoll);
     _selectedSession = profile.session.isNotEmpty ? profile.session : null;
-    _batchController = TextEditingController(text: profile.batch);
+    _selectedBatch = profile.batch.isNotEmpty ? profile.batch : null;
     _phoneController = TextEditingController(text: profile.phone);
     _duRegController = TextEditingController(text: profile.duRegNo);
     _imageUrl = profile.imagePath;
@@ -53,17 +54,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   Future<void> _fetchSessions() async {
     try {
-      final data = await Supabase.instance.client
-          .from('DUCMC_sessions_id')
-          .select()
-          .order('session', ascending: false);
-      setState(() {
-        _sessions = List<Map<String, dynamic>>.from(data);
-        // Ensure selected session is in the list or null
-        if (_selectedSession != null && !_sessions.any((s) => s['session'] == _selectedSession)) {
-          _selectedSession = null;
-        }
-      });
+      final data = await AuthService.fetchSessions();
+      if (mounted) {
+        setState(() {
+          _sessions = data;
+          if (_selectedSession != null && !_sessions.any((s) => s['session'] == _selectedSession)) {
+            // Keep current value if not in list yet
+          }
+        });
+      }
     } catch (e) {
       debugPrint('Error fetching sessions: $e');
     }
@@ -85,7 +84,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     _emailController.dispose();
     _universityIdController.dispose();
     _classRollController.dispose();
-    _batchController.dispose();
     _phoneController.dispose();
     _duRegController.dispose();
     super.dispose();
@@ -108,11 +106,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       final userId = currentProfile.value.id;
       final fileName = 'profile_${userId}_${DateTime.now().millisecondsSinceEpoch}.jpg';
       final client = Supabase.instance.client;
-      
-      // Upload to bucket
       await client.storage.from('profile_pictures').upload(fileName, file);
-      
-      // Get public URL
       return client.storage.from('profile_pictures').getPublicUrl(fileName);
     } catch (e) {
       debugPrint('Profile pic upload error: $e');
@@ -130,7 +124,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       if (_newImageFile != null) {
         finalImageUrl = await _uploadProfilePic(_newImageFile!);
         if (finalImageUrl == null) {
-           throw Exception('Failed to upload image. Please check your connection and try again.');
+           throw Exception('Failed to upload image. Please try again.');
         }
       }
 
@@ -142,7 +136,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         classRoll: _classRollController.text.trim(),
         studentId: '${_universityIdController.text.trim()} / ${_classRollController.text.trim()}',
         session: _selectedSession ?? '',
-        batch: _batchController.text.trim(),
+        batch: _selectedBatch ?? '',
         phone: _phoneController.text.trim(),
         duRegNo: _duRegController.text.trim(),
         imagePath: finalImageUrl,
@@ -253,11 +247,22 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ),
               const SizedBox(height: 16),
               
-              Row(children: [
-                Expanded(child: _buildTextField('Batch', _batchController, Icons.group)),
-                const SizedBox(width: 16),
-                Expanded(child: _buildTextField('Phone', _phoneController, Icons.phone, keyboardType: TextInputType.phone)),
-              ]),
+              DropdownButtonFormField<String>(
+                value: _selectedBatch,
+                decoration: _inputDecoration('Batch', Icons.group),
+                isExpanded: true,
+                items: _batches.map((b) {
+                  return DropdownMenuItem<String>(
+                    value: b,
+                    child: Text('Batch $b'),
+                  );
+                }).toList(),
+                onChanged: (value) => setState(() => _selectedBatch = value),
+                validator: (v) => v == null ? 'Select batch' : null,
+              ),
+              const SizedBox(height: 16),
+              
+              _buildTextField('Phone', _phoneController, Icons.phone, keyboardType: TextInputType.phone),
               const SizedBox(height: 16),
               _buildTextField('DU Registration No.', _duRegController, Icons.app_registration),
               const SizedBox(height: 40),
