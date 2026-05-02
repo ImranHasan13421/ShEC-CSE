@@ -94,11 +94,42 @@ class _ClubMembersScreenState extends State<ClubMembersScreen> with SingleTicker
                       },
                     ),
                   
-                  if (isSuperuser)
+                  if (isSuperuser) ...[
                     ElevatedButton(
                       onPressed: () => _showDesignationPicker(member),
                       child: const Text('Change Designation / Promote'),
                     ),
+                    const SizedBox(height: 8),
+                    ElevatedButton.icon(
+                      style: ElevatedButton.styleFrom(backgroundColor: colors.secondary, foregroundColor: Colors.white),
+                      icon: const Icon(Icons.school),
+                      label: const Text('Move to Alumni'),
+                      onPressed: () async {
+                        final confirm = await showDialog<bool>(
+                          context: context,
+                          builder: (context) => AlertDialog(
+                            title: const Text('Move to Alumni'),
+                            content: Text('Are you sure you want to move ${member.name} to the Alumni list? This will remove them from current members.'),
+                            actions: [
+                              TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
+                              TextButton(onPressed: () => Navigator.pop(context, true), child: const Text('Move')),
+                            ],
+                          ),
+                        );
+                        if (confirm == true) {
+                          if (!context.mounted) return;
+                          Navigator.pop(context); // Close details
+                          try {
+                            await AuthService.moveToAlumni(member);
+                            _fetchMembers();
+                            if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Moved to Alumni')));
+                          } catch (e) {
+                            if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+                          }
+                        }
+                      },
+                    ),
+                  ],
                   
                   if (isSuperuser && member.designation != 'Student')
                     TextButton(
@@ -159,12 +190,7 @@ class _ClubMembersScreenState extends State<ClubMembersScreen> with SingleTicker
               value: selected,
               items: standardDesignations.map((d) => DropdownMenuItem(value: d, child: Text(d))).toList(),
               onChanged: (val) => setState(() => selected = val),
-              decoration: const InputDecoration(labelText: 'Standard Designation'),
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: customController,
-              decoration: const InputDecoration(labelText: 'Custom Designation (Optional)', hintText: 'Enter if not in list'),
+              decoration: const InputDecoration(labelText: 'Designation List', border: OutlineInputBorder()),
             ),
           ],
         ),
@@ -172,7 +198,7 @@ class _ClubMembersScreenState extends State<ClubMembersScreen> with SingleTicker
           TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
           ElevatedButton(
             onPressed: () {
-              final finalDesignation = (customController.text.isNotEmpty) ? customController.text : (selected ?? 'Student');
+              final finalDesignation = selected ?? 'Student';
               Navigator.pop(context);
               UserRole role = UserRole.student;
               if (finalDesignation != 'Student') {

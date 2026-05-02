@@ -44,13 +44,12 @@ class _SignupScreenState extends State<SignupScreen> {
 
   Future<void> _fetchSessions() async {
     try {
-      final data = await Supabase.instance.client
-          .from('DUCMC_sessions_id')
-          .select()
-          .order('session', ascending: false);
-      setState(() {
-        _sessions = List<Map<String, dynamic>>.from(data);
-      });
+      final data = await AuthService.fetchSessions();
+      if (mounted) {
+        setState(() {
+          _sessions = data;
+        });
+      }
     } catch (e) {
       debugPrint('Error fetching sessions: $e');
     }
@@ -251,14 +250,16 @@ class _SignupScreenState extends State<SignupScreen> {
                       value: _selectedSession,
                       decoration: _decoration('Session'),
                       isExpanded: true,
-                      items: _sessions.map((s) {
-                        return DropdownMenuItem<String>(
-                          value: s['session'] as String,
-                          child: Text(s['session'] as String),
-                        );
-                      }).toList(),
+                      items: _sessions.isEmpty 
+                        ? [const DropdownMenuItem(value: '', child: Text('Loading sessions...'))]
+                        : _sessions.map((s) {
+                          return DropdownMenuItem<String>(
+                            value: s['session'] as String,
+                            child: Text(s['session'] as String),
+                          );
+                        }).toList(),
                       onChanged: (value) => setState(() => _selectedSession = value),
-                      validator: (v) => v == null ? 'Select session' : null,
+                      validator: (v) => v == null || v.isEmpty ? 'Select session' : null,
                     ),
                   ),
                   const SizedBox(width: 12),

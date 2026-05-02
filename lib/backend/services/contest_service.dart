@@ -49,6 +49,7 @@ class ContestService {
 
     final newItem = ContestItem.fromJson(response);
     contestState.value = List.from(contestState.value)..insert(0, newItem);
+    CacheService.invalidate(CacheKeys.contests);
   }
 
   static Future<void> toggleContestVisibility(String id, bool isVisible) async {
@@ -65,6 +66,9 @@ class ContestService {
         .from('contests')
         .update(data)
         .eq('id', item.id);
+        
+    CacheService.invalidate(CacheKeys.contests);
+    fetchContestsAndCourses(forceRefresh: true);
   }
 
   static Future<void> approveContest(String id) async {
@@ -80,5 +84,6 @@ class ContestService {
         .eq('id', item.id);
 
     contestState.value = List.from(contestState.value)..removeWhere((i) => i.id == item.id);
+    CacheService.invalidate(CacheKeys.contests);
   }
 }

@@ -19,11 +19,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
   late TextEditingController _firstNameController;
   late TextEditingController _lastNameController;
   late TextEditingController _emailController;
-  late TextEditingController _rollController;
-  late TextEditingController _sessionController;
+  late TextEditingController _universityIdController;
+  late TextEditingController _classRollController;
   late TextEditingController _batchController;
   late TextEditingController _phoneController;
   late TextEditingController _duRegController;
+
+  String? _selectedSession;
+  List<Map<String, dynamic>> _sessions = [];
 
   String? _imageUrl;  // Supabase Storage URL
   File? _newImageFile; // Newly picked local file
@@ -36,15 +39,34 @@ class _ProfileScreenState extends State<ProfileScreen> {
     _firstNameController = TextEditingController(text: profile.firstName);
     _lastNameController = TextEditingController(text: profile.lastName);
     _emailController = TextEditingController(text: profile.email);
-    _rollController = TextEditingController(text: profile.roll);
-    _sessionController = TextEditingController(text: profile.session);
+    _universityIdController = TextEditingController(text: profile.universityId);
+    _classRollController = TextEditingController(text: profile.classRoll);
+    _selectedSession = profile.session.isNotEmpty ? profile.session : null;
     _batchController = TextEditingController(text: profile.batch);
     _phoneController = TextEditingController(text: profile.phone);
     _duRegController = TextEditingController(text: profile.duRegNo);
     _imageUrl = profile.imagePath;
 
-    // Handle lost data from ImagePicker (Android specific issue)
+    _fetchSessions();
     _checkLostData();
+  }
+
+  Future<void> _fetchSessions() async {
+    try {
+      final data = await Supabase.instance.client
+          .from('DUCMC_sessions_id')
+          .select()
+          .order('session', ascending: false);
+      setState(() {
+        _sessions = List<Map<String, dynamic>>.from(data);
+        // Ensure selected session is in the list or null
+        if (_selectedSession != null && !_sessions.any((s) => s['session'] == _selectedSession)) {
+          _selectedSession = null;
+        }
+      });
+    } catch (e) {
+      debugPrint('Error fetching sessions: $e');
+    }
   }
 
   Future<void> _checkLostData() async {
@@ -61,8 +83,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
     _firstNameController.dispose();
     _lastNameController.dispose();
     _emailController.dispose();
-    _rollController.dispose();
-    _sessionController.dispose();
+    _universityIdController.dispose();
+    _classRollController.dispose();
     _batchController.dispose();
     _phoneController.dispose();
     _duRegController.dispose();
@@ -105,11 +127,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
     try {
       String? finalImageUrl = _imageUrl;
 
-      // Upload new image if one was picked
       if (_newImageFile != null) {
         finalImageUrl = await _uploadProfilePic(_newImageFile!);
         if (finalImageUrl == null) {
-           throw Exception('Failed to upload image. Please try again.');
+           throw Exception('Failed to upload image. Please check your connection and try again.');
         }
       }
 
@@ -117,9 +138,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
         firstName: _firstNameController.text.trim(),
         lastName: _lastNameController.text.trim(),
         name: '${_firstNameController.text.trim()} ${_lastNameController.text.trim()}',
-        roll: _rollController.text.trim(),
-        studentId: _rollController.text.trim(),
-        session: _sessionController.text.trim(),
+        universityId: _universityIdController.text.trim(),
+        classRoll: _classRollController.text.trim(),
+        studentId: '${_universityIdController.text.trim()} / ${_classRollController.text.trim()}',
+        session: _selectedSession ?? '',
         batch: _batchController.text.trim(),
         phone: _phoneController.text.trim(),
         duRegNo: _duRegController.text.trim(),
@@ -166,7 +188,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // Avatar
               Center(
                 child: Stack(
                   alignment: Alignment.bottomRight,
@@ -197,6 +218,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ),
               const SizedBox(height: 32),
 
+              _sectionLabel('Personal Information'),
+              const SizedBox(height: 12),
               Row(children: [
                 Expanded(child: _buildTextField('First Name', _firstNameController, Icons.person)),
                 const SizedBox(width: 16),
@@ -204,14 +227,32 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ]),
               const SizedBox(height: 16),
               _buildTextField('Email (View Only)', _emailController, Icons.email, readOnly: true),
-              const SizedBox(height: 16),
-
+              
+              const SizedBox(height: 24),
+              _sectionLabel('Academic Information'),
+              const SizedBox(height: 12),
               Row(children: [
-                Expanded(child: _buildTextField('Class Roll', _rollController, Icons.numbers)),
+                Expanded(child: _buildTextField('University ID', _universityIdController, Icons.badge)),
                 const SizedBox(width: 16),
-                Expanded(child: _buildTextField('Session', _sessionController, Icons.date_range)),
+                Expanded(child: _buildTextField('Class Roll', _classRollController, Icons.numbers)),
               ]),
               const SizedBox(height: 16),
+              
+              DropdownButtonFormField<String>(
+                value: _selectedSession,
+                decoration: _inputDecoration('Session', Icons.date_range),
+                isExpanded: true,
+                items: _sessions.map((s) {
+                  return DropdownMenuItem<String>(
+                    value: s['session'] as String,
+                    child: Text(s['session'] as String),
+                  );
+                }).toList(),
+                onChanged: (value) => setState(() => _selectedSession = value),
+                validator: (v) => v == null ? 'Select session' : null,
+              ),
+              const SizedBox(height: 16),
+              
               Row(children: [
                 Expanded(child: _buildTextField('Batch', _batchController, Icons.group)),
                 const SizedBox(width: 16),
@@ -242,18 +283,35 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
+  Widget _sectionLabel(String text) {
+    return Text(
+      text,
+      style: TextStyle(
+        fontWeight: FontWeight.bold,
+        fontSize: 13,
+        color: Theme.of(context).colorScheme.primary,
+        letterSpacing: 0.5,
+      ),
+    );
+  }
+
+  InputDecoration _inputDecoration(String label, IconData icon, {bool readOnly = false}) {
+    return InputDecoration(
+      labelText: label,
+      prefixIcon: Icon(icon, color: Theme.of(context).colorScheme.primary),
+      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+      filled: readOnly,
+      fillColor: readOnly ? Colors.grey.shade50 : null,
+      isDense: true,
+    );
+  }
+
   Widget _buildTextField(String label, TextEditingController controller, IconData icon, {bool readOnly = false, TextInputType? keyboardType}) {
     return TextFormField(
       controller: controller,
       readOnly: readOnly,
       keyboardType: keyboardType,
-      decoration: InputDecoration(
-        labelText: label,
-        prefixIcon: Icon(icon, color: Theme.of(context).colorScheme.primary),
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-        filled: readOnly,
-        fillColor: readOnly ? Colors.grey.shade50 : null,
-      ),
+      decoration: _inputDecoration(label, icon, readOnly: readOnly),
       validator: (v) => v == null || v.isEmpty ? 'Required' : null,
     );
   }

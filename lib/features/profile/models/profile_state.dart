@@ -12,8 +12,10 @@ class ProfileData {
   final String lastName;
   final String name;
   final String email;
-  final String roll; // Class ID
+  final String roll; // Class ID (Backwards compatibility)
   final String studentId; // Class ID
+  final String universityId;
+  final String classRoll;
   final String duRegNo;
   final String session;
   final String batch;
@@ -31,6 +33,8 @@ class ProfileData {
     required this.email,
     required this.roll,
     required this.studentId,
+    this.universityId = '',
+    this.classRoll = '',
     required this.duRegNo,
     required this.session,
     this.batch = '',
@@ -49,6 +53,8 @@ class ProfileData {
     String? email,
     String? roll,
     String? studentId,
+    String? universityId,
+    String? classRoll,
     String? duRegNo,
     String? session,
     String? batch,
@@ -66,6 +72,8 @@ class ProfileData {
       email: email ?? this.email,
       roll: roll ?? this.roll,
       studentId: studentId ?? this.studentId,
+      universityId: universityId ?? this.universityId,
+      classRoll: classRoll ?? this.classRoll,
       duRegNo: duRegNo ?? this.duRegNo,
       session: session ?? this.session,
       batch: batch ?? this.batch,
@@ -86,6 +94,8 @@ final ValueNotifier<ProfileData> currentProfile = ValueNotifier(
     email: '',
     roll: '',
     studentId: '',
+    universityId: '',
+    classRoll: '',
     duRegNo: '',
     session: '',
     batch: '',

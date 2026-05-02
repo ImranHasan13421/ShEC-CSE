@@ -98,17 +98,19 @@ class AuthService {
 
         currentProfile.value = ProfileData(
           id: data['id'],
-          firstName: data['first_name'],
-          lastName: data['last_name'],
+          firstName: data['first_name'] ?? '',
+          lastName: data['last_name'] ?? '',
           name: '${data['first_name']} ${data['last_name']}',
           email: user.email ?? '',
-          roll: data['class_id'],
-          studentId: data['class_id'],
-          duRegNo: data['du_reg'],
-          session: data['session'],
-          batch: data['batch'],
-          phone: data['phone'],
-          imagePath: data['profile_pic'], // This is now a URL string
+          roll: data['class_id'] ?? '',
+          studentId: data['class_id'] ?? '',
+          universityId: data['university_id'] ?? '',
+          classRoll: data['class_roll'] ?? '',
+          duRegNo: data['du_reg'] ?? '',
+          session: data['session'] ?? '',
+          batch: data['batch'] ?? '',
+          phone: data['phone'] ?? '',
+          imagePath: data['profile_pic'],
           role: parsedRole,
           designation: data['designation'] ?? 'Student',
           isApproved: data['is_approved'] ?? false,
@@ -141,16 +143,18 @@ class AuthService {
 
       members.add(ProfileData(
         id: data['id'],
-        firstName: data['first_name'],
-        lastName: data['last_name'],
+        firstName: data['first_name'] ?? '',
+        lastName: data['last_name'] ?? '',
         name: '${data['first_name']} ${data['last_name']}',
-        email: '', // Don't have access to auth.users email from public profiles table, but that's fine
-        roll: data['class_id'],
-        studentId: data['class_id'],
-        duRegNo: data['du_reg'],
-        session: data['session'],
-        batch: data['batch'],
-        phone: data['phone'],
+        email: '', 
+        roll: data['class_id'] ?? '',
+        studentId: data['class_id'] ?? '',
+        universityId: data['university_id'] ?? '',
+        classRoll: data['class_roll'] ?? '',
+        duRegNo: data['du_reg'] ?? '',
+        session: data['session'] ?? '',
+        batch: data['batch'] ?? '',
+        phone: data['phone'] ?? '',
         imagePath: data['profile_pic'],
         role: parsedRole,
         designation: data['designation'] ?? 'Student',
@@ -191,10 +195,13 @@ class AuthService {
       'first_name': profile.firstName,
       'last_name': profile.lastName,
       'class_id': profile.studentId,
+      'university_id': profile.universityId,
+      'class_roll': profile.classRoll,
       'batch': profile.batch,
       'session': profile.session,
       'phone': profile.phone,
-      'profile_pic': profile.imagePath, // URL string from Supabase Storage
+      'profile_pic': profile.imagePath, 
+      'du_reg': profile.duRegNo,
     }).eq('id', profile.id);
     await fetchCurrentUserProfile();
   }
@@ -204,12 +211,31 @@ class AuthService {
   }
 
   static Future<void> deleteUser(String userId) async {
-    // Note: Deleting a profile does not delete the auth.user, but it's close enough for the UI scope.
-    // Ideally, we'd need an Edge Function or RPC to delete the auth.users record as a superuser.
-    // For now, we delete the profile.
-    await _client
-        .from('profiles')
-        .delete()
-        .eq('id', userId);
+    await _client.from('profiles').delete().eq('id', userId);
+  }
+
+  static Future<List<Map<String, dynamic>>> fetchSessions() async {
+    final data = await _client.from('DUCMC_sessions_id').select().order('session', ascending: false);
+    return List<Map<String, dynamic>>.from(data);
+  }
+
+  static Future<void> moveToAlumni(ProfileData member) async {
+    // 1. Insert into alumni table
+    await _client.from('alumni').insert({
+      'user_id': member.id,
+      'name': member.name,
+      'role': 'alumni',
+      'designation': 'Alumnus',
+      'email': member.email,
+      'phone': member.phone,
+      'image_path': member.imagePath,
+      'batch': member.batch,
+      'session': member.session,
+      'is_approved': true,
+      'is_visible': true,
+    });
+
+    // 2. Delete from profiles table
+    await _client.from('profiles').delete().eq('id', member.id);
   }
 }
