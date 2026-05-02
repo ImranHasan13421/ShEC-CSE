@@ -17,6 +17,10 @@ class JobItem {
   final bool isApproved;
   final bool isVisible;
   final String createdByName;
+  final String description;
+  final List<String> requirements;
+  final List<String> responsibilities;
+  final String applyUrl;
 
   JobItem({
     required this.id,
@@ -33,6 +37,10 @@ class JobItem {
     this.isApproved = false,
     this.isVisible = true,
     this.createdByName = '',
+    this.description = '',
+    this.requirements = const [],
+    this.responsibilities = const [],
+    this.applyUrl = '',
   });
 
   factory JobItem.fromJson(Map<String, dynamic> json) {
@@ -51,6 +59,10 @@ class JobItem {
       isApproved: json['is_approved'] as bool? ?? false,
       isVisible: json['is_visible'] as bool? ?? true,
       createdByName: json['created_by_name'] as String? ?? '',
+      description: json['description'] as String? ?? '',
+      requirements: (json['requirements'] as List?)?.map((e) => e.toString()).toList() ?? [],
+      responsibilities: (json['responsibilities'] as List?)?.map((e) => e.toString()).toList() ?? [],
+      applyUrl: json['apply_url'] as String? ?? '',
     );
   }
 
@@ -70,6 +82,10 @@ class JobItem {
       'is_approved': isApproved,
       'is_visible': isVisible,
       'created_by_name': createdByName,
+      'description': description,
+      'requirements': requirements,
+      'responsibilities': responsibilities,
+      'apply_url': applyUrl,
     };
   }
 }

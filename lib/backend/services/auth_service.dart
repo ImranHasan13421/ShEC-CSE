@@ -27,6 +27,8 @@ class AuthService {
     required String duReg,
     required String phone,
     String? profilePic,
+    String universityId = '',
+    String classRoll = '',
   }) async {
     // 1. Sign up the user in Supabase Auth
     final AuthResponse res = await _client.auth.signUp(
@@ -45,6 +47,8 @@ class AuthService {
       'first_name': firstName,
       'last_name': lastName,
       'class_id': classId,
+      'university_id': universityId,
+      'class_roll': classRoll,
       'batch': batch,
       'session': session,
       'du_reg': duReg,
@@ -104,7 +108,7 @@ class AuthService {
           session: data['session'],
           batch: data['batch'],
           phone: data['phone'],
-          imagePath: data['profile_pic'],
+          imagePath: data['profile_pic'], // This is now a URL string
           role: parsedRole,
           designation: data['designation'] ?? 'Student',
           isApproved: data['is_approved'] ?? false,
@@ -190,7 +194,7 @@ class AuthService {
       'batch': profile.batch,
       'session': profile.session,
       'phone': profile.phone,
-      'profile_pic': profile.imagePath,
+      'profile_pic': profile.imagePath, // URL string from Supabase Storage
     }).eq('id', profile.id);
     await fetchCurrentUserProfile();
   }

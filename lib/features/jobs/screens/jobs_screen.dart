@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:ShEC_CSE/features/profile/models/profile_state.dart';
 import '../models/job_state.dart';
 import '../../../backend/services/job_service.dart';
@@ -367,6 +368,8 @@ class _JobsScreenState extends State<JobsScreen> {
                                         _deleteJob(job, stateNotifier);
                                       } else if (value == 'approve') {
                                         JobService.approveJob(job.id);
+                                      } else if (value == 'visibility') {
+                                        JobService.toggleJobVisibility(job.id, !job.isVisible);
                                       }
                                     },
                                       itemBuilder: (context) => [
@@ -520,96 +523,82 @@ class JobDetailScreen extends StatelessWidget {
                     ),
                   ),
                 ),
-                const SizedBox(height: 16),
+                 const SizedBox(height: 16),
 
-                // Responsibilities Card
-                _buildInfoSection(
-                  context,
-                  title: 'Responsibilities',
-                  icon: Icons.check_circle,
-                  iconColor: Colors.teal,
-                  items: [
-                    'Design and implement software solutions for complex problems',
-                    'Collaborate with team members on product development',
-                    'Write clean, maintainable, and efficient code',
-                    'Participate in code reviews and technical discussions',
-                    'Contribute to documentation and testing efforts',
-                  ],
-                ),
-                const SizedBox(height: 16),
+                 // Description
+                 if (job.description.isNotEmpty)
+                   _buildTextSection(context, title: 'About the Role', content: job.description),
+                 if (job.description.isNotEmpty) const SizedBox(height: 16),
 
-                // Requirements Card
-                _buildInfoSection(
-                  context,
-                  title: 'Requirements',
-                  icon: Icons.star,
-                  iconColor: Colors.amber,
-                  items: [
-                    'Currently pursuing BS/MS in Computer Science or related field',
-                    'Strong programming skills in Java, C++, or Python',
-                    'Understanding of data structures and algorithms',
-                    'Experience with software development and coding',
-                    'Excellent problem-solving and analytical skills',
-                  ],
-                ),
-                const SizedBox(height: 16),
+                 // Responsibilities Card
+                 if (job.responsibilities.isNotEmpty)
+                   _buildInfoSection(
+                     context,
+                     title: 'Responsibilities',
+                     icon: Icons.check_circle,
+                     iconColor: Colors.teal,
+                     items: job.responsibilities,
+                   ),
+                 if (job.responsibilities.isNotEmpty) const SizedBox(height: 16),
 
-                // Benefits Card
-                _buildInfoSection(
-                  context,
-                  title: 'Benefits',
-                  icon: Icons.card_giftcard,
-                  iconColor: Colors.blue,
-                  items: [
-                    'Competitive compensation package',
-                    'Housing stipend for relocation',
-                    'Free meals and snacks',
-                    'Mentorship from experienced engineers',
-                    'Networking opportunities with industry leaders',
-                  ],
-                ),
-              ],
-            ),
-          ),
+                 // Requirements Card
+                 if (job.requirements.isNotEmpty)
+                   _buildInfoSection(
+                     context,
+                     title: 'Requirements',
+                     icon: Icons.star,
+                     iconColor: Colors.amber,
+                     items: job.requirements,
+                   ),
+                 if (job.requirements.isEmpty && job.responsibilities.isEmpty && job.description.isEmpty)
+                   Padding(
+                     padding: const EdgeInsets.all(24),
+                     child: Center(
+                       child: Text('No additional details provided.', style: TextStyle(color: Colors.grey.shade500)),
+                     ),
+                   ),
+               ],
+             ),
+           ),
 
-          // Bottom Apply Button
-          Container(
-            padding: const EdgeInsets.all(16.0),
-            decoration: BoxDecoration(
-              color: colors.surface,
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.05),
-                  blurRadius: 10,
-                  offset: const Offset(0, -5),
-                ),
-              ],
-            ),
-            child: SafeArea(
-              child: SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: () {
-                    // Action for Apply Now
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Application feature coming soon!')),
-                    );
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: colors.primary,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                  child: const Text('Apply Now', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
+           // Bottom Apply Button
+           Container(
+             padding: const EdgeInsets.all(16.0),
+             decoration: BoxDecoration(
+               color: Theme.of(context).colorScheme.surface,
+               boxShadow: [
+                 BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, -5)),
+               ],
+             ),
+             child: SafeArea(
+               child: SizedBox(
+                 width: double.infinity,
+                 child: ElevatedButton(
+                   onPressed: () async {
+                     if (job.applyUrl.isNotEmpty) {
+                       final uri = Uri.parse(job.applyUrl);
+                       if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
+                         if (context.mounted) {
+                           ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Could not open apply link.')));
+                         }
+                       }
+                     } else {
+                       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('No apply link provided.')));
+                     }
+                   },
+                   style: ElevatedButton.styleFrom(
+                     backgroundColor: Theme.of(context).colorScheme.primary,
+                     foregroundColor: Colors.white,
+                     padding: const EdgeInsets.symmetric(vertical: 16),
+                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                   ),
+                   child: const Text('Apply Now', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                 ),
+               ),
+             ),
+           ),
+         ],
+       ),
     );
   }
 
@@ -642,6 +631,29 @@ class JobDetailScreen extends StatelessWidget {
                 ],
               ),
             )),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTextSection(BuildContext context, {required String title, required String content}) {
+    final colors = Theme.of(context).colorScheme;
+    return Card(
+      elevation: 0,
+      color: colors.surface,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(color: colors.outline.withOpacity(0.1)),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 12),
+            Text(content, style: TextStyle(color: colors.onSurface.withOpacity(0.8), height: 1.6)),
           ],
         ),
       ),

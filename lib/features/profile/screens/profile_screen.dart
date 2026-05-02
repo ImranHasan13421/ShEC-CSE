@@ -2,8 +2,9 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:image_cropper/image_cropper.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:ShEC_CSE/features/profile/models/profile_state.dart';
+import 'package:ShEC_CSE/backend/services/auth_service.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -15,92 +16,116 @@ class ProfileScreen extends StatefulWidget {
 class _ProfileScreenState extends State<ProfileScreen> {
   final _formKey = GlobalKey<FormState>();
 
-  late TextEditingController _nameController;
+  late TextEditingController _firstNameController;
+  late TextEditingController _lastNameController;
   late TextEditingController _emailController;
   late TextEditingController _rollController;
-  late TextEditingController _idController;
-  late TextEditingController _duRegController;
   late TextEditingController _sessionController;
+  late TextEditingController _batchController;
+  late TextEditingController _phoneController;
+  late TextEditingController _duRegController;
 
-  String? _imagePath;
+  String? _imageUrl;  // Supabase Storage URL
+  File? _newImageFile; // Newly picked local file
+  bool _isUploading = false;
 
   @override
   void initState() {
     super.initState();
     final profile = currentProfile.value;
-    _nameController = TextEditingController(text: profile.name);
+    _firstNameController = TextEditingController(text: profile.firstName);
+    _lastNameController = TextEditingController(text: profile.lastName);
     _emailController = TextEditingController(text: profile.email);
     _rollController = TextEditingController(text: profile.roll);
-    _idController = TextEditingController(text: profile.studentId);
-    _duRegController = TextEditingController(text: profile.duRegNo);
     _sessionController = TextEditingController(text: profile.session);
-    _imagePath = profile.imagePath;
+    _batchController = TextEditingController(text: profile.batch);
+    _phoneController = TextEditingController(text: profile.phone);
+    _duRegController = TextEditingController(text: profile.duRegNo);
+    _imageUrl = profile.imagePath;
   }
 
   @override
   void dispose() {
-    _nameController.dispose();
+    _firstNameController.dispose();
+    _lastNameController.dispose();
     _emailController.dispose();
     _rollController.dispose();
-    _idController.dispose();
-    _duRegController.dispose();
     _sessionController.dispose();
+    _batchController.dispose();
+    _phoneController.dispose();
+    _duRegController.dispose();
     super.dispose();
   }
 
-  Future<void> _pickAndCropImage() async {
+  Future<void> _pickImage() async {
     final picker = ImagePicker();
-    final toolbarColor = Theme.of(context).colorScheme.primary;
-    final pickedFile = await picker.pickImage(source: ImageSource.gallery);
-
-    if (pickedFile != null) {
-      CroppedFile? croppedFile = await ImageCropper().cropImage(
-        sourcePath: pickedFile.path,
-        // Force a 1:1 square crop
-        aspectRatio: const CropAspectRatio(ratioX: 1, ratioY: 1),
-        uiSettings: [
-          AndroidUiSettings(
-            toolbarTitle: 'Crop Profile Picture',
-            toolbarColor: toolbarColor,
-            toolbarWidgetColor: Colors.white,
-            initAspectRatio: CropAspectRatioPreset.square,
-            lockAspectRatio: true, // Prevents user from changing the 1:1 ratio
-            hideBottomControls: true, // Hides extra aspect ratio options
-          ),
-          IOSUiSettings(
-            title: 'Crop Profile Picture',
-            aspectRatioLockEnabled: true,
-            resetAspectRatioEnabled: false,
-          ),
-        ],
-      );
-
-      if (croppedFile != null) {
-        setState(() {
-          _imagePath = croppedFile.path;
-        });
-      }
+    final picked = await picker.pickImage(source: ImageSource.gallery, imageQuality: 80);
+    if (picked != null) {
+      setState(() => _newImageFile = File(picked.path));
     }
   }
 
-  void _saveProfile() {
-    if (_formKey.currentState!.validate()) {
-      // Update global state
-      currentProfile.value = currentProfile.value.copyWith(
-        name: _nameController.text,
-        email: _emailController.text,
-        roll: _rollController.text,
-        studentId: _idController.text,
-        duRegNo: _duRegController.text,
-        session: _sessionController.text,
-        imagePath: _imagePath,
+  Future<String?> _uploadProfilePic(File file) async {
+    try {
+      final userId = currentProfile.value.id;
+      final fileName = 'profile_${userId}_${DateTime.now().millisecondsSinceEpoch}.jpg';
+      final client = Supabase.instance.client;
+      await client.storage.from('profile_pictures').upload(fileName, file);
+      return client.storage.from('profile_pictures').getPublicUrl(fileName);
+    } catch (e) {
+      debugPrint('Profile pic upload error: $e');
+      return null;
+    }
+  }
+
+  Future<void> _saveProfile() async {
+    if (!_formKey.currentState!.validate()) return;
+    setState(() => _isUploading = true);
+
+    try {
+      String? finalImageUrl = _imageUrl;
+
+      // Upload new image if one was picked
+      if (_newImageFile != null) {
+        finalImageUrl = await _uploadProfilePic(_newImageFile!);
+      }
+
+      final updatedProfile = currentProfile.value.copyWith(
+        firstName: _firstNameController.text.trim(),
+        lastName: _lastNameController.text.trim(),
+        name: '${_firstNameController.text.trim()} ${_lastNameController.text.trim()}',
+        roll: _rollController.text.trim(),
+        studentId: _rollController.text.trim(),
+        session: _sessionController.text.trim(),
+        batch: _batchController.text.trim(),
+        phone: _phoneController.text.trim(),
+        duRegNo: _duRegController.text.trim(),
+        imagePath: finalImageUrl,
       );
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Profile saved successfully!')),
-      );
-      Navigator.pop(context);
+      await AuthService.updateProfile(updatedProfile);
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Profile updated successfully!')),
+        );
+        Navigator.pop(context);
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isUploading = false);
     }
+  }
+
+  ImageProvider? get _displayImage {
+    if (_newImageFile != null) return FileImage(_newImageFile!);
+    if (_imageUrl != null && _imageUrl!.startsWith('http')) return NetworkImage(_imageUrl!);
+    return null;
   }
 
   @override
@@ -108,9 +133,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final colors = Theme.of(context).colorScheme;
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Edit Profile'),
-      ),
+      appBar: AppBar(title: const Text('Edit Profile')),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(24.0),
         child: Form(
@@ -118,25 +141,30 @@ class _ProfileScreenState extends State<ProfileScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // Avatar Section
+              // Avatar
               Center(
                 child: Stack(
                   alignment: Alignment.bottomRight,
                   children: [
                     CircleAvatar(
                       radius: 60,
-                      backgroundColor: colors.primary.withOpacity(0.1),
-                      backgroundImage: _imagePath != null ? FileImage(File(_imagePath!)) : null,
-                      child: _imagePath == null
-                          ? Icon(Icons.person, size: 60, color: colors.primary)
+                      backgroundColor: colors.primaryContainer,
+                      backgroundImage: _displayImage,
+                      child: _displayImage == null
+                          ? Text(
+                              (currentProfile.value.firstName.isNotEmpty
+                                  ? currentProfile.value.firstName[0]
+                                  : '?').toUpperCase(),
+                              style: TextStyle(fontSize: 48, fontWeight: FontWeight.bold, color: colors.onPrimaryContainer),
+                            )
                           : null,
                     ),
                     GestureDetector(
-                      onTap: _pickAndCropImage,
+                      onTap: _pickImage,
                       child: CircleAvatar(
                         radius: 20,
                         backgroundColor: colors.primary,
-                        child: const Icon(Icons.camera_alt, color: Colors.white, size: 20),
+                        child: const Icon(Icons.camera_alt, color: Colors.white, size: 18),
                       ),
                     ),
                   ],
@@ -144,36 +172,41 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ),
               const SizedBox(height: 32),
 
-              // Form Fields
-              _buildTextField('Full Name', _nameController, Icons.person),
+              Row(children: [
+                Expanded(child: _buildTextField('First Name', _firstNameController, Icons.person)),
+                const SizedBox(width: 16),
+                Expanded(child: _buildTextField('Last Name', _lastNameController, Icons.person_outline)),
+              ]),
               const SizedBox(height: 16),
               _buildTextField('Email Address', _emailController, Icons.email),
               const SizedBox(height: 16),
 
-              Row(
-                children: [
-                  Expanded(child: _buildTextField('Class Roll', _rollController, Icons.numbers)),
-                  const SizedBox(width: 16),
-                  Expanded(child: _buildTextField('Session', _sessionController, Icons.date_range)),
-                ],
-              ),
+              Row(children: [
+                Expanded(child: _buildTextField('Class Roll', _rollController, Icons.numbers)),
+                const SizedBox(width: 16),
+                Expanded(child: _buildTextField('Session', _sessionController, Icons.date_range)),
+              ]),
               const SizedBox(height: 16),
-              _buildTextField('Student ID', _idController, Icons.badge),
+              Row(children: [
+                Expanded(child: _buildTextField('Batch', _batchController, Icons.group)),
+                const SizedBox(width: 16),
+                Expanded(child: _buildTextField('Phone', _phoneController, Icons.phone)),
+              ]),
               const SizedBox(height: 16),
               _buildTextField('DU Registration No.', _duRegController, Icons.app_registration),
-
               const SizedBox(height: 32),
 
-              // Save Button
               ElevatedButton(
-                onPressed: _saveProfile,
+                onPressed: _isUploading ? null : _saveProfile,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: colors.primary,
                   foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(vertical: 16),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                 ),
-                child: const Text('Save Changes', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                child: _isUploading
+                    ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                    : const Text('Save Changes', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
               ),
             ],
           ),
@@ -189,10 +222,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
         labelText: label,
         prefixIcon: Icon(icon, color: Theme.of(context).colorScheme.primary),
         border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-        filled: true,
-        fillColor: Theme.of(context).colorScheme.surface,
       ),
-      validator: (value) => value == null || value.isEmpty ? 'Required field' : null,
+      validator: (v) => v == null || v.isEmpty ? 'Required' : null,
     );
   }
 }

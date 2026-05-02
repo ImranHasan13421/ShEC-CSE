@@ -1,10 +1,10 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:url_launcher/url_launcher.dart';
 import '../../../backend/services/teacher_service.dart';
 import '../../profile/models/profile_state.dart';
 import '../models/teacher_state.dart';
+import 'teacher_detail_screen.dart';
 
 class TeacherContactsScreen extends StatefulWidget {
   const TeacherContactsScreen({super.key});
@@ -22,22 +22,25 @@ class _TeacherContactsScreenState extends State<TeacherContactsScreen> {
 
   void _showTeacherForm({TeacherContact? existingTeacher}) {
     final nameController = TextEditingController(text: existingTeacher?.name ?? '');
-    final descController = TextEditingController(text: existingTeacher?.designation ?? '');
+    final designationController = TextEditingController(text: existingTeacher?.designation ?? '');
+    final roleController = TextEditingController(text: existingTeacher?.role ?? '');
     final phoneController = TextEditingController(text: existingTeacher?.phone ?? '');
     final emailController = TextEditingController(text: existingTeacher?.email ?? '');
+    final officeController = TextEditingController(text: existingTeacher?.officeRoom ?? '');
+    final departmentController = TextEditingController(text: existingTeacher?.department ?? 'CSE');
+    final joinYearController = TextEditingController(text: existingTeacher?.joinYear ?? '');
+    final expertiseController = TextEditingController();
+
+    List<String> expertiseList = List.from(existingTeacher?.areasOfExpertise ?? []);
     bool isVisible = existingTeacher?.isVisible ?? true;
-    
+
     File? selectedImage;
     String? currentImageUrl = existingTeacher?.imagePath;
 
     Future<void> pickImage(StateSetter setModalState) async {
       final picker = ImagePicker();
-      final pickedFile = await picker.pickImage(source: ImageSource.gallery);
-      if (pickedFile != null) {
-        setModalState(() {
-          selectedImage = File(pickedFile.path);
-        });
-      }
+      final picked = await picker.pickImage(source: ImageSource.gallery, imageQuality: 80);
+      if (picked != null) setModalState(() => selectedImage = File(picked.path));
     }
 
     showModalBottomSheet(
@@ -57,75 +60,141 @@ class _TeacherContactsScreenState extends State<TeacherContactsScreen> {
               child: SingleChildScrollView(
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(existingTeacher == null ? 'Add Teacher' : 'Edit Teacher', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+                    Text(
+                      existingTeacher == null ? 'Add Teacher' : 'Edit Teacher',
+                      style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                    ),
                     const SizedBox(height: 16),
-                    
-                    GestureDetector(
-                      onTap: () => pickImage(setModalState),
-                      child: CircleAvatar(
-                        radius: 50,
-                        backgroundColor: Colors.grey.shade200,
-                        backgroundImage: selectedImage != null 
-                            ? FileImage(selectedImage!) 
-                            : (currentImageUrl != null && currentImageUrl!.isNotEmpty ? NetworkImage(currentImageUrl!) : null) as ImageProvider?,
-                        child: (selectedImage == null && (currentImageUrl == null || currentImageUrl!.isEmpty))
-                            ? const Icon(Icons.add_a_photo, size: 30, color: Colors.grey)
-                            : null,
+
+                    // Photo picker
+                    Center(
+                      child: GestureDetector(
+                        onTap: () => pickImage(setModalState),
+                        child: CircleAvatar(
+                          radius: 50,
+                          backgroundColor: Colors.grey.shade200,
+                          backgroundImage: selectedImage != null
+                              ? FileImage(selectedImage!)
+                              : (currentImageUrl != null && currentImageUrl!.isNotEmpty
+                                  ? NetworkImage(currentImageUrl!) as ImageProvider
+                                  : null),
+                          child: (selectedImage == null && (currentImageUrl == null || currentImageUrl!.isEmpty))
+                              ? const Icon(Icons.add_a_photo, size: 30, color: Colors.grey)
+                              : null,
+                        ),
                       ),
                     ),
                     const SizedBox(height: 16),
 
-                    TextField(controller: nameController, decoration: const InputDecoration(labelText: 'Full Name', border: OutlineInputBorder())),
+                    _field(nameController, 'Full Name *'),
                     const SizedBox(height: 12),
-                    TextField(controller: descController, decoration: const InputDecoration(labelText: 'Designation', border: OutlineInputBorder())),
+                    _field(designationController, 'Designation (e.g. Assistant Professor) *'),
                     const SizedBox(height: 12),
-                    TextField(controller: phoneController, decoration: const InputDecoration(labelText: 'Phone (Optional)', border: OutlineInputBorder()), keyboardType: TextInputType.phone),
+                    _field(roleController, 'Role (e.g. Head of Department)'),
                     const SizedBox(height: 12),
-                    TextField(controller: emailController, decoration: const InputDecoration(labelText: 'Email (Optional)', border: OutlineInputBorder()), keyboardType: TextInputType.emailAddress),
+                    Row(children: [
+                      Expanded(child: _field(departmentController, 'Department')),
+                      const SizedBox(width: 12),
+                      Expanded(child: _field(joinYearController, 'Join Year')),
+                    ]),
                     const SizedBox(height: 12),
+                    _field(officeController, 'Office Room'),
+                    const SizedBox(height: 12),
+                    _field(phoneController, 'Phone', keyboardType: TextInputType.phone),
+                    const SizedBox(height: 12),
+                    _field(emailController, 'Email', keyboardType: TextInputType.emailAddress),
+                    const SizedBox(height: 16),
+
+                    // Expertise chips
+                    const Text('Areas of Expertise', style: TextStyle(fontWeight: FontWeight.bold)),
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 6,
+                      children: [
+                        ...expertiseList.map((e) => Chip(
+                          label: Text(e, style: const TextStyle(fontSize: 12)),
+                          onDeleted: () => setModalState(() => expertiseList.remove(e)),
+                        )),
+                      ],
+                    ),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: TextField(
+                            controller: expertiseController,
+                            decoration: const InputDecoration(
+                              hintText: 'Add area (e.g. Machine Learning)',
+                              border: OutlineInputBorder(),
+                              isDense: true,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        IconButton(
+                          icon: const Icon(Icons.add_circle),
+                          onPressed: () {
+                            if (expertiseController.text.isNotEmpty) {
+                              setModalState(() {
+                                expertiseList.add(expertiseController.text.trim());
+                                expertiseController.clear();
+                              });
+                            }
+                          },
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
                     SwitchListTile(
                       title: const Text('Visible to Members'),
                       value: isVisible,
                       onChanged: (val) => setModalState(() => isVisible = val),
+                      contentPadding: EdgeInsets.zero,
                     ),
-                    const SizedBox(height: 24),
-                    
+                    const SizedBox(height: 16),
                     SizedBox(
                       width: double.infinity,
                       child: ElevatedButton(
-                        onPressed: isUploading ? null : () async {
-                          if (nameController.text.isNotEmpty && descController.text.isNotEmpty) {
-                            setModalState(() => isUploading = true);
-                            String? finalImageUrl = currentImageUrl;
-                            if (selectedImage != null) {
-                              finalImageUrl = await TeacherService.uploadImage(selectedImage!);
-                            }
-
-                            final teacher = TeacherContact(
-                              id: existingTeacher?.id ?? '',
-                              name: nameController.text,
-                              designation: descController.text,
-                              phone: phoneController.text,
-                              email: emailController.text,
-                              imagePath: finalImageUrl ?? '',
-                              isVisible: isVisible,
-                              createdByName: existingTeacher?.createdByName ?? currentProfile.value.name,
-                            );
-
-                            if (mounted) {
-                              Navigator.pop(modalContext);
-                              if (existingTeacher == null) {
-                                await TeacherService.addTeacher(teacher);
-                              } else {
-                                await TeacherService.updateTeacher(teacher);
-                              }
-                            }
-                          }
-                        },
-                        child: isUploading 
-                          ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                          : Text(existingTeacher == null ? 'Save' : 'Update'),
+                        onPressed: isUploading
+                            ? null
+                            : () async {
+                                if (nameController.text.isEmpty || designationController.text.isEmpty) {
+                                  return;
+                                }
+                                setModalState(() => isUploading = true);
+                                String? finalImageUrl = currentImageUrl;
+                                if (selectedImage != null) {
+                                  finalImageUrl = await TeacherService.uploadImage(selectedImage!);
+                                }
+                                final teacher = TeacherContact(
+                                  id: existingTeacher?.id ?? '',
+                                  name: nameController.text.trim(),
+                                  designation: designationController.text.trim(),
+                                  role: roleController.text.trim(),
+                                  phone: phoneController.text.trim(),
+                                  email: emailController.text.trim(),
+                                  officeRoom: officeController.text.trim(),
+                                  department: departmentController.text.trim(),
+                                  joinYear: joinYearController.text.trim(),
+                                  areasOfExpertise: expertiseList,
+                                  imagePath: finalImageUrl ?? '',
+                                  isVisible: isVisible,
+                                  createdByName: existingTeacher?.createdByName ?? currentProfile.value.name,
+                                );
+                                if (mounted) {
+                                  Navigator.pop(modalContext);
+                                  if (existingTeacher == null) {
+                                    await TeacherService.addTeacher(teacher);
+                                  } else {
+                                    await TeacherService.updateTeacher(teacher);
+                                  }
+                                }
+                              },
+                        style: ElevatedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 14)),
+                        child: isUploading
+                            ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                            : Text(existingTeacher == null ? 'Save Teacher' : 'Update'),
                       ),
                     ),
                     const SizedBox(height: 24),
@@ -133,9 +202,21 @@ class _TeacherContactsScreenState extends State<TeacherContactsScreen> {
                 ),
               ),
             );
-          }
+          },
         );
       },
+    );
+  }
+
+  Widget _field(TextEditingController ctrl, String label, {TextInputType? keyboardType}) {
+    return TextField(
+      controller: ctrl,
+      keyboardType: keyboardType,
+      decoration: InputDecoration(
+        labelText: label,
+        border: const OutlineInputBorder(),
+        isDense: true,
+      ),
     );
   }
 
@@ -146,18 +227,19 @@ class _TeacherContactsScreenState extends State<TeacherContactsScreen> {
       body: ValueListenableBuilder<List<TeacherContact>>(
         valueListenable: teachersState,
         builder: (context, teachers, _) {
-          if (teachers.isEmpty) {
+          final isAdmin = currentProfile.value.role != UserRole.student;
+          final visible = isAdmin
+              ? teachers
+              : teachers.where((t) => t.isApproved && t.isVisible).toList();
+
+          if (visible.isEmpty) {
             return const Center(child: Text('No teacher contacts available.'));
           }
+
           return ListView.builder(
             padding: const EdgeInsets.all(16),
-            itemCount: teachers.length,
-            itemBuilder: (context, index) {
-              final teacher = teachers[index];
-              final isAdmin = currentProfile.value.role != UserRole.student;
-              if (!isAdmin && (!teacher.isApproved || !teacher.isVisible)) return const SizedBox.shrink();
-              return _buildTeacherCard(teacher);
-            },
+            itemCount: visible.length,
+            itemBuilder: (context, index) => _buildTeacherCard(visible[index]),
           );
         },
       ),
@@ -180,91 +262,96 @@ class _TeacherContactsScreenState extends State<TeacherContactsScreen> {
     final colors = Theme.of(context).colorScheme;
     final profile = currentProfile.value;
     final isAdmin = profile.role != UserRole.student;
-    final isSuper = profile.role == UserRole.superUser;
 
     return Card(
-      margin: const EdgeInsets.only(bottom: 16),
-      elevation: 0,
-      shape: RoundedRectangleBorder(
-        side: BorderSide(color: colors.outline.withOpacity(0.1)),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          children: [
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                CircleAvatar(
-                  radius: 30,
-                  backgroundImage: teacher.imagePath.isNotEmpty ? NetworkImage(teacher.imagePath) : null,
-                  child: teacher.imagePath.isEmpty ? Text(teacher.name[0].toUpperCase(), style: const TextStyle(fontSize: 24)) : null,
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Expanded(child: Text(teacher.name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18))),
-                          if (!teacher.isApproved)
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                              decoration: BoxDecoration(color: Colors.red.withOpacity(0.1), border: Border.all(color: Colors.red), borderRadius: BorderRadius.circular(4)),
-                              child: const Text('PENDING', style: TextStyle(color: Colors.red, fontSize: 10, fontWeight: FontWeight.bold)),
-                            ),
-                          if (isAdmin)
-                            PopupMenuButton<String>(
-                              onSelected: (val) {
-                                if (val == 'edit') _showTeacherForm(existingTeacher: teacher);
-                                if (val == 'delete') TeacherService.deleteTeacher(teacher.id);
-                                if (val == 'approve') TeacherService.approveTeacher(teacher.id);
-                                if (val == 'visibility') TeacherService.toggleTeacherVisibility(teacher.id, !teacher.isVisible);
-                              },
-                              itemBuilder: (_) => [
-                                if (!teacher.isApproved && (profile.designation == 'President' || profile.designation == 'Vice President')) 
-                                  const PopupMenuItem(value: 'approve', child: Text('Approve', style: TextStyle(color: Colors.green))),
-                                PopupMenuItem(value: 'visibility', child: Text(teacher.isVisible ? 'Hide from Members' : 'Show to Members')),
-                                const PopupMenuItem(value: 'edit', child: Text('Edit')),
-                                const PopupMenuItem(value: 'delete', child: Text('Delete', style: TextStyle(color: Colors.red))),
-                              ],
-                            ),
-                        ],
-                      ),
-                      Text(teacher.designation, style: TextStyle(color: colors.primary, fontWeight: FontWeight.bold)),
-                      if (!teacher.isVisible)
-                        const Padding(
-                          padding: EdgeInsets.only(top: 4.0),
-                          child: Text('HIDDEN FROM MEMBERS', style: TextStyle(color: Colors.orange, fontSize: 10, fontWeight: FontWeight.bold)),
+      margin: const EdgeInsets.only(bottom: 12),
+      elevation: 2,
+      shadowColor: Colors.black12,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(16),
+        onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => TeacherDetailScreen(teacher: teacher))),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Row(
+            children: [
+              // Avatar
+              CircleAvatar(
+                radius: 32,
+                backgroundColor: colors.primaryContainer,
+                backgroundImage: teacher.imagePath.isNotEmpty ? NetworkImage(teacher.imagePath) : null,
+                child: teacher.imagePath.isEmpty
+                    ? Text(teacher.name[0].toUpperCase(), style: TextStyle(fontSize: 26, color: colors.onPrimaryContainer, fontWeight: FontWeight.bold))
+                    : null,
+              ),
+              const SizedBox(width: 16),
+              // Info
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(teacher.name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
                         ),
-                    ],
-                  ),
+                        if (!teacher.isApproved)
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(color: Colors.red.withOpacity(0.1), borderRadius: BorderRadius.circular(4)),
+                            child: const Text('PENDING', style: TextStyle(color: Colors.red, fontSize: 9, fontWeight: FontWeight.bold)),
+                          ),
+                        if (!teacher.isVisible)
+                          Padding(
+                            padding: const EdgeInsets.only(left: 4),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              decoration: BoxDecoration(color: Colors.orange.withOpacity(0.1), borderRadius: BorderRadius.circular(4)),
+                              child: const Text('HIDDEN', style: TextStyle(color: Colors.orange, fontSize: 9, fontWeight: FontWeight.bold)),
+                            ),
+                          ),
+                        if (isAdmin)
+                          PopupMenuButton<String>(
+                            icon: const Icon(Icons.more_vert, size: 18),
+                            onSelected: (val) {
+                              if (val == 'edit') _showTeacherForm(existingTeacher: teacher);
+                              if (val == 'delete') TeacherService.deleteTeacher(teacher.id);
+                              if (val == 'approve') TeacherService.approveTeacher(teacher.id);
+                              if (val == 'visibility') TeacherService.toggleTeacherVisibility(teacher.id, !teacher.isVisible);
+                            },
+                            itemBuilder: (_) => [
+                              if (!teacher.isApproved &&
+                                  (profile.designation == 'President' || profile.designation == 'Vice President'))
+                                const PopupMenuItem(value: 'approve', child: Text('Approve', style: TextStyle(color: Colors.green))),
+                              PopupMenuItem(value: 'visibility', child: Text(teacher.isVisible ? 'Hide' : 'Show')),
+                              const PopupMenuItem(value: 'edit', child: Text('Edit')),
+                              const PopupMenuItem(value: 'delete', child: Text('Delete', style: TextStyle(color: Colors.red))),
+                            ],
+                          ),
+                      ],
+                    ),
+                    Text(teacher.designation, style: TextStyle(color: colors.primary, fontWeight: FontWeight.bold, fontSize: 13)),
+                    if (teacher.role.isNotEmpty)
+                      Text(teacher.role, style: TextStyle(color: colors.onSurface.withOpacity(0.6), fontSize: 12)),
+                    const SizedBox(height: 8),
+                    if (teacher.areasOfExpertise.isNotEmpty)
+                      Wrap(
+                        spacing: 4,
+                        runSpacing: 4,
+                        children: teacher.areasOfExpertise.take(3).map((area) => Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: colors.primaryContainer,
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Text(area, style: TextStyle(color: colors.onPrimaryContainer, fontSize: 10)),
+                        )).toList(),
+                      ),
+                  ],
                 ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
-              children: [
-                if (teacher.phone.isNotEmpty)
-                  ElevatedButton.icon(
-                    onPressed: () => launchUrl(Uri.parse('tel:${teacher.phone}')),
-                    icon: const Icon(Icons.phone, size: 18),
-                    label: const Text('Call'),
-                    style: ElevatedButton.styleFrom(backgroundColor: colors.surfaceContainerHighest, foregroundColor: colors.onSurface),
-                  ),
-                if (teacher.email.isNotEmpty)
-                  ElevatedButton.icon(
-                    onPressed: () => launchUrl(Uri.parse('mailto:${teacher.email}')),
-                    icon: const Icon(Icons.email, size: 18),
-                    label: const Text('Email'),
-                    style: ElevatedButton.styleFrom(backgroundColor: colors.surfaceContainerHighest, foregroundColor: colors.onSurface),
-                  ),
-              ],
-            )
-          ],
+              ),
+            ],
+          ),
         ),
       ),
     );

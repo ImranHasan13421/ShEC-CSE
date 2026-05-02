@@ -3,11 +3,14 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../features/gallery/models/gallery_state.dart';
 import '../../features/profile/models/profile_state.dart';
+import '../../core/services/cache_service.dart';
 
 class GalleryService {
   static final SupabaseClient _client = Supabase.instance.client;
 
-  static Future<void> fetchGalleryItems() async {
+  static Future<void> fetchGalleryItems({bool forceRefresh = false}) async {
+    if (!forceRefresh && !CacheService.isStale(CacheKeys.gallery)) return;
+    
     final isAdmin = currentProfile.value.role != UserRole.student;
     
     var query = _client.from('gallery').select();
@@ -16,13 +19,8 @@ class GalleryService {
     }
     
     final response = await query.order('created_at', ascending: false);
-
-    final List<GalleryItem> items = [];
-    for (var row in response) {
-      items.add(GalleryItem.fromJson(row));
-    }
-
-    galleryState.value = items;
+    galleryState.value = (response as List).map((r) => GalleryItem.fromJson(r)).toList();
+    CacheService.markFresh(CacheKeys.gallery);
   }
 
   static Future<void> addGalleryItemToDB(GalleryItem item) async {
@@ -56,12 +54,14 @@ class GalleryService {
 
   static Future<void> approveGalleryItem(String id) async {
     await _client.from('gallery').update({'is_approved': true}).eq('id', id);
-    fetchGalleryItems();
+    CacheService.invalidate(CacheKeys.gallery);
+    fetchGalleryItems(forceRefresh: true);
   }
 
   static Future<void> toggleGalleryVisibility(String id, bool isVisible) async {
     await _client.from('gallery').update({'is_visible': isVisible}).eq('id', id);
-    fetchGalleryItems();
+    CacheService.invalidate(CacheKeys.gallery);
+    fetchGalleryItems(forceRefresh: true);
   }
 
   static Future<void> deleteGalleryItemFromDB(GalleryItem item) async {
@@ -71,6 +71,7 @@ class GalleryService {
         .eq('id', item.id);
 
     galleryState.value = List.from(galleryState.value)..removeWhere((i) => i.id == item.id);
+    CacheService.invalidate(CacheKeys.gallery);
   }
 
   static Future<String?> uploadImage(File file) async {

@@ -1,11 +1,14 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../features/contests/models/contest_state.dart';
 import '../../features/profile/models/profile_state.dart';
+import '../../core/services/cache_service.dart';
 
 class ContestService {
   static final SupabaseClient _client = Supabase.instance.client;
 
-  static Future<void> fetchContestsAndCourses() async {
+  static Future<void> fetchContestsAndCourses({bool forceRefresh = false}) async {
+    if (!forceRefresh && !CacheService.isStale(CacheKeys.contests)) return;
+
     final isAdmin = currentProfile.value.role != UserRole.student;
 
     var query = _client.from('contests').select();
@@ -25,6 +28,7 @@ class ContestService {
 
     contestState.value = fetchedContests;
     courseState.value = [];
+    CacheService.markFresh(CacheKeys.contests);
   }
 
   static Future<void> addContestToDB(ContestItem item) async {
@@ -49,7 +53,8 @@ class ContestService {
 
   static Future<void> toggleContestVisibility(String id, bool isVisible) async {
     await _client.from('contests').update({'is_visible': isVisible}).eq('id', id);
-    fetchContestsAndCourses();
+    CacheService.invalidate(CacheKeys.contests);
+    fetchContestsAndCourses(forceRefresh: true);
   }
 
   static Future<void> updateContestInDB(ContestItem item) async {
@@ -64,7 +69,8 @@ class ContestService {
 
   static Future<void> approveContest(String id) async {
     await _client.from('contests').update({'is_approved': true}).eq('id', id);
-    fetchContestsAndCourses();
+    CacheService.invalidate(CacheKeys.contests);
+    fetchContestsAndCourses(forceRefresh: true);
   }
 
   static Future<void> deleteContestFromDB(ContestItem item) async {

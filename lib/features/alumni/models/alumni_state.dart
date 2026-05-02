@@ -1,39 +1,45 @@
 import 'package:flutter/material.dart';
 
-class TeacherContact {
+class AlumniItem {
   final String id;
+  final String? userId;
   final String name;
-  final String designation; // e.g., Professor, Assistant Professor
-  final String role;        // e.g., Head of Department, Lab In-Charge
-  final String phone;
+  final String role;
+  final String designation;
   final String email;
+  final String phone;
   final String imagePath;
-  final String officeRoom;
-  final String department;
-  final String joinYear;
+  final String batch;
+  final String session;
+  final String passingYear;
+  final String currentPosition;
+  final String company;
   final List<String> areasOfExpertise;
   final bool isApproved;
   final bool isVisible;
   final String createdByName;
 
-  TeacherContact({
+  AlumniItem({
     required this.id,
+    this.userId,
     required this.name,
-    required this.designation,
     this.role = '',
-    this.phone = '',
+    this.designation = '',
     this.email = '',
+    this.phone = '',
     this.imagePath = '',
-    this.officeRoom = '',
-    this.department = 'CSE',
-    this.joinYear = '',
+    this.batch = '',
+    this.session = '',
+    this.passingYear = '',
+    this.currentPosition = '',
+    this.company = '',
     this.areasOfExpertise = const [],
     this.isApproved = false,
     this.isVisible = true,
     this.createdByName = '',
   });
 
-  factory TeacherContact.fromJson(Map<String, dynamic> json) {
+  factory AlumniItem.fromJson(Map<String, dynamic> json) {
     final expertiseRaw = json['areas_of_expertise'];
     final List<String> expertise;
     if (expertiseRaw is List) {
@@ -42,17 +48,20 @@ class TeacherContact {
       expertise = [];
     }
 
-    return TeacherContact(
+    return AlumniItem(
       id: json['id'] as String,
+      userId: json['user_id'] as String?,
       name: json['name'] as String,
-      designation: json['designation'] as String? ?? '',
       role: json['role'] as String? ?? '',
-      phone: json['phone'] as String? ?? '',
+      designation: json['designation'] as String? ?? '',
       email: json['email'] as String? ?? '',
+      phone: json['phone'] as String? ?? '',
       imagePath: json['image_path'] as String? ?? '',
-      officeRoom: json['office_room'] as String? ?? '',
-      department: json['department'] as String? ?? 'CSE',
-      joinYear: json['join_year'] as String? ?? '',
+      batch: json['batch'] as String? ?? '',
+      session: json['session'] as String? ?? '',
+      passingYear: json['passing_year'] as String? ?? '',
+      currentPosition: json['current_position'] as String? ?? '',
+      company: json['company'] as String? ?? '',
       areasOfExpertise: expertise,
       isApproved: json['is_approved'] as bool? ?? false,
       isVisible: json['is_visible'] as bool? ?? true,
@@ -62,15 +71,18 @@ class TeacherContact {
 
   Map<String, dynamic> toJson() {
     return {
+      'user_id': userId,
       'name': name,
-      'designation': designation,
       'role': role,
-      'phone': phone,
+      'designation': designation,
       'email': email,
+      'phone': phone,
       'image_path': imagePath,
-      'office_room': officeRoom,
-      'department': department,
-      'join_year': joinYear,
+      'batch': batch,
+      'session': session,
+      'passing_year': passingYear,
+      'current_position': currentPosition,
+      'company': company,
       'areas_of_expertise': areasOfExpertise,
       'is_approved': isApproved,
       'is_visible': isVisible,
@@ -80,4 +92,4 @@ class TeacherContact {
 }
 
 // Global Notifier
-final ValueNotifier<List<TeacherContact>> teachersState = ValueNotifier([]);
+final ValueNotifier<List<AlumniItem>> alumniState = ValueNotifier([]);

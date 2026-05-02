@@ -1,5 +1,4 @@
 // lib/screens/main_screen.dart
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:ShEC_CSE/features/profile/models/profile_state.dart';
 import 'package:ShEC_CSE/features/dashboard/screens/home_screen.dart';
@@ -20,6 +19,7 @@ import 'package:ShEC_CSE/features/department/screens/teacher_contacts_screen.dar
 import 'package:ShEC_CSE/features/club/screens/club_members_screen.dart';
 import 'package:ShEC_CSE/features/about/screens/about_us_screen.dart';
 import 'package:ShEC_CSE/features/about/screens/contributors_screen.dart';
+import 'package:ShEC_CSE/features/alumni/screens/alumni_screen.dart';
 
 class HomeLayout extends StatefulWidget {
   const HomeLayout({super.key});
@@ -97,8 +97,12 @@ class _HomeLayoutState extends State<HomeLayout> {
                       child: CircleAvatar(
                         radius: 16,
                         backgroundColor: colors.primaryContainer,
-                        backgroundImage: profile.imagePath != null ? FileImage(File(profile.imagePath!)) : null,
-                        child: profile.imagePath == null ? Icon(Icons.person, color: colors.primary, size: 20) : null,
+                        backgroundImage: profile.imagePath != null && profile.imagePath!.startsWith('http')
+                            ? NetworkImage(profile.imagePath!) as ImageProvider
+                            : null,
+                        child: (profile.imagePath == null || !profile.imagePath!.startsWith('http'))
+                            ? Icon(Icons.person, color: colors.primary, size: 20)
+                            : null,
                       ),
                     ),
                   ),
@@ -164,8 +168,12 @@ class _HomeLayoutState extends State<HomeLayout> {
                     ),
                     child: CircleAvatar(
                       backgroundColor: Colors.white,
-                      backgroundImage: profile.imagePath != null ? FileImage(File(profile.imagePath!)) : null,
-                      child: profile.imagePath == null ? const Icon(Icons.person, size: 40, color: Colors.grey) : null,
+                      backgroundImage: profile.imagePath != null && profile.imagePath!.startsWith('http')
+                          ? NetworkImage(profile.imagePath!) as ImageProvider
+                          : null,
+                      child: (profile.imagePath == null || !profile.imagePath!.startsWith('http'))
+                          ? const Icon(Icons.person, size: 40, color: Colors.grey)
+                          : null,
                     ),
                   ),
                 ),
@@ -238,6 +246,14 @@ class _HomeLayoutState extends State<HomeLayout> {
             onTap: () {
               Navigator.pop(context);
               Navigator.push(context, MaterialPageRoute(builder: (_) => const ClubMembersScreen()));
+            },
+          ),
+          ListTile(
+            leading: const Icon(Icons.school),
+            title: const Text('Alumni'),
+            onTap: () {
+              Navigator.pop(context);
+              Navigator.push(context, MaterialPageRoute(builder: (_) => const AlumniScreen()));
             },
           ),
 

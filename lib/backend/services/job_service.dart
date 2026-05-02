@@ -1,11 +1,14 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../features/jobs/models/job_state.dart';
 import '../../features/profile/models/profile_state.dart';
+import '../../core/services/cache_service.dart';
 
 class JobService {
   static final SupabaseClient _client = Supabase.instance.client;
 
-  static Future<void> fetchJobs() async {
+  static Future<void> fetchJobs({bool forceRefresh = false}) async {
+    if (!forceRefresh && !CacheService.isStale(CacheKeys.jobsRecommended)) return;
+    
     final isAdmin = currentProfile.value.role != UserRole.student;
     
     var query = _client.from('jobs').select();
@@ -29,6 +32,7 @@ class JobService {
 
     recommendedJobsState.value = recommended;
     recentJobsState.value = recent;
+    CacheService.markFresh(CacheKeys.jobsRecommended);
   }
 
   static Future<void> addJobToDB(JobItem job, String category) async {
@@ -66,12 +70,14 @@ class JobService {
 
   static Future<void> approveJob(String id) async {
     await _client.from('jobs').update({'is_approved': true}).eq('id', id);
-    fetchJobs();
+    CacheService.invalidate(CacheKeys.jobsRecommended);
+    fetchJobs(forceRefresh: true);
   }
 
   static Future<void> toggleJobVisibility(String id, bool isVisible) async {
     await _client.from('jobs').update({'is_visible': isVisible}).eq('id', id);
-    fetchJobs();
+    CacheService.invalidate(CacheKeys.jobsRecommended);
+    fetchJobs(forceRefresh: true);
   }
 
   static Future<void> deleteJobFromDB(String id, String category) async {
