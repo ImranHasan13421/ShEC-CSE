@@ -15,17 +15,17 @@ class SubjectResult {
 
   factory SubjectResult.fromJson(Map<String, dynamic> json) {
     return SubjectResult(
-      code: json['code'] ?? '',
-      name: json['name'] ?? '',
+      code: json['subject_code'] ?? json['code'] ?? '',
+      name: json['subject_name'] ?? json['name'] ?? '',
       grade: json['grade'] ?? '',
-      point: json['point'] ?? '',
+      point: json['point']?.toString() ?? '',
     );
   }
 
   Map<String, dynamic> toJson() {
     return {
-      'code': code,
-      'name': name,
+      'subject_code': code,
+      'subject_name': name,
       'grade': grade,
       'point': point,
     };
@@ -51,6 +51,19 @@ class ExamResult {
     required this.subjects,
   });
 
+  factory ExamResult.fromDB(Map<String, dynamic> json, List<SubjectResult> subjects) {
+    return ExamResult(
+      id: json['id'] ?? '',
+      regNo: json['reg_no'] ?? '',
+      examId: json['exam_id'] ?? '',
+      examName: json['exam_name'] ?? 'Exam ${json['exam_id']}',
+      gpa: json['gpa']?.toString() ?? '',
+      cgpa: json['cgpa']?.toString() ?? '',
+      subjects: subjects,
+    );
+  }
+
+  // Legacy support for JSON-based results (if any remain)
   factory ExamResult.fromJson(Map<String, dynamic> json, String examName) {
     final subjectsList = json['subjects'] as List? ?? [];
     return ExamResult(
@@ -58,8 +71,8 @@ class ExamResult {
       regNo: json['reg_no'] ?? '',
       examId: json['exam_id'] ?? '',
       examName: examName,
-      gpa: json['gpa'] ?? '',
-      cgpa: json['cgpa'] ?? '',
+      gpa: json['gpa']?.toString() ?? '',
+      cgpa: json['cgpa']?.toString() ?? '',
       subjects: subjectsList.map((s) => SubjectResult.fromJson(s)).toList(),
     );
   }
