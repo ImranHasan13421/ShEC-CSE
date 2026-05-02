@@ -40,6 +40,7 @@ class GalleryService {
 
     final newItem = GalleryItem.fromJson(response);
     galleryState.value = List.from(galleryState.value)..insert(0, newItem);
+    CacheService.invalidate(CacheKeys.gallery); // Ensure fresh fetch next time
   }
 
   static Future<void> updateGalleryItemInDB(GalleryItem item) async {
@@ -50,6 +51,9 @@ class GalleryService {
         .from('gallery')
         .update(data)
         .eq('id', item.id);
+        
+    CacheService.invalidate(CacheKeys.gallery);
+    fetchGalleryItems(forceRefresh: true);
   }
 
   static Future<void> approveGalleryItem(String id) async {
@@ -76,7 +80,8 @@ class GalleryService {
 
   static Future<String?> uploadImage(File file) async {
     try {
-      final fileName = '${DateTime.now().millisecondsSinceEpoch}_${file.path.split('/').last}';
+      final fileName = 'gallery_${DateTime.now().millisecondsSinceEpoch}_${file.path.split('/').last}';
+      // Ensure the bucket is public or handled
       await _client.storage.from('gallery_images').upload(fileName, file);
       return _client.storage.from('gallery_images').getPublicUrl(fileName);
     } catch (e) {

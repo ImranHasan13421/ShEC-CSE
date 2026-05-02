@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 
 class ContestItem {
   final String id;
@@ -8,8 +7,9 @@ class ContestItem {
   final String level;
   final String date;
   final String url;
+  final String description;
   final Color iconColor;
-  final bool isCourse; // To distinguish between contests and courses
+  final bool isCourse;
   final bool isApproved;
   final bool isVisible;
   final String createdByName;
@@ -21,6 +21,7 @@ class ContestItem {
     required this.level,
     required this.date,
     required this.url,
+    this.description = '',
     required this.iconColor,
     this.isCourse = false,
     this.isApproved = false,
@@ -36,6 +37,7 @@ class ContestItem {
       level: json['level'] as String,
       date: json['date'] as String,
       url: json['url'] as String,
+      description: json['description'] as String? ?? '',
       iconColor: Color(json['icon_color'] as int),
       isCourse: json['is_course'] as bool? ?? false,
       isApproved: json['is_approved'] as bool? ?? false,
@@ -51,6 +53,7 @@ class ContestItem {
       'level': level,
       'date': date,
       'url': url,
+      'description': description,
       'icon_color': iconColor.value,
       'is_course': isCourse,
       'is_approved': isApproved,
@@ -58,8 +61,37 @@ class ContestItem {
       'created_by_name': createdByName,
     };
   }
+
+  ContestItem copyWith({
+    String? id,
+    String? title,
+    String? platform,
+    String? level,
+    String? date,
+    String? url,
+    String? description,
+    Color? iconColor,
+    bool? isCourse,
+    bool? isApproved,
+    bool? isVisible,
+    String? createdByName,
+  }) {
+    return ContestItem(
+      id: id ?? this.id,
+      title: title ?? this.title,
+      platform: platform ?? this.platform,
+      level: level ?? this.level,
+      date: date ?? this.date,
+      url: url ?? this.url,
+      description: description ?? this.description,
+      iconColor: iconColor ?? this.iconColor,
+      isCourse: isCourse ?? this.isCourse,
+      isApproved: isApproved ?? this.isApproved,
+      isVisible: isVisible ?? this.isVisible,
+      createdByName: createdByName ?? this.createdByName,
+    );
+  }
 }
 
 final ValueNotifier<List<ContestItem>> contestState = ValueNotifier([]);
 final ValueNotifier<List<ContestItem>> courseState = ValueNotifier([]);
-

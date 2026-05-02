@@ -1,4 +1,4 @@
-// lib/screens/profile_screen.dart
+// lib/features/profile/screens/profile_screen.dart
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
@@ -42,6 +42,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
     _phoneController = TextEditingController(text: profile.phone);
     _duRegController = TextEditingController(text: profile.duRegNo);
     _imageUrl = profile.imagePath;
+
+    // Handle lost data from ImagePicker (Android specific issue)
+    _checkLostData();
+  }
+
+  Future<void> _checkLostData() async {
+    final ImagePicker picker = ImagePicker();
+    final LostDataResponse response = await picker.retrieveLostData();
+    if (response.isEmpty) return;
+    if (response.file != null) {
+      setState(() => _newImageFile = File(response.file!.path));
+    }
   }
 
   @override
@@ -58,10 +70,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Future<void> _pickImage() async {
-    final picker = ImagePicker();
-    final picked = await picker.pickImage(source: ImageSource.gallery, imageQuality: 80);
-    if (picked != null) {
-      setState(() => _newImageFile = File(picked.path));
+    try {
+      final picker = ImagePicker();
+      final picked = await picker.pickImage(source: ImageSource.gallery, imageQuality: 70);
+      if (picked != null) {
+        setState(() => _newImageFile = File(picked.path));
+      }
+    } catch (e) {
+      debugPrint('Error picking image: $e');
     }
   }
 
@@ -70,7 +86,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
       final userId = currentProfile.value.id;
       final fileName = 'profile_${userId}_${DateTime.now().millisecondsSinceEpoch}.jpg';
       final client = Supabase.instance.client;
+      
+      // Upload to bucket
       await client.storage.from('profile_pictures').upload(fileName, file);
+      
+      // Get public URL
       return client.storage.from('profile_pictures').getPublicUrl(fileName);
     } catch (e) {
       debugPrint('Profile pic upload error: $e');
@@ -88,6 +108,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
       // Upload new image if one was picked
       if (_newImageFile != null) {
         finalImageUrl = await _uploadProfilePic(_newImageFile!);
+        if (finalImageUrl == null) {
+           throw Exception('Failed to upload image. Please try again.');
+        }
       }
 
       final updatedProfile = currentProfile.value.copyWith(
@@ -107,7 +130,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Profile updated successfully!')),
+          const SnackBar(content: Text('Profile updated successfully!'), backgroundColor: Colors.green),
         );
         Navigator.pop(context);
       }
@@ -124,7 +147,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   ImageProvider? get _displayImage {
     if (_newImageFile != null) return FileImage(_newImageFile!);
-    if (_imageUrl != null && _imageUrl!.startsWith('http')) return NetworkImage(_imageUrl!);
+    if (_imageUrl != null && _imageUrl!.isNotEmpty && _imageUrl!.startsWith('http')) {
+      return NetworkImage(_imageUrl!);
+    }
     return null;
   }
 
@@ -147,7 +172,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   alignment: Alignment.bottomRight,
                   children: [
                     CircleAvatar(
-                      radius: 60,
+                      radius: 65,
                       backgroundColor: colors.primaryContainer,
                       backgroundImage: _displayImage,
                       child: _displayImage == null
@@ -155,16 +180,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               (currentProfile.value.firstName.isNotEmpty
                                   ? currentProfile.value.firstName[0]
                                   : '?').toUpperCase(),
-                              style: TextStyle(fontSize: 48, fontWeight: FontWeight.bold, color: colors.onPrimaryContainer),
+                              style: TextStyle(fontSize: 52, fontWeight: FontWeight.bold, color: colors.onPrimaryContainer),
                             )
                           : null,
                     ),
                     GestureDetector(
                       onTap: _pickImage,
                       child: CircleAvatar(
-                        radius: 20,
+                        radius: 22,
                         backgroundColor: colors.primary,
-                        child: const Icon(Icons.camera_alt, color: Colors.white, size: 18),
+                        child: const Icon(Icons.camera_alt, color: Colors.white, size: 20),
                       ),
                     ),
                   ],
@@ -178,7 +203,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 Expanded(child: _buildTextField('Last Name', _lastNameController, Icons.person_outline)),
               ]),
               const SizedBox(height: 16),
-              _buildTextField('Email Address', _emailController, Icons.email),
+              _buildTextField('Email (View Only)', _emailController, Icons.email, readOnly: true),
               const SizedBox(height: 16),
 
               Row(children: [
@@ -190,11 +215,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
               Row(children: [
                 Expanded(child: _buildTextField('Batch', _batchController, Icons.group)),
                 const SizedBox(width: 16),
-                Expanded(child: _buildTextField('Phone', _phoneController, Icons.phone)),
+                Expanded(child: _buildTextField('Phone', _phoneController, Icons.phone, keyboardType: TextInputType.phone)),
               ]),
               const SizedBox(height: 16),
               _buildTextField('DU Registration No.', _duRegController, Icons.app_registration),
-              const SizedBox(height: 32),
+              const SizedBox(height: 40),
 
               ElevatedButton(
                 onPressed: _isUploading ? null : _saveProfile,
@@ -203,11 +228,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(vertical: 16),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  elevation: 2,
                 ),
                 child: _isUploading
-                    ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                    ? const SizedBox(height: 24, width: 24, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
                     : const Text('Save Changes', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
               ),
+              const SizedBox(height: 20),
             ],
           ),
         ),
@@ -215,13 +242,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  Widget _buildTextField(String label, TextEditingController controller, IconData icon) {
+  Widget _buildTextField(String label, TextEditingController controller, IconData icon, {bool readOnly = false, TextInputType? keyboardType}) {
     return TextFormField(
       controller: controller,
+      readOnly: readOnly,
+      keyboardType: keyboardType,
       decoration: InputDecoration(
         labelText: label,
         prefixIcon: Icon(icon, color: Theme.of(context).colorScheme.primary),
         border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+        filled: readOnly,
+        fillColor: readOnly ? Colors.grey.shade50 : null,
       ),
       validator: (v) => v == null || v.isEmpty ? 'Required' : null,
     );

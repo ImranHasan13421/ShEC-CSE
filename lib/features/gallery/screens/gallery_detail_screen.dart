@@ -21,32 +21,29 @@ class GalleryDetailScreen extends StatelessWidget {
             backgroundColor: colors.surface,
             leading: Container(
               margin: const EdgeInsets.all(8),
-              decoration: const BoxDecoration(
-                color: Colors.black45,
-                shape: BoxShape.circle,
-              ),
+              decoration: const BoxDecoration(color: Colors.black45, shape: BoxShape.circle),
               child: IconButton(
                 icon: const Icon(Icons.arrow_back, color: Colors.white),
                 onPressed: () => Navigator.pop(context),
               ),
             ),
             flexibleSpace: FlexibleSpaceBar(
-              stretchModes: const [
-                StretchMode.zoomBackground,
-                StretchMode.blurBackground,
-              ],
+              stretchModes: const [StretchMode.zoomBackground, StretchMode.blurBackground],
               background: Hero(
                 tag: 'gallery_img_${item.id}',
-                child: Image.network(
-                  item.imagePath,
-                  fit: BoxFit.cover,
-                  errorBuilder: (_, __, ___) => Container(
-                    color: item.color.withValues(alpha: 0.2),
-                    child: Center(
-                      child: Icon(item.icon, size: 80, color: item.color.withValues(alpha: 0.5)),
-                    ),
-                  ),
-                ),
+                child: item.imagePath.isNotEmpty
+                    ? Image.network(
+                        item.imagePath,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, __, ___) => Container(
+                          color: item.color.withValues(alpha: 0.15),
+                          child: const Center(child: Icon(Icons.photo_library, size: 80, color: Colors.grey)),
+                        ),
+                      )
+                    : Container(
+                        color: item.color.withValues(alpha: 0.15),
+                        child: const Center(child: Icon(Icons.photo_library, size: 80, color: Colors.grey)),
+                      ),
               ),
             ),
           ),
@@ -62,50 +59,30 @@ class GalleryDetailScreen extends StatelessWidget {
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                     decoration: BoxDecoration(
-                      color: item.color.withValues(alpha: 0.15),
+                      color: item.color.withValues(alpha: 0.12),
                       borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: item.color.withValues(alpha: 0.4)),
+                      border: Border.all(color: item.color.withValues(alpha: 0.3)),
                     ),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(item.icon, color: item.color, size: 14),
+                        Icon(Icons.photo_library, color: item.color, size: 14),
                         const SizedBox(width: 6),
-                        Text(
-                          'Gallery',
-                          style: TextStyle(
-                            color: item.color,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 12,
-                          ),
-                        ),
+                        Text('Gallery', style: TextStyle(color: item.color, fontWeight: FontWeight.bold, fontSize: 12)),
                       ],
                     ),
                   ),
                   const SizedBox(height: 16),
                   // Title
-                  Text(
-                    item.title,
-                    style: const TextStyle(
-                      fontSize: 28,
-                      fontWeight: FontWeight.bold,
-                      height: 1.3,
-                    ),
-                  ),
+                  Text(item.title, style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold, height: 1.3)),
                   const SizedBox(height: 8),
-                  // Created by
                   if (item.createdByName.isNotEmpty)
                     Row(
                       children: [
                         Icon(Icons.person_outline, size: 14, color: colors.onSurface.withValues(alpha: 0.5)),
                         const SizedBox(width: 4),
-                        Text(
-                          'Added by ${item.createdByName}',
-                          style: TextStyle(
-                            color: colors.onSurface.withValues(alpha: 0.5),
-                            fontSize: 13,
-                          ),
-                        ),
+                        Text('Added by ${item.createdByName}',
+                            style: TextStyle(color: colors.onSurface.withValues(alpha: 0.5), fontSize: 13)),
                       ],
                     ),
                 ],
@@ -115,10 +92,7 @@ class GalleryDetailScreen extends StatelessWidget {
 
           // ── Divider ──
           const SliverToBoxAdapter(
-            child: Padding(
-              padding: EdgeInsets.symmetric(horizontal: 24),
-              child: Divider(),
-            ),
+            child: Padding(padding: EdgeInsets.symmetric(horizontal: 24), child: Divider()),
           ),
 
           // ── Description ──
@@ -126,22 +100,10 @@ class GalleryDetailScreen extends StatelessWidget {
             child: Padding(
               padding: const EdgeInsets.fromLTRB(24, 16, 24, 48),
               child: item.description.isNotEmpty
-                  ? Text(
-                      item.description,
-                      style: TextStyle(
-                        fontSize: 16,
-                        height: 1.7,
-                        color: colors.onSurface.withValues(alpha: 0.8),
-                      ),
-                    )
-                  : Text(
-                      'No description available.',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontStyle: FontStyle.italic,
-                        color: colors.onSurface.withValues(alpha: 0.4),
-                      ),
-                    ),
+                  ? Text(item.description,
+                      style: TextStyle(fontSize: 16, height: 1.7, color: colors.onSurface.withValues(alpha: 0.8)))
+                  : Text('No description available.',
+                      style: TextStyle(fontSize: 16, fontStyle: FontStyle.italic, color: colors.onSurface.withValues(alpha: 0.4))),
             ),
           ),
         ],

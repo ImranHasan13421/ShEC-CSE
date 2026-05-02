@@ -17,19 +17,26 @@ class _ContestsScreenState extends State<ContestsScreen> {
     super.initState();
     ContestService.fetchContestsAndCourses();
   }
+
   Future<void> _launchURL(String urlString) async {
+    if (urlString.isEmpty) return;
     final Uri url = Uri.parse(urlString);
-    if (!await launchUrl(url, mode: LaunchMode.externalApplication)) {
-      debugPrint('Could not launch $urlString');
+    try {
+      if (!await launchUrl(url, mode: LaunchMode.externalApplication)) {
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Could not open link')));
+      }
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
     }
   }
 
-  void _showForm(BuildContext context, ValueNotifier<List<ContestItem>> stateNotifier, bool isCourse, {ContestItem? existingItem}) {
+  void _showForm(BuildContext context, {ContestItem? existingItem}) {
     final titleController = TextEditingController(text: existingItem?.title ?? '');
     final platformController = TextEditingController(text: existingItem?.platform ?? '');
     final levelController = TextEditingController(text: existingItem?.level ?? '');
     final dateController = TextEditingController(text: existingItem?.date ?? '');
     final urlController = TextEditingController(text: existingItem?.url ?? '');
+    final descriptionController = TextEditingController(text: existingItem?.description ?? '');
     bool isVisible = existingItem?.isVisible ?? true;
 
     showModalBottomSheet(
@@ -42,9 +49,7 @@ class _ContestsScreenState extends State<ContestsScreen> {
             return Padding(
               padding: EdgeInsets.only(
                 bottom: MediaQuery.of(modalContext).viewInsets.bottom,
-                left: 24,
-                right: 24,
-                top: 24,
+                left: 24, right: 24, top: 24,
               ),
               child: SingleChildScrollView(
                 child: Column(
@@ -55,27 +60,35 @@ class _ContestsScreenState extends State<ContestsScreen> {
                     const SizedBox(height: 16),
                     TextField(
                       controller: titleController,
-                      decoration: const InputDecoration(labelText: 'Contest Name (e.g. Codeforces Round #892)', border: OutlineInputBorder()),
+                      decoration: const InputDecoration(labelText: 'Contest Name *', border: OutlineInputBorder()),
                     ),
                     const SizedBox(height: 12),
                     TextField(
                       controller: platformController,
-                      decoration: const InputDecoration(labelText: 'Platform (e.g. Codeforces, VJudge)', border: OutlineInputBorder()),
+                      decoration: const InputDecoration(labelText: 'Platform (e.g. Codeforces) *', border: OutlineInputBorder()),
                     ),
                     const SizedBox(height: 12),
-                    TextField(
-                      controller: levelController,
-                      decoration: const InputDecoration(labelText: 'Level / Division', border: OutlineInputBorder()),
-                    ),
+                    Row(children: [
+                      Expanded(child: TextField(
+                        controller: levelController,
+                        decoration: const InputDecoration(labelText: 'Level / Div', border: OutlineInputBorder()),
+                      )),
+                      const SizedBox(width: 12),
+                      Expanded(child: TextField(
+                        controller: dateController,
+                        decoration: const InputDecoration(labelText: 'Date & Time', border: OutlineInputBorder()),
+                      )),
+                    ]),
                     const SizedBox(height: 12),
                     TextField(
-                      controller: dateController,
-                      decoration: const InputDecoration(labelText: 'Date & Time', border: OutlineInputBorder()),
+                      controller: descriptionController,
+                      decoration: const InputDecoration(labelText: 'Description / Rules', border: OutlineInputBorder()),
+                      maxLines: 3,
                     ),
                     const SizedBox(height: 12),
                     TextField(
                       controller: urlController,
-                      decoration: const InputDecoration(labelText: 'Contest Link / URL', border: OutlineInputBorder()),
+                      decoration: const InputDecoration(labelText: 'Contest Link / URL *', border: OutlineInputBorder()),
                     ),
                     const SizedBox(height: 12),
                     SwitchListTile(
@@ -92,13 +105,14 @@ class _ContestsScreenState extends State<ContestsScreen> {
                             final messenger = ScaffoldMessenger.of(context);
                             Navigator.pop(modalContext);
                             try {
-                              final newItem = ContestItem(
+                              final item = ContestItem(
                                 id: existingItem?.id ?? '',
-                                title: titleController.text,
-                                platform: platformController.text,
-                                level: levelController.text,
-                                date: dateController.text,
-                                url: urlController.text,
+                                title: titleController.text.trim(),
+                                platform: platformController.text.trim(),
+                                level: levelController.text.trim(),
+                                date: dateController.text.trim(),
+                                url: urlController.text.trim(),
+                                description: descriptionController.text.trim(),
                                 iconColor: existingItem?.iconColor ?? Colors.blue,
                                 isCourse: false,
                                 isVisible: isVisible,
@@ -106,11 +120,11 @@ class _ContestsScreenState extends State<ContestsScreen> {
                               );
 
                               if (existingItem == null) {
-                                await ContestService.addContestToDB(newItem);
-                                if (mounted) messenger.showSnackBar(const SnackBar(content: Text('Contest added successfully')));
+                                await ContestService.addContestToDB(item);
+                                if (mounted) messenger.showSnackBar(const SnackBar(content: Text('Contest added')));
                               } else {
-                                await ContestService.updateContestInDB(newItem);
-                                if (mounted) messenger.showSnackBar(const SnackBar(content: Text('Contest updated successfully')));
+                                await ContestService.updateContestInDB(item);
+                                if (mounted) messenger.showSnackBar(const SnackBar(content: Text('Contest updated')));
                               }
                             } catch (e) {
                               if (mounted) messenger.showSnackBar(SnackBar(content: Text('Error: $e')));
@@ -131,15 +145,6 @@ class _ContestsScreenState extends State<ContestsScreen> {
     );
   }
 
-  void _deleteItem(ContestItem item, ValueNotifier<List<ContestItem>> stateNotifier) async {
-    try {
-      await ContestService.deleteContestFromDB(item);
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Deleted successfully')));
-    } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error deleting: $e')));
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
@@ -148,13 +153,44 @@ class _ContestsScreenState extends State<ContestsScreen> {
       appBar: AppBar(
         title: const Text('Programming Contests'),
       ),
-      body: _buildTab(context, contestState, false),
+      body: ValueListenableBuilder<List<ContestItem>>(
+        valueListenable: contestState,
+        builder: (context, items, _) {
+          final isAdmin = currentProfile.value.role != UserRole.student;
+          final visibleItems = items.where((j) {
+            if (isAdmin) return true;
+            return j.isApproved && j.isVisible;
+          }).toList();
+
+          if (visibleItems.isEmpty) {
+            return Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.emoji_events_outlined, size: 64, color: colors.onSurface.withValues(alpha: 0.1)),
+                  const SizedBox(height: 16),
+                  Text('No upcoming contests.', style: TextStyle(color: colors.onSurface.withValues(alpha: 0.4))),
+                ],
+              ),
+            );
+          }
+
+          return RefreshIndicator(
+            onRefresh: () => ContestService.fetchContestsAndCourses(forceRefresh: true),
+            child: ListView.builder(
+              padding: const EdgeInsets.all(16.0),
+              itemCount: visibleItems.length,
+              itemBuilder: (context, index) => _buildContestCard(visibleItems[index]),
+            ),
+          );
+        },
+      ),
       floatingActionButton: ValueListenableBuilder<ProfileData>(
         valueListenable: currentProfile,
         builder: (context, profile, _) {
           if (profile.role != UserRole.student) {
             return FloatingActionButton(
-              onPressed: () => _showForm(context, contestState, false),
+              onPressed: () => _showForm(context),
               child: const Icon(Icons.add),
             );
           }
@@ -164,57 +200,33 @@ class _ContestsScreenState extends State<ContestsScreen> {
     );
   }
 
-  Widget _buildTab(BuildContext context, ValueNotifier<List<ContestItem>> stateNotifier, bool isCourse) {
-    return ValueListenableBuilder<List<ContestItem>>(
-      valueListenable: stateNotifier,
-      builder: (context, items, _) {
-        final profile = currentProfile.value;
-        final isAdmin = profile.role != UserRole.student;
-        final visibleItems = items.where((j) {
-          if (isAdmin) return true;
-          return j.isApproved && j.isVisible;
-        }).toList();
-
-        return ListView.builder(
-          padding: const EdgeInsets.all(16.0),
-          itemCount: visibleItems.length,
-          itemBuilder: (context, index) {
-            final item = visibleItems[index];
-            if (isCourse) {
-              return _buildCourseCard(context, item, stateNotifier);
-            } else {
-              return _buildContestCard(context, item, stateNotifier);
-            }
-          },
-        );
-      },
-    );
-  }
-
-  Widget _buildContestCard(BuildContext context, ContestItem item, ValueNotifier<List<ContestItem>> stateNotifier) {
+  Widget _buildContestCard(ContestItem item) {
     final colors = Theme.of(context).colorScheme;
+    final isAdmin = currentProfile.value.role != UserRole.student;
+    final isSuperUser = currentProfile.value.designation == 'President' || currentProfile.value.designation == 'Vice President';
 
     return Card(
-      margin: const EdgeInsets.only(bottom: 12),
+      margin: const EdgeInsets.only(bottom: 16),
       elevation: 0,
-      color: colors.surface,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(16),
         side: BorderSide(color: colors.outline.withValues(alpha: 0.1)),
       ),
       child: Padding(
-        padding: const EdgeInsets.all(16.0),
+        padding: const EdgeInsets.all(20.0),
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Container(
-                  padding: const EdgeInsets.all(10),
+                  padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
                     color: item.iconColor.withValues(alpha: 0.1),
-                    shape: BoxShape.circle,
+                    borderRadius: BorderRadius.circular(12),
                   ),
-                  child: Icon(Icons.emoji_events, color: item.iconColor, size: 24),
+                  child: Icon(Icons.emoji_events, color: item.iconColor, size: 28),
                 ),
                 const SizedBox(width: 16),
                 Expanded(
@@ -222,174 +234,74 @@ class _ContestsScreenState extends State<ContestsScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Expanded(
-                            child: Row(
-                              children: [
-                                Expanded(child: Text(item.title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16))),
-                                if (!item.isApproved)
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                    decoration: BoxDecoration(color: Colors.red.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(4)),
-                                    child: const Text('PENDING', style: TextStyle(color: Colors.red, fontSize: 10, fontWeight: FontWeight.bold)),
-                                  ),
+                          Expanded(child: Text(item.title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18))),
+                          if (isAdmin)
+                            PopupMenuButton<String>(
+                              icon: const Icon(Icons.more_vert, size: 20),
+                              onSelected: (val) {
+                                if (val == 'edit') _showForm(context, existingItem: item);
+                                if (val == 'delete') ContestService.deleteContestFromDB(item);
+                                if (val == 'approve') ContestService.approveContest(item.id);
+                                if (val == 'visibility') ContestService.toggleContestVisibility(item.id, !item.isVisible);
+                              },
+                              itemBuilder: (_) => [
+                                if (!item.isApproved && isSuperUser)
+                                  const PopupMenuItem(value: 'approve', child: Text('Approve', style: TextStyle(color: Colors.green))),
+                                PopupMenuItem(value: 'visibility', child: Text(item.isVisible ? 'Hide' : 'Show')),
+                                const PopupMenuItem(value: 'edit', child: Text('Edit')),
+                                const PopupMenuItem(value: 'delete', child: Text('Delete', style: TextStyle(color: Colors.red))),
                               ],
                             ),
-                          ),
-                            _buildAdminMenu(item, stateNotifier, currentProfile.value),
                         ],
                       ),
-                      if (!item.isVisible)
-                        const Padding(
-                          padding: EdgeInsets.only(top: 4.0),
-                          child: Text('HIDDEN FROM MEMBERS', style: TextStyle(color: Colors.orange, fontSize: 10, fontWeight: FontWeight.bold)),
-                        ),
-                      const SizedBox(height: 6),
-                      Row(
-                        children: [
-                          Text(item.platform, style: TextStyle(color: colors.onSurface.withValues(alpha: 0.7), fontSize: 13)),
-                          const SizedBox(width: 8),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                            decoration: BoxDecoration(
-                              color: colors.error.withValues(alpha: 0.1),
-                              borderRadius: BorderRadius.circular(4),
-                            ),
-                            child: Text(item.level, style: TextStyle(color: colors.error, fontSize: 10, fontWeight: FontWeight.bold)),
-                          ),
-                        ],
-                      ),
+                      const SizedBox(height: 4),
+                      Text(item.platform, style: TextStyle(color: colors.primary, fontWeight: FontWeight.w600, fontSize: 14)),
                     ],
                   ),
                 ),
               ],
             ),
+            if (item.description.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              Text(item.description, style: TextStyle(color: colors.onSurface.withValues(alpha: 0.7), fontSize: 13)),
+            ],
             const SizedBox(height: 16),
             Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Row(
-                  children: [
-                    Icon(Icons.calendar_today, size: 14, color: colors.onSurface.withValues(alpha: 0.6)),
-                    const SizedBox(width: 6),
-                    Text(item.date, style: TextStyle(color: colors.onSurface.withValues(alpha: 0.6), fontSize: 13, fontWeight: FontWeight.w500)),
-                  ],
-                ),
-                ElevatedButton(
-                  onPressed: () => _launchURL(item.url),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: colors.primary,
-                    foregroundColor: Colors.white,
-                    elevation: 0,
-                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 0),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                if (item.level.isNotEmpty)
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(color: colors.secondaryContainer, borderRadius: BorderRadius.circular(6)),
+                    child: Text(item.level, style: TextStyle(color: colors.onSecondaryContainer, fontSize: 11, fontWeight: FontWeight.bold)),
                   ),
-                  child: const Text('Join Now'),
-                ),
+                if (item.level.isNotEmpty) const SizedBox(width: 12),
+                Icon(Icons.calendar_month, size: 14, color: colors.onSurface.withValues(alpha: 0.5)),
+                const SizedBox(width: 4),
+                Text(item.date, style: TextStyle(color: colors.onSurface.withValues(alpha: 0.6), fontSize: 12)),
+                const Spacer(),
+                if (!item.isApproved)
+                   const Text('PENDING', style: TextStyle(color: Colors.red, fontSize: 10, fontWeight: FontWeight.bold)),
               ],
             ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildCourseCard(BuildContext context, ContestItem item, ValueNotifier<List<ContestItem>> stateNotifier) {
-    final colors = Theme.of(context).colorScheme;
-    return Card(
-      margin: const EdgeInsets.only(bottom: 12),
-      elevation: 0,
-      color: colors.surface,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-        side: BorderSide(color: colors.outline.withValues(alpha: 0.1)),
-      ),
-      child: ListTile(
-        contentPadding: const EdgeInsets.all(16),
-        leading: Container(
-          padding: const EdgeInsets.all(10),
-          decoration: BoxDecoration(
-            color: item.iconColor.withOpacity(0.1),
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: Icon(Icons.computer, color: item.iconColor),
-        ),
-        title: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Expanded(
-              child: Row(
-                children: [
-                  Expanded(child: Text(item.title, style: const TextStyle(fontWeight: FontWeight.bold))),
-                  if (!item.isApproved)
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                      decoration: BoxDecoration(color: Colors.red.withOpacity(0.1), borderRadius: BorderRadius.circular(4)),
-                      child: const Text('PENDING', style: TextStyle(color: Colors.red, fontSize: 10, fontWeight: FontWeight.bold)),
-                    ),
-                ],
+            const Divider(height: 32),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: () => _launchURL(item.url),
+                icon: const Icon(Icons.launch, size: 18),
+                label: const Text('Join Now', style: TextStyle(fontWeight: FontWeight.bold)),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: colors.primary,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
               ),
             ),
-            _buildAdminMenu(item, stateNotifier, currentProfile.value),
           ],
         ),
-        subtitle: Padding(
-          padding: const EdgeInsets.only(top: 8.0),
-          child: Row(
-            children: [
-              Flexible(
-                child: Text(
-                  item.platform,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-              const SizedBox(width: 8),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                decoration: BoxDecoration(
-                  color: colors.primary.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(4),
-                ),
-                child: Text(item.level, style: TextStyle(color: colors.primary, fontSize: 10, fontWeight: FontWeight.bold)),
-              ),
-            ],
-          ),
-        ),
-        trailing: ElevatedButton(
-          onPressed: () => _launchURL(item.url),
-          style: ElevatedButton.styleFrom(
-            backgroundColor: colors.surfaceContainerHighest,
-            foregroundColor: colors.primary,
-            elevation: 0,
-          ),
-          child: const Text('Details'),
-        ),
       ),
-    );
-  }
-
-  Widget _buildAdminMenu(ContestItem item, ValueNotifier<List<ContestItem>> stateNotifier, ProfileData profile) {
-    return PopupMenuButton<String>(
-      icon: const Icon(Icons.more_vert, size: 20),
-      onSelected: (value) {
-        if (value == 'edit') {
-          _showForm(context, stateNotifier, false, existingItem: item);
-        } else if (value == 'delete') {
-          _deleteItem(item, stateNotifier);
-        } else if (value == 'approve') {
-          ContestService.approveContest(item.id);
-        } else if (value == 'visibility') {
-          ContestService.toggleContestVisibility(item.id, !item.isVisible);
-        }
-      },
-      itemBuilder: (context) => [
-        if (!item.isApproved && (profile.designation == 'President' || profile.designation == 'Vice President'))
-          const PopupMenuItem(value: 'approve', child: Text('Approve', style: TextStyle(color: Colors.green))),
-        PopupMenuItem(value: 'visibility', child: Text(item.isVisible ? 'Hide' : 'Show')),
-        const PopupMenuItem(value: 'edit', child: Text('Edit')),
-        const PopupMenuItem(value: 'delete', child: Text('Delete', style: TextStyle(color: Colors.red))),
-      ],
     );
   }
 }

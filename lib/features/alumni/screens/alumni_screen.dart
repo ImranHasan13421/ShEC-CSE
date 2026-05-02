@@ -5,6 +5,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../../backend/services/alumni_service.dart';
 import '../../profile/models/profile_state.dart';
 import '../models/alumni_state.dart';
+import 'alumni_detail_screen.dart';
 
 class AlumniScreen extends StatefulWidget {
   const AlumniScreen({super.key});
@@ -266,7 +267,12 @@ class _AlumniScreenState extends State<AlumniScreen> {
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: InkWell(
         borderRadius: BorderRadius.circular(16),
-        onTap: () => _showAlumniDetails(alumni),
+        onTap: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => AlumniDetailScreen(alumni: alumni)),
+          );
+        },
         child: Padding(
           padding: const EdgeInsets.all(16),
           child: Row(
@@ -339,71 +345,6 @@ class _AlumniScreenState extends State<AlumniScreen> {
                 ),
               ),
             ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  void _showAlumniDetails(AlumniItem alumni) {
-    final colors = Theme.of(context).colorScheme;
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
-      builder: (context) => DraggableScrollableSheet(
-        expand: false,
-        initialChildSize: 0.7,
-        maxChildSize: 0.95,
-        builder: (context, scrollController) => SingleChildScrollView(
-          controller: scrollController,
-          child: Padding(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                CircleAvatar(
-                  radius: 60,
-                  backgroundImage: alumni.imagePath.isNotEmpty ? NetworkImage(alumni.imagePath) : null,
-                  child: alumni.imagePath.isEmpty ? Text(alumni.name[0].toUpperCase(), style: const TextStyle(fontSize: 48)) : null,
-                ),
-                const SizedBox(height: 16),
-                Text(alumni.name, style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
-                if (alumni.currentPosition.isNotEmpty)
-                  Text('${alumni.currentPosition} @ ${alumni.company}', style: TextStyle(color: colors.primary, fontWeight: FontWeight.bold)),
-                const Divider(height: 32),
-                if (alumni.email.isNotEmpty || alumni.phone.isNotEmpty)
-                  Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-                    if (alumni.phone.isNotEmpty)
-                      ElevatedButton.icon(
-                        onPressed: () => launchUrl(Uri.parse('tel:${alumni.phone}')),
-                        icon: const Icon(Icons.phone, size: 16),
-                        label: const Text('Call'),
-                      ),
-                    if (alumni.email.isNotEmpty) ...[
-                      const SizedBox(width: 12),
-                      ElevatedButton.icon(
-                        onPressed: () => launchUrl(Uri.parse('mailto:${alumni.email}')),
-                        icon: const Icon(Icons.email, size: 16),
-                        label: const Text('Email'),
-                      ),
-                    ],
-                  ]),
-                if (alumni.areasOfExpertise.isNotEmpty) ...[
-                  const SizedBox(height: 16),
-                  const Text('Areas of Expertise', style: TextStyle(fontWeight: FontWeight.bold)),
-                  const SizedBox(height: 8),
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: alumni.areasOfExpertise.map((a) => Chip(
-                      label: Text(a),
-                      backgroundColor: colors.primaryContainer,
-                    )).toList(),
-                  ),
-                ],
-              ],
-            ),
           ),
         ),
       ),

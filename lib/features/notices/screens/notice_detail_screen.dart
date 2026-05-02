@@ -13,84 +13,138 @@ class NoticeDetailScreen extends StatelessWidget {
     final isAdmin = currentProfile.value.role != UserRole.student;
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Notice Details'),
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(24.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            if (notice.imagePath != null && notice.imagePath!.isNotEmpty)
-              ClipRRect(
-                borderRadius: BorderRadius.circular(16),
-                child: Image.network(
-                  notice.imagePath!,
-                  width: double.infinity,
-                  fit: BoxFit.cover,
-                  errorBuilder: (context, error, stackTrace) => Container(
-                    height: 200,
-                    color: colors.surfaceContainerHighest,
-                    child: const Center(child: Icon(Icons.broken_image, size: 50)),
-                  ),
-                ),
+      backgroundColor: colors.surface,
+      body: CustomScrollView(
+        slivers: [
+          SliverAppBar(
+            expandedHeight: notice.imagePath != null && notice.imagePath!.isNotEmpty ? 300 : 120,
+            pinned: true,
+            stretch: true,
+            backgroundColor: colors.primary,
+            leading: Container(
+              margin: const EdgeInsets.all(8),
+              decoration: const BoxDecoration(color: Colors.black26, shape: BoxShape.circle),
+              child: IconButton(
+                icon: const Icon(Icons.arrow_back, color: Colors.white),
+                onPressed: () => Navigator.pop(context),
               ),
-            const SizedBox(height: 24),
-            Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: notice.iconColor.withOpacity(0.1),
-                    shape: BoxShape.circle,
-                  ),
-                  child: Icon(notice.icon, color: notice.iconColor),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+            ),
+            flexibleSpace: FlexibleSpaceBar(
+              background: notice.imagePath != null && notice.imagePath!.isNotEmpty
+                  ? Image.network(
+                      notice.imagePath!,
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) => Container(
+                        color: colors.primaryContainer,
+                        child: const Center(child: Icon(Icons.broken_image, size: 50, color: Colors.white54)),
+                      ),
+                    )
+                  : Container(
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                          colors: [colors.primary, colors.secondary],
+                        ),
+                      ),
+                      child: Center(
+                        child: Icon(notice.icon, size: 64, color: Colors.white.withValues(alpha: 0.5)),
+                      ),
+                    ),
+            ),
+          ),
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.all(24.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
                     children: [
-                      Text(notice.title, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
-                      Text(notice.date, style: TextStyle(color: colors.onSurface.withOpacity(0.6))),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: notice.iconColor.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(notice.icon, size: 16, color: notice.iconColor),
+                            const SizedBox(width: 8),
+                            Text(
+                              'Notice',
+                              style: TextStyle(color: notice.iconColor, fontWeight: FontWeight.bold, fontSize: 12),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const Spacer(),
+                      Text(
+                        notice.date,
+                        style: TextStyle(color: colors.onSurface.withValues(alpha: 0.5), fontSize: 13),
+                      ),
                     ],
                   ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            Wrap(
-              spacing: 8,
-              children: notice.tags.map((tag) => Chip(
-                label: Text(tag, style: const TextStyle(fontSize: 12)),
-                backgroundColor: notice.tagColor.withOpacity(0.1),
-                side: BorderSide.none,
-              )).toList(),
-            ),
-            const Divider(height: 48),
-            Text(notice.subtitle, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 12),
-            Text(
-              notice.description,
-              style: const TextStyle(fontSize: 16, height: 1.6),
-            ),
-            
-            if (isAdmin && notice.createdByName.isNotEmpty) ...[
-              const Divider(height: 48),
-              Row(
-                children: [
-                  const Icon(Icons.person, size: 16, color: Colors.grey),
-                  const SizedBox(width: 8),
+                  const SizedBox(height: 20),
                   Text(
-                    'Added by: ${notice.createdByName}',
-                    style: const TextStyle(color: Colors.grey, fontSize: 13, fontStyle: FontStyle.italic),
+                    notice.title,
+                    style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold, height: 1.2),
                   ),
+                  const SizedBox(height: 12),
+                  if (notice.subtitle.isNotEmpty)
+                    Text(
+                      notice.subtitle,
+                      style: TextStyle(fontSize: 18, color: colors.onSurface.withValues(alpha: 0.7), fontWeight: FontWeight.w500),
+                    ),
+                  const SizedBox(height: 16),
+                  if (notice.tags.isNotEmpty)
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: notice.tags.map((tag) => Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: colors.secondaryContainer,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          tag,
+                          style: TextStyle(color: colors.onSecondaryContainer, fontSize: 12, fontWeight: FontWeight.w600),
+                        ),
+                      )).toList(),
+                    ),
+                  const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 24),
+                    child: Divider(),
+                  ),
+                  Text(
+                    notice.description,
+                    style: TextStyle(fontSize: 16, height: 1.8, color: colors.onSurface.withValues(alpha: 0.8)),
+                  ),
+                  if (isAdmin && notice.createdByName.isNotEmpty) ...[
+                    const SizedBox(height: 48),
+                    Row(
+                      children: [
+                        CircleAvatar(
+                          radius: 12,
+                          backgroundColor: colors.primaryContainer,
+                          child: Icon(Icons.person, size: 14, color: colors.primary),
+                        ),
+                        const SizedBox(width: 10),
+                        Text(
+                          'Posted by ${notice.createdByName}',
+                          style: TextStyle(color: colors.onSurface.withValues(alpha: 0.5), fontStyle: FontStyle.italic, fontSize: 13),
+                        ),
+                      ],
+                    ),
+                  ],
+                  const SizedBox(height: 60),
                 ],
               ),
-            ],
-            const SizedBox(height: 40),
-          ],
-        ),
+            ),
+          ),
+        ],
       ),
     );
   }

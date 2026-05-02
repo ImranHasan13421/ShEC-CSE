@@ -3,11 +3,14 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../features/notices/models/notice_state.dart';
 import '../../features/profile/models/profile_state.dart';
+import '../../core/services/cache_service.dart';
 
 class NoticeService {
   static final SupabaseClient _client = Supabase.instance.client;
 
-  static Future<void> fetchNotices() async {
+  static Future<void> fetchNotices({bool forceRefresh = false}) async {
+    if (!forceRefresh && !CacheService.isStale(CacheKeys.notices)) return;
+
     final isAdmin = currentProfile.value.role != UserRole.student;
     
     var query = _client.from('notices').select();
@@ -31,6 +34,7 @@ class NoticeService {
 
     clubNoticesState.value = clubNotices;
     deptNoticesState.value = deptNotices;
+    CacheService.markFresh(CacheKeys.notices);
   }
 
   static Future<void> addNoticeToDB(NoticeItem notice, String category) async {
@@ -54,32 +58,32 @@ class NoticeService {
     } else {
       deptNoticesState.value = List.from(deptNoticesState.value)..insert(0, newNotice);
     }
+    CacheService.invalidate(CacheKeys.notices);
   }
 
   static Future<void> updateNoticeInDB(NoticeItem notice, String category) async {
-    final profile = currentProfile.value;
-    final isSuperUser = profile.designation == 'President' || profile.designation == 'Vice President';
-    
     final data = notice.toJson(category);
-    // Optional: If committee edits an approved notice, does it go back to pending?
-    // Let's assume editing doesn't change approval status, but we don't overwrite it here
-    // unless explicitly approving.
     data.remove('is_approved'); // Don't overwrite existing status on normal edit
     
     await _client
         .from('notices')
         .update(data)
         .eq('id', notice.id);
+    
+    CacheService.invalidate(CacheKeys.notices);
+    fetchNotices(forceRefresh: true);
   }
 
   static Future<void> approveNotice(String id) async {
     await _client.from('notices').update({'is_approved': true}).eq('id', id);
-    fetchNotices(); // Refresh to update UI
+    CacheService.invalidate(CacheKeys.notices);
+    fetchNotices(forceRefresh: true);
   }
 
   static Future<void> toggleNoticeVisibility(String id, bool isVisible) async {
     await _client.from('notices').update({'is_visible': isVisible}).eq('id', id);
-    fetchNotices();
+    CacheService.invalidate(CacheKeys.notices);
+    fetchNotices(forceRefresh: true);
   }
 
   static Future<void> deleteNoticeFromDB(String id, String category) async {
@@ -95,15 +99,16 @@ class NoticeService {
       deptNoticesState.value = List.from(deptNoticesState.value)
         ..removeWhere((notice) => notice.id == id);
     }
+    CacheService.invalidate(CacheKeys.notices);
   }
 
   static Future<String?> uploadImage(File file) async {
     try {
-      final fileName = '${DateTime.now().millisecondsSinceEpoch}_${file.path.split('/').last}';
+      final fileName = 'notice_${DateTime.now().millisecondsSinceEpoch}_${file.path.split('/').last}';
       await _client.storage.from('notice_images').upload(fileName, file);
       return _client.storage.from('notice_images').getPublicUrl(fileName);
     } catch (e) {
-      debugPrint('Error uploading image: $e');
+      debugPrint('Error uploading notice image: $e');
       return null;
     }
   }

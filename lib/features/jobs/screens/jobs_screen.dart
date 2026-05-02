@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:ShEC_CSE/features/profile/models/profile_state.dart';
 import '../models/job_state.dart';
+import 'job_detail_screen.dart';
 import '../../../backend/services/job_service.dart';
 
 class JobsScreen extends StatefulWidget {
@@ -17,6 +18,7 @@ class _JobsScreenState extends State<JobsScreen> {
     super.initState();
     JobService.fetchJobs();
   }
+
   void _toggleStar(JobItem job, ValueNotifier<List<JobItem>> stateNotifier) async {
     try {
       job.isStarred = !job.isStarred;
@@ -46,9 +48,14 @@ class _JobsScreenState extends State<JobsScreen> {
     final salaryController = TextEditingController(text: existingJob?.salary ?? '');
     final deadlineController = TextEditingController(text: existingJob?.deadline ?? '');
     final jobTypeController = TextEditingController(text: existingJob?.jobType ?? '');
+    final descriptionController = TextEditingController(text: existingJob?.description ?? '');
+    final applyUrlController = TextEditingController(text: existingJob?.applyUrl ?? '');
+    
     bool isVisible = existingJob?.isVisible ?? true;
 
-    ValueNotifier<List<JobItem>> selectedNotifier = defaultStateNotifier ?? recommendedJobsState;
+    // No longer needing category selection as per user request. 
+    // We will default to 'recent' for new jobs, or use the existing one if editing.
+    ValueNotifier<List<JobItem>> targetNotifier = defaultStateNotifier ?? recentJobsState;
 
     showModalBottomSheet(
       context: context,
@@ -57,7 +64,6 @@ class _JobsScreenState extends State<JobsScreen> {
       builder: (modalContext) {
         return StatefulBuilder(
           builder: (BuildContext context, StateSetter setModalState) {
-
             return Padding(
               padding: EdgeInsets.only(
                 bottom: MediaQuery.of(modalContext).viewInsets.bottom,
@@ -73,32 +79,14 @@ class _JobsScreenState extends State<JobsScreen> {
                     Text(existingJob == null ? 'Add Job' : 'Edit Job', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
                     const SizedBox(height: 16),
                     
-                    if (existingJob == null) ...[
-                      const Text('Job Category', style: TextStyle(fontWeight: FontWeight.bold)),
-                      const SizedBox(height: 8),
-                      SegmentedButton<ValueNotifier<List<JobItem>>>(
-                        segments: [
-                          ButtonSegment(value: recommendedJobsState, label: const Text('Recommended')),
-                          ButtonSegment(value: recentJobsState, label: const Text('Recent')),
-                        ],
-                        selected: {selectedNotifier},
-                        onSelectionChanged: (Set<ValueNotifier<List<JobItem>>> newSelection) {
-                          setModalState(() {
-                            selectedNotifier = newSelection.first;
-                          });
-                        },
-                      ),
-                      const SizedBox(height: 16),
-                    ],
-
                     TextField(
                       controller: roleController,
-                      decoration: const InputDecoration(labelText: 'Job Role', border: OutlineInputBorder()),
+                      decoration: const InputDecoration(labelText: 'Job Role *', border: OutlineInputBorder()),
                     ),
                     const SizedBox(height: 12),
                     TextField(
                       controller: companyController,
-                      decoration: const InputDecoration(labelText: 'Company', border: OutlineInputBorder()),
+                      decoration: const InputDecoration(labelText: 'Company *', border: OutlineInputBorder()),
                     ),
                     const SizedBox(height: 12),
                     TextField(
@@ -121,6 +109,17 @@ class _JobsScreenState extends State<JobsScreen> {
                       decoration: const InputDecoration(labelText: 'Job Type (e.g., Internship)', border: OutlineInputBorder()),
                     ),
                     const SizedBox(height: 12),
+                    TextField(
+                      controller: descriptionController,
+                      decoration: const InputDecoration(labelText: 'Job Description', border: OutlineInputBorder()),
+                      maxLines: 3,
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: applyUrlController,
+                      decoration: const InputDecoration(labelText: 'Apply URL (LinkedIn, GForms, etc)', border: OutlineInputBorder()),
+                    ),
+                    const SizedBox(height: 12),
                     SwitchListTile(
                       title: const Text('Visible to Members'),
                       value: isVisible,
@@ -138,44 +137,36 @@ class _JobsScreenState extends State<JobsScreen> {
                               if (existingJob == null) {
                                 final newJob = JobItem(
                                   id: '',
-                                  company: companyController.text,
-                                  role: roleController.text,
-                                  location: locationController.text,
-                                  salary: salaryController.text,
-                                  deadline: deadlineController.text,
-                                  jobType: jobTypeController.text,
+                                  company: companyController.text.trim(),
+                                  role: roleController.text.trim(),
+                                  location: locationController.text.trim(),
+                                  salary: salaryController.text.trim(),
+                                  deadline: deadlineController.text.trim(),
+                                  jobType: jobTypeController.text.trim(),
+                                  description: descriptionController.text.trim(),
+                                  applyUrl: applyUrlController.text.trim(),
                                   typeColor: Colors.teal,
                                   iconColor: Colors.blue,
                                   icon: Icons.work,
                                   isVisible: isVisible,
                                   createdByName: currentProfile.value.name,
                                 );
-                                String category = selectedNotifier == recommendedJobsState ? 'recommended' : 'recent';
-                                await JobService.addJobToDB(newJob, category);
+                                // Default to 'recent' for new jobs
+                                await JobService.addJobToDB(newJob, 'recent');
                                 if (mounted) messenger.showSnackBar(const SnackBar(content: Text('Job created successfully')));
                               } else {
-                                final targetNotifier = defaultStateNotifier!;
-                                final updatedJob = JobItem(
-                                  id: existingJob.id,
-                                  company: companyController.text,
-                                  role: roleController.text,
-                                  location: locationController.text,
-                                  salary: salaryController.text,
-                                  deadline: deadlineController.text,
-                                  jobType: jobTypeController.text,
-                                  typeColor: existingJob.typeColor,
-                                  iconColor: existingJob.iconColor,
-                                  icon: existingJob.icon,
-                                  isStarred: existingJob.isStarred,
+                                final updatedJob = existingJob.copyWith(
+                                  company: companyController.text.trim(),
+                                  role: roleController.text.trim(),
+                                  location: locationController.text.trim(),
+                                  salary: salaryController.text.trim(),
+                                  deadline: deadlineController.text.trim(),
+                                  jobType: jobTypeController.text.trim(),
+                                  description: descriptionController.text.trim(),
+                                  applyUrl: applyUrlController.text.trim(),
                                   isVisible: isVisible,
-                                  createdByName: existingJob.createdByName,
                                 );
-                                final index = targetNotifier.value.indexOf(existingJob);
-                                if (index != -1) {
-                                  final updatedList = List<JobItem>.from(targetNotifier.value);
-                                  updatedList[index] = updatedJob;
-                                  targetNotifier.value = updatedList;
-                                }
+                                
                                 String category = targetNotifier == recommendedJobsState ? 'recommended' : 'recent';
                                 await JobService.updateJobInDB(updatedJob, category);
                                 if (mounted) messenger.showSnackBar(const SnackBar(content: Text('Job updated successfully')));
@@ -202,49 +193,55 @@ class _JobsScreenState extends State<JobsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: ListView(
-        padding: const EdgeInsets.all(16.0),
-        children: [
-          _buildSectionTitle(context, 'Recommended for You'),
-          ValueListenableBuilder<List<JobItem>>(
-            valueListenable: recommendedJobsState,
-            builder: (context, jobs, _) {
-              final profile = currentProfile.value;
-              final isAdmin = profile.role != UserRole.student;
-              final visibleJobs = jobs.where((j) {
-                if (isAdmin) return true;
-                return j.isApproved && j.isVisible;
-              }).toList();
-
-              if (visibleJobs.isEmpty) {
-                return const Padding(padding: EdgeInsets.all(16), child: Center(child: Text('No recommended jobs.')));
-              }
-              return Column(
-                children: visibleJobs.map((job) => _buildJobCard(job, recommendedJobsState)).toList(),
-              );
-            },
-          ),
-          const SizedBox(height: 16),
-          _buildSectionTitle(context, 'Recently Posted'),
-          ValueListenableBuilder<List<JobItem>>(
-            valueListenable: recentJobsState,
-            builder: (context, jobs, _) {
-              final profile = currentProfile.value;
-              final isAdmin = profile.role != UserRole.student;
-              final visibleJobs = jobs.where((j) {
-                if (isAdmin) return true;
-                return j.isApproved && j.isVisible;
-              }).toList();
-
-              if (visibleJobs.isEmpty) {
-                return const Padding(padding: EdgeInsets.all(16), child: Center(child: Text('No recent jobs.')));
-              }
-              return Column(
-                children: visibleJobs.map((job) => _buildJobCard(job, recentJobsState)).toList(),
-              );
-            },
-          ),
-        ],
+      appBar: AppBar(
+        title: const Text('Job Board'),
+      ),
+      body: RefreshIndicator(
+        onRefresh: () => JobService.fetchJobs(),
+        child: ListView(
+          padding: const EdgeInsets.all(16.0),
+          children: [
+            _buildSectionTitle(context, 'Recommended for You'),
+            ValueListenableBuilder<List<JobItem>>(
+              valueListenable: recommendedJobsState,
+              builder: (context, jobs, _) {
+                final profile = currentProfile.value;
+                final isAdmin = profile.role != UserRole.student;
+                final visibleJobs = jobs.where((j) {
+                  if (isAdmin) return true;
+                  return j.isApproved && j.isVisible;
+                }).toList();
+  
+                if (visibleJobs.isEmpty) {
+                  return const Padding(padding: EdgeInsets.symmetric(vertical: 16), child: Center(child: Text('No recommended jobs.')));
+                }
+                return Column(
+                  children: visibleJobs.map((job) => _buildJobCard(job, recommendedJobsState)).toList(),
+                );
+              },
+            ),
+            const SizedBox(height: 16),
+            _buildSectionTitle(context, 'Recently Posted'),
+            ValueListenableBuilder<List<JobItem>>(
+              valueListenable: recentJobsState,
+              builder: (context, jobs, _) {
+                final profile = currentProfile.value;
+                final isAdmin = profile.role != UserRole.student;
+                final visibleJobs = jobs.where((j) {
+                  if (isAdmin) return true;
+                  return j.isApproved && j.isVisible;
+                }).toList();
+  
+                if (visibleJobs.isEmpty) {
+                  return const Padding(padding: EdgeInsets.symmetric(vertical: 16), child: Center(child: Text('No recent jobs.')));
+                }
+                return Column(
+                  children: visibleJobs.map((job) => _buildJobCard(job, recentJobsState)).toList(),
+                );
+              },
+            ),
+          ],
+        ),
       ),
       floatingActionButton: ValueListenableBuilder<ProfileData>(
         valueListenable: currentProfile,
@@ -433,228 +430,6 @@ class _JobsScreenState extends State<JobsScreen> {
               ),
             ],
           ),
-        ),
-      ),
-    );
-  }
-}
-
-// --- Job Details Screen ---
-class JobDetailScreen extends StatelessWidget {
-  final JobItem job;
-
-  const JobDetailScreen({super.key, required this.job});
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = Theme.of(context).colorScheme;
-
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Job Details'),
-      ),
-      body: Column(
-        children: [
-          Expanded(
-            child: ListView(
-              padding: const EdgeInsets.all(16.0),
-              children: [
-                // Header Card
-                Card(
-                  elevation: 0,
-                  color: colors.surface,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    side: BorderSide(color: colors.outline.withValues(alpha: 0.1)),
-                  ),
-                  child: Padding(
-                    padding: const EdgeInsets.all(16.0),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(job.role, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
-                        const SizedBox(height: 8),
-                        Row(
-                          children: [
-                            Icon(Icons.business, size: 16, color: colors.onSurface.withValues(alpha: 0.6)),
-                            const SizedBox(width: 8),
-                            Text(job.company, style: TextStyle(fontSize: 16, color: colors.onSurface.withValues(alpha: 0.8))),
-                          ],
-                        ),
-                        const SizedBox(height: 8),
-                        Row(
-                          children: [
-                            Icon(Icons.location_on, size: 16, color: colors.onSurface.withValues(alpha: 0.6)),
-                            const SizedBox(width: 8),
-                            Text(job.location, style: TextStyle(fontSize: 14, color: colors.onSurface.withValues(alpha: 0.8))),
-                          ],
-                        ),
-                        const SizedBox(height: 8),
-                        Row(
-                          children: [
-                            Icon(Icons.monetization_on, size: 16, color: colors.onSurface.withValues(alpha: 0.6)),
-                            const SizedBox(width: 8),
-                            Text(job.salary, style: TextStyle(fontSize: 14, color: colors.onSurface.withValues(alpha: 0.8))),
-                          ],
-                        ),
-                        const SizedBox(height: 16),
-                        Row(
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                              decoration: BoxDecoration(
-                                color: job.typeColor.withValues(alpha: 0.1),
-                                borderRadius: BorderRadius.circular(6),
-                              ),
-                              child: Text(job.jobType, style: TextStyle(color: job.typeColor, fontWeight: FontWeight.bold)),
-                            ),
-                            const SizedBox(width: 8),
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                              decoration: BoxDecoration(
-                                color: colors.error.withValues(alpha: 0.1),
-                                borderRadius: BorderRadius.circular(6),
-                              ),
-                              child: Text('Deadline: ${job.deadline}', style: TextStyle(color: colors.error, fontWeight: FontWeight.bold)),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                 const SizedBox(height: 16),
-
-                 // Description
-                 if (job.description.isNotEmpty)
-                   _buildTextSection(context, title: 'About the Role', content: job.description),
-                 if (job.description.isNotEmpty) const SizedBox(height: 16),
-
-                 // Responsibilities Card
-                 if (job.responsibilities.isNotEmpty)
-                   _buildInfoSection(
-                     context,
-                     title: 'Responsibilities',
-                     icon: Icons.check_circle,
-                     iconColor: Colors.teal,
-                     items: job.responsibilities,
-                   ),
-                 if (job.responsibilities.isNotEmpty) const SizedBox(height: 16),
-
-                 // Requirements Card
-                 if (job.requirements.isNotEmpty)
-                   _buildInfoSection(
-                     context,
-                     title: 'Requirements',
-                     icon: Icons.star,
-                     iconColor: Colors.amber,
-                     items: job.requirements,
-                   ),
-                 if (job.requirements.isEmpty && job.responsibilities.isEmpty && job.description.isEmpty)
-                   Padding(
-                     padding: const EdgeInsets.all(24),
-                     child: Center(
-                       child: Text('No additional details provided.', style: TextStyle(color: Colors.grey.shade500)),
-                     ),
-                   ),
-               ],
-             ),
-           ),
-
-           // Bottom Apply Button
-           Container(
-             padding: const EdgeInsets.all(16.0),
-             decoration: BoxDecoration(
-               color: Theme.of(context).colorScheme.surface,
-               boxShadow: [
-                 BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10, offset: const Offset(0, -5)),
-               ],
-             ),
-             child: SafeArea(
-               child: SizedBox(
-                 width: double.infinity,
-                 child: ElevatedButton(
-                   onPressed: () async {
-                     if (job.applyUrl.isNotEmpty) {
-                       final uri = Uri.parse(job.applyUrl);
-                       if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
-                         if (context.mounted) {
-                           ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Could not open apply link.')));
-                         }
-                       }
-                     } else {
-                       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('No apply link provided.')));
-                     }
-                   },
-                   style: ElevatedButton.styleFrom(
-                     backgroundColor: Theme.of(context).colorScheme.primary,
-                     foregroundColor: Colors.white,
-                     padding: const EdgeInsets.symmetric(vertical: 16),
-                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                   ),
-                   child: const Text('Apply Now', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-                 ),
-               ),
-             ),
-           ),
-         ],
-       ),
-    );
-  }
-
-  Widget _buildInfoSection(BuildContext context, {required String title, required IconData icon, required Color iconColor, required List<String> items}) {
-    final colors = Theme.of(context).colorScheme;
-    return Card(
-      elevation: 0,
-      color: colors.surface,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-        side: BorderSide(color: colors.outline.withValues(alpha: 0.1)),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 16),
-            ...items.map((item) => Padding(
-              padding: const EdgeInsets.only(bottom: 12.0),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Icon(icon, size: 20, color: iconColor),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Text(item, style: TextStyle(color: colors.onSurface.withOpacity(0.8), height: 1.4)),
-                  ),
-                ],
-              ),
-            )),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildTextSection(BuildContext context, {required String title, required String content}) {
-    final colors = Theme.of(context).colorScheme;
-    return Card(
-      elevation: 0,
-      color: colors.surface,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-        side: BorderSide(color: colors.outline.withValues(alpha: 0.1)),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 12),
-            Text(content, style: TextStyle(color: colors.onSurface.withOpacity(0.8), height: 1.6)),
-          ],
         ),
       ),
     );

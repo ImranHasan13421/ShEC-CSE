@@ -25,7 +25,8 @@ class JobService {
       final job = JobItem.fromJson(row);
       if (row['category'] == 'recommended') {
         recommended.add(job);
-      } else if (row['category'] == 'recent') {
+      } else {
+        // Everything else is treated as recent for now
         recent.add(job);
       }
     }
@@ -56,6 +57,7 @@ class JobService {
     } else {
       recentJobsState.value = List.from(recentJobsState.value)..insert(0, newJob);
     }
+    CacheService.invalidate(CacheKeys.jobsRecommended);
   }
 
   static Future<void> updateJobInDB(JobItem job, String category) async {
@@ -66,6 +68,9 @@ class JobService {
         .from('jobs')
         .update(data)
         .eq('id', job.id);
+        
+    CacheService.invalidate(CacheKeys.jobsRecommended);
+    fetchJobs(forceRefresh: true);
   }
 
   static Future<void> approveJob(String id) async {
@@ -93,5 +98,6 @@ class JobService {
       recentJobsState.value = List.from(recentJobsState.value)
         ..removeWhere((job) => job.id == id);
     }
+    CacheService.invalidate(CacheKeys.jobsRecommended);
   }
 }

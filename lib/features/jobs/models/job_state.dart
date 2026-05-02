@@ -89,9 +89,50 @@ class JobItem {
       'apply_url': applyUrl,
     };
   }
+
+  JobItem copyWith({
+    String? id,
+    String? company,
+    String? role,
+    String? location,
+    String? salary,
+    String? deadline,
+    String? jobType,
+    Color? typeColor,
+    Color? iconColor,
+    IconData? icon,
+    bool? isStarred,
+    bool? isApproved,
+    bool? isVisible,
+    String? createdByName,
+    String? description,
+    List<String>? requirements,
+    List<String>? responsibilities,
+    String? applyUrl,
+  }) {
+    return JobItem(
+      id: id ?? this.id,
+      company: company ?? this.company,
+      role: role ?? this.role,
+      location: location ?? this.location,
+      salary: salary ?? this.salary,
+      deadline: deadline ?? this.deadline,
+      jobType: jobType ?? this.jobType,
+      typeColor: typeColor ?? this.typeColor,
+      iconColor: iconColor ?? this.iconColor,
+      icon: icon ?? this.icon,
+      isStarred: isStarred ?? this.isStarred,
+      isApproved: isApproved ?? this.isApproved,
+      isVisible: isVisible ?? this.isVisible,
+      createdByName: createdByName ?? this.createdByName,
+      description: description ?? this.description,
+      requirements: requirements ?? this.requirements,
+      responsibilities: responsibilities ?? this.responsibilities,
+      applyUrl: applyUrl ?? this.applyUrl,
+    );
+  }
 }
 
 // Global Notifiers for Jobs
 final ValueNotifier<List<JobItem>> recommendedJobsState = ValueNotifier([]);
 final ValueNotifier<List<JobItem>> recentJobsState = ValueNotifier([]);
-

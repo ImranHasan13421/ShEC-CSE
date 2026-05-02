@@ -50,17 +50,11 @@ class _HomeLayoutState extends State<HomeLayout> {
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
 
-    // --- Added PopScope here ---
     return PopScope(
-      canPop: _currentIndex == 0, // Only allow popping (exiting app) if on the Home tab
+      canPop: _currentIndex == 0,
       onPopInvoked: (didPop) {
-        if (didPop) {
-          return; // The app successfully exited, do nothing
-        }
-        // If canPop was false (we are on another tab), switch back to the Home tab
-        setState(() {
-          _currentIndex = 0;
-        });
+        if (didPop) return;
+        setState(() => _currentIndex = 0);
       },
       child: Scaffold(
         appBar: AppBar(
@@ -77,7 +71,6 @@ class _HomeLayoutState extends State<HomeLayout> {
           ),
           centerTitle: true,
           actions: [
-            // Dynamic Profile Icon in AppBar
             ValueListenableBuilder<ProfileData>(
               valueListenable: currentProfile,
               builder: (context, profile, _) {
@@ -87,24 +80,7 @@ class _HomeLayoutState extends State<HomeLayout> {
                     onTap: () {
                       Navigator.push(context, MaterialPageRoute(builder: (_) => const ProfileScreen()));
                     },
-                    child: TweenAnimationBuilder<double>(
-                      tween: Tween(begin: 0.8, end: 1.0),
-                      duration: const Duration(seconds: 1),
-                      curve: Curves.elasticOut,
-                      builder: (context, scale, child) {
-                        return Transform.scale(scale: scale, child: child);
-                      },
-                      child: CircleAvatar(
-                        radius: 16,
-                        backgroundColor: colors.primaryContainer,
-                        backgroundImage: profile.imagePath != null && profile.imagePath!.startsWith('http')
-                            ? NetworkImage(profile.imagePath!) as ImageProvider
-                            : null,
-                        child: (profile.imagePath == null || !profile.imagePath!.startsWith('http'))
-                            ? Icon(Icons.person, color: colors.primary, size: 20)
-                            : null,
-                      ),
-                    ),
+                    child: _AnimatedProfileIcon(profile: profile, colors: colors),
                   ),
                 );
               },
@@ -148,7 +124,6 @@ class _HomeLayoutState extends State<HomeLayout> {
       child: ListView(
         padding: EdgeInsets.zero,
         children: [
-          // Dynamic Drawer Header
           ValueListenableBuilder<ProfileData>(
             valueListenable: currentProfile,
             builder: (context, profile, _) {
@@ -158,7 +133,7 @@ class _HomeLayoutState extends State<HomeLayout> {
                 accountEmail: Text('${profile.designation} • ${profile.email}'),
                 currentAccountPicture: GestureDetector(
                   onTap: () {
-                    Navigator.pop(context); // Close Drawer
+                    Navigator.pop(context);
                     Navigator.push(context, MaterialPageRoute(builder: (_) => const ProfileScreen()));
                   },
                   child: Container(
@@ -196,7 +171,6 @@ class _HomeLayoutState extends State<HomeLayout> {
               Navigator.push(context, MaterialPageRoute(builder: (_) => const ClubScreen()));
             },
           ),
-          
           const Divider(),
           const Padding(
             padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -226,7 +200,6 @@ class _HomeLayoutState extends State<HomeLayout> {
               Navigator.push(context, MaterialPageRoute(builder: (_) => const YearsScreen()));
             },
           ),
-
           const Divider(),
           const Padding(
             padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -256,7 +229,6 @@ class _HomeLayoutState extends State<HomeLayout> {
               Navigator.push(context, MaterialPageRoute(builder: (_) => const AlumniScreen()));
             },
           ),
-
           const Divider(),
           const Padding(
             padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -278,7 +250,6 @@ class _HomeLayoutState extends State<HomeLayout> {
               Navigator.push(context, MaterialPageRoute(builder: (_) => const CGPACalculatorScreen()));
             },
           ),
-
           const Divider(),
           ListTile(
             leading: const Icon(Icons.info),
@@ -312,6 +283,61 @@ class _HomeLayoutState extends State<HomeLayout> {
             },
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _AnimatedProfileIcon extends StatefulWidget {
+  final ProfileData profile;
+  final ColorScheme colors;
+  const _AnimatedProfileIcon({required this.profile, required this.colors});
+
+  @override
+  State<_AnimatedProfileIcon> createState() => _AnimatedProfileIconState();
+}
+
+class _AnimatedProfileIconState extends State<_AnimatedProfileIcon> with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _scaleAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 2),
+    )..repeat(reverse: true);
+    _scaleAnimation = Tween<double>(begin: 0.9, end: 1.1).animate(
+      CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
+    );
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return ScaleTransition(
+      scale: _scaleAnimation,
+      child: Container(
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          border: Border.all(color: widget.colors.primary.withOpacity(0.2), width: 2),
+        ),
+        child: CircleAvatar(
+          radius: 16,
+          backgroundColor: widget.colors.primaryContainer,
+          backgroundImage: widget.profile.imagePath != null && widget.profile.imagePath!.startsWith('http')
+              ? NetworkImage(widget.profile.imagePath!) as ImageProvider
+              : null,
+          child: (widget.profile.imagePath == null || !widget.profile.imagePath!.startsWith('http'))
+              ? Icon(Icons.person, color: widget.colors.primary, size: 20)
+              : null,
+        ),
       ),
     );
   }
