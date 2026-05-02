@@ -65,7 +65,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       shape: BoxShape.circle,
                       boxShadow: [
                         BoxShadow(
-                          color: colors.primary.withOpacity(0.3),
+                          color: colors.primary.withValues(alpha: 0.3),
                           blurRadius: 25,
                           spreadRadius: 5,
                           offset: const Offset(0, 10),
@@ -79,7 +79,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         fit: BoxFit.cover,
                         errorBuilder: (context, error, stackTrace) {
                           return Container(
-                            color: colors.primary.withOpacity(0.1),
+                            color: colors.primary.withValues(alpha: 0.1),
                             child: Icon(Icons.shield, size: 60, color: colors.primary),
                           );
                         },
@@ -106,7 +106,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         'Departmental Information Hub',
                         style: TextStyle(
                           fontSize: 14,
-                          color: colors.onSurface.withOpacity(0.6),
+                          color: colors.onSurface.withValues(alpha: 0.6),
                           fontWeight: FontWeight.w500,
                         ),
                       ),
@@ -169,7 +169,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Text('Don\'t have an account?', style: TextStyle(color: colors.onSurface.withOpacity(0.7))),
+                    Text('Don\'t have an account?', style: TextStyle(color: colors.onSurface.withValues(alpha: 0.7))),
                     TextButton(
                       onPressed: () {
                         Navigator.push(

@@ -131,7 +131,7 @@ class _CGPACalculatorScreenState extends State<CGPACalculatorScreen> {
               color: colors.primary,
               boxShadow: [
                 BoxShadow(
-                  color: colors.primary.withOpacity(0.3),
+                  color: colors.primary.withValues(alpha: 0.3),
                   blurRadius: 10,
                   offset: const Offset(0, 4),
                 )
@@ -142,7 +142,7 @@ class _CGPACalculatorScreenState extends State<CGPACalculatorScreen> {
               children: [
                 Column(
                   children: [
-                    Text('Total Credits', style: TextStyle(color: Colors.white.withOpacity(0.8), fontSize: 14)),
+                    Text('Total Credits', style: TextStyle(color: Colors.white.withValues(alpha: 0.8), fontSize: 14)),
                     const SizedBox(height: 4),
                     Text(overallCredits.toStringAsFixed(2), style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold)),
                   ],
@@ -150,7 +150,7 @@ class _CGPACalculatorScreenState extends State<CGPACalculatorScreen> {
                 Container(width: 1, height: 40, color: Colors.white30),
                 Column(
                   children: [
-                    Text('Cumulative GPA', style: TextStyle(color: Colors.white.withOpacity(0.8), fontSize: 14)),
+                    Text('Cumulative GPA', style: TextStyle(color: Colors.white.withValues(alpha: 0.8), fontSize: 14)),
                     const SizedBox(height: 4),
                     Text(overallCGPA.toStringAsFixed(2), style: const TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.w900)),
                   ],
@@ -193,10 +193,10 @@ class _CGPACalculatorScreenState extends State<CGPACalculatorScreen> {
     return Card(
       elevation: 0,
       margin: EdgeInsets.zero,
-      color: colors.primary.withOpacity(0.08),
+      color: colors.primary.withValues(alpha: 0.08),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
-        side: BorderSide(color: colors.primary.withOpacity(0.3), width: 1.5),
+        side: BorderSide(color: colors.primary.withValues(alpha: 0.3), width: 1.5),
       ),
       child: InkWell(
         onTap: () => _launchURL('https://ducmc.du.ac.bd/result.php'),
@@ -213,7 +213,7 @@ class _CGPACalculatorScreenState extends State<CGPACalculatorScreen> {
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(12),
                   boxShadow: [
-                    BoxShadow(color: colors.primary.withOpacity(0.1), blurRadius: 8, offset: const Offset(0, 4)),
+                    BoxShadow(color: colors.primary.withValues(alpha: 0.1), blurRadius: 8, offset: const Offset(0, 4)),
                   ],
                 ),
                 child: ClipRRect(
@@ -236,7 +236,7 @@ class _CGPACalculatorScreenState extends State<CGPACalculatorScreen> {
                     const SizedBox(height: 4),
                     Text(
                       'DU Affiliated Colleges Portal',
-                      style: TextStyle(color: colors.onSurface.withOpacity(0.7), fontSize: 13),
+                      style: TextStyle(color: colors.onSurface.withValues(alpha: 0.7), fontSize: 13),
                     ),
                   ],
                 ),
@@ -265,7 +265,7 @@ class _CGPACalculatorScreenState extends State<CGPACalculatorScreen> {
       color: colors.surface,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
-        side: BorderSide(color: colors.outline.withOpacity(0.2), width: 1),
+        side: BorderSide(color: colors.outline.withValues(alpha: 0.2), width: 1),
       ),
       child: Padding(
         padding: const EdgeInsets.all(16.0),
@@ -286,7 +286,7 @@ class _CGPACalculatorScreenState extends State<CGPACalculatorScreen> {
                 ),
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                  decoration: BoxDecoration(color: colors.primary.withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
+                  decoration: BoxDecoration(color: colors.primary.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(8)),
                   child: Text('GPA: ${semester.semesterGPA.toStringAsFixed(2)}', style: TextStyle(color: colors.primary, fontWeight: FontWeight.bold)),
                 ),
                 if (semesters.length > 1)
@@ -379,7 +379,7 @@ class _CGPACalculatorScreenState extends State<CGPACalculatorScreen> {
                     SizedBox(
                       width: 32,
                       child: IconButton(
-                        icon: Icon(Icons.close, size: 20, color: colors.onSurface.withOpacity(0.4)),
+                        icon: Icon(Icons.close, size: 20, color: colors.onSurface.withValues(alpha: 0.4)),
                         onPressed: semester.courses.length > 1 ? () => _removeCourse(semIndex, courseIndex) : null,
                         padding: EdgeInsets.zero,
                       ),

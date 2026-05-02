@@ -129,7 +129,7 @@ class MessengerScreen extends StatelessWidget {
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       leading: CircleAvatar(
         radius: 26,
-        backgroundColor: iconColor.withOpacity(0.1),
+        backgroundColor: iconColor.withValues(alpha: 0.1),
         child: Icon(icon, color: iconColor, size: 28),
       ),
       title: Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
@@ -140,7 +140,7 @@ class MessengerScreen extends StatelessWidget {
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
           style: TextStyle(
-            color: unreadCount > 0 ? colors.onSurface : colors.onSurface.withOpacity(0.6),
+            color: unreadCount > 0 ? colors.onSurface : colors.onSurface.withValues(alpha: 0.6),
             fontWeight: unreadCount > 0 ? FontWeight.bold : FontWeight.normal,
           ),
         ),
@@ -152,7 +152,7 @@ class MessengerScreen extends StatelessWidget {
           Text(
             time,
             style: TextStyle(
-              color: unreadCount > 0 ? iconColor : colors.onSurface.withOpacity(0.5),
+              color: unreadCount > 0 ? iconColor : colors.onSurface.withValues(alpha: 0.5),
               fontSize: 12,
               fontWeight: unreadCount > 0 ? FontWeight.bold : FontWeight.normal,
             ),

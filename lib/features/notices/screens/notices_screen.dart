@@ -444,7 +444,7 @@ class _NoticesScreenState extends State<NoticesScreen> {
         style: TextStyle(
           fontSize: 16,
           fontWeight: FontWeight.bold,
-          color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
+          color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
         ),
       ),
     );
@@ -458,7 +458,7 @@ class _NoticesScreenState extends State<NoticesScreen> {
         ? (Theme.of(context).brightness == Brightness.light ? Colors.amber.shade50 : colors.surfaceContainerHighest)
         : colors.surface;
 
-    final borderColor = notice.isPinned ? Colors.amber.withOpacity(0.5) : colors.outline.withOpacity(0.1);
+    final borderColor = notice.isPinned ? Colors.amber.withValues(alpha: 0.5) : colors.outline.withValues(alpha: 0.1);
 
     return Card(
       key: ValueKey(notice.id),
@@ -483,7 +483,7 @@ class _NoticesScreenState extends State<NoticesScreen> {
                   Container(
                     padding: const EdgeInsets.all(10),
                     decoration: BoxDecoration(
-                      color: notice.isPinned ? Colors.white : notice.iconColor.withOpacity(0.1),
+                      color: notice.isPinned ? Colors.white : notice.iconColor.withValues(alpha: 0.1),
                       shape: BoxShape.circle,
                     ),
                     child: Icon(notice.icon, color: notice.iconColor, size: 24),
@@ -509,7 +509,7 @@ class _NoticesScreenState extends State<NoticesScreen> {
                                   const SizedBox(height: 4),
                                   Text(
                                     notice.subtitle,
-                                    style: TextStyle(color: colors.onSurface.withOpacity(0.6), fontSize: 13),
+                                    style: TextStyle(color: colors.onSurface.withValues(alpha: 0.6), fontSize: 13),
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
                                   ),
@@ -540,7 +540,7 @@ class _NoticesScreenState extends State<NoticesScreen> {
                       return IconButton(
                         icon: Icon(
                           notice.isPinned ? Icons.push_pin : Icons.push_pin_outlined,
-                          color: notice.isPinned ? Colors.redAccent : colors.onSurface.withOpacity(0.3),
+                          color: notice.isPinned ? Colors.redAccent : colors.onSurface.withValues(alpha: 0.3),
                           size: 20,
                         ),
                         onPressed: () => _togglePin(notice, stateNotifier),
@@ -558,13 +558,13 @@ class _NoticesScreenState extends State<NoticesScreen> {
                       margin: const EdgeInsets.only(right: 4),
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                       decoration: BoxDecoration(
-                        color: notice.tagColor.withOpacity(0.1),
+                        color: notice.tagColor.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(4),
                       ),
                       child: Text(tag, style: TextStyle(color: notice.tagColor, fontSize: 10, fontWeight: FontWeight.bold)),
                     )).toList(),
                   ),
-                  Text(notice.date, style: TextStyle(color: colors.onSurface.withOpacity(0.4), fontSize: 11)),
+                  Text(notice.date, style: TextStyle(color: colors.onSurface.withValues(alpha: 0.4), fontSize: 11)),
                 ],
               ),
             ],
@@ -579,7 +579,7 @@ class _NoticesScreenState extends State<NoticesScreen> {
       margin: const EdgeInsets.only(bottom: 4, left: 8),
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: color.withValues(alpha: 0.1),
         border: Border.all(color: color),
         borderRadius: BorderRadius.circular(4),
       ),

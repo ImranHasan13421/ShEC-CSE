@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../../core/utils/icon_mapper.dart';
 
 class NoticeItem {
   final String id;
@@ -71,7 +72,7 @@ class NoticeItem {
   factory NoticeItem.fromJson(Map<String, dynamic> json) {
     return NoticeItem(
       id: json['id'] as String,
-      icon: IconData(json['icon_code_point'] as int, fontFamily: 'MaterialIcons'),
+      icon: IconMapper.getIcon(json['icon_key'] as String?, defaultIcon: Icons.notifications),
       iconColor: Color(json['icon_color'] as int),
       title: json['title'] as String,
       subtitle: json['subtitle'] as String,
@@ -101,7 +102,7 @@ class NoticeItem {
       'is_approved': isApproved,
       'is_visible': isVisible,
       'created_by_name': createdByName,
-      'icon_code_point': icon.codePoint,
+      'icon_key': IconMapper.getIconKey(icon),
       'icon_color': iconColor.value,
     };
   }

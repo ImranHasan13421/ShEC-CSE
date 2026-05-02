@@ -42,8 +42,8 @@ class ShEcCseApp extends StatelessWidget {
           brightness: Brightness.light,
           primary: const Color(0xFF00ADB5),
           secondary: const Color(0xFF393E46),
-          background: const Color(0xFFF7F9FC),
-          surface: Colors.white,
+          surface: const Color(0xFFF7F9FC),
+          surfaceContainer: Colors.white,
         ),
         scaffoldBackgroundColor: const Color(0xFFF7F9FC),
         appBarTheme: const AppBarTheme(
@@ -60,8 +60,8 @@ class ShEcCseApp extends StatelessWidget {
           brightness: Brightness.dark,
           primary: const Color(0xFF00ADB5),
           secondary: const Color(0xFFEEEEEE),
-          background: const Color(0xFF1E2024),
-          surface: const Color(0xFF2A2D32),
+          surface: const Color(0xFF1E2024),
+          surfaceContainer: const Color(0xFF2A2D32),
         ),
         scaffoldBackgroundColor: const Color(0xFF1E2024),
         appBarTheme: const AppBarTheme(

@@ -220,8 +220,8 @@ class _GalleryScreenState extends State<GalleryScreen> {
                       fit: BoxFit.cover,
                       errorBuilder: (context, error, stackTrace) {
                         return Container(
-                          color: item.color.withOpacity(0.1),
-                          child: Center(child: Icon(item.icon, size: 48, color: item.color.withOpacity(0.8))),
+                          color: item.color.withValues(alpha: 0.1),
+                          child: Center(child: Icon(item.icon, size: 48, color: item.color.withValues(alpha: 0.8))),
                         );
                       },
                     ),
@@ -249,7 +249,7 @@ class _GalleryScreenState extends State<GalleryScreen> {
                               Container(
                                 margin: const EdgeInsets.only(left: 4),
                                 padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-                                decoration: BoxDecoration(color: Colors.red.withOpacity(0.1), borderRadius: BorderRadius.circular(4)),
+                                decoration: BoxDecoration(color: Colors.red.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(4)),
                                 child: const Text('PENDING', style: TextStyle(color: Colors.red, fontSize: 8, fontWeight: FontWeight.bold)),
                               ),
                           ],
@@ -257,7 +257,7 @@ class _GalleryScreenState extends State<GalleryScreen> {
                         const SizedBox(height: 4),
                         Text(
                           item.description,
-                          style: TextStyle(color: colors.onSurface.withOpacity(0.6), fontSize: 11),
+                          style: TextStyle(color: colors.onSurface.withValues(alpha: 0.6), fontSize: 11),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),

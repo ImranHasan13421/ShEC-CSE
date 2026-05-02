@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../../core/utils/icon_mapper.dart';
 
 // --- Data Model for Jobs ---
 class JobItem {
@@ -54,7 +55,7 @@ class JobItem {
       jobType: json['job_type'] as String,
       typeColor: Color(json['type_color'] as int),
       iconColor: Color(json['icon_color'] as int),
-      icon: IconData(json['icon_code_point'] as int, fontFamily: 'MaterialIcons'),
+      icon: IconMapper.getIcon(json['icon_key'] as String?, defaultIcon: Icons.work),
       isStarred: json['is_starred'] as bool? ?? false,
       isApproved: json['is_approved'] as bool? ?? false,
       isVisible: json['is_visible'] as bool? ?? true,
@@ -76,7 +77,7 @@ class JobItem {
       'deadline': deadline,
       'job_type': jobType,
       'type_color': typeColor.value,
-      'icon_code_point': icon.codePoint,
+      'icon_key': IconMapper.getIconKey(icon),
       'icon_color': iconColor.value,
       'is_starred': isStarred,
       'is_approved': isApproved,

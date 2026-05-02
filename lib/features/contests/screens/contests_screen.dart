@@ -200,7 +200,7 @@ class _ContestsScreenState extends State<ContestsScreen> {
       color: colors.surface,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
-        side: BorderSide(color: colors.outline.withOpacity(0.1)),
+        side: BorderSide(color: colors.outline.withValues(alpha: 0.1)),
       ),
       child: Padding(
         padding: const EdgeInsets.all(16.0),
@@ -211,7 +211,7 @@ class _ContestsScreenState extends State<ContestsScreen> {
                 Container(
                   padding: const EdgeInsets.all(10),
                   decoration: BoxDecoration(
-                    color: item.iconColor.withOpacity(0.1),
+                    color: item.iconColor.withValues(alpha: 0.1),
                     shape: BoxShape.circle,
                   ),
                   child: Icon(Icons.emoji_events, color: item.iconColor, size: 24),
@@ -231,7 +231,7 @@ class _ContestsScreenState extends State<ContestsScreen> {
                                 if (!item.isApproved)
                                   Container(
                                     padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                    decoration: BoxDecoration(color: Colors.red.withOpacity(0.1), borderRadius: BorderRadius.circular(4)),
+                                    decoration: BoxDecoration(color: Colors.red.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(4)),
                                     child: const Text('PENDING', style: TextStyle(color: Colors.red, fontSize: 10, fontWeight: FontWeight.bold)),
                                   ),
                               ],
@@ -248,12 +248,12 @@ class _ContestsScreenState extends State<ContestsScreen> {
                       const SizedBox(height: 6),
                       Row(
                         children: [
-                          Text(item.platform, style: TextStyle(color: colors.onSurface.withOpacity(0.7), fontSize: 13)),
+                          Text(item.platform, style: TextStyle(color: colors.onSurface.withValues(alpha: 0.7), fontSize: 13)),
                           const SizedBox(width: 8),
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                             decoration: BoxDecoration(
-                              color: colors.error.withOpacity(0.1),
+                              color: colors.error.withValues(alpha: 0.1),
                               borderRadius: BorderRadius.circular(4),
                             ),
                             child: Text(item.level, style: TextStyle(color: colors.error, fontSize: 10, fontWeight: FontWeight.bold)),
@@ -271,9 +271,9 @@ class _ContestsScreenState extends State<ContestsScreen> {
               children: [
                 Row(
                   children: [
-                    Icon(Icons.calendar_today, size: 14, color: colors.onSurface.withOpacity(0.6)),
+                    Icon(Icons.calendar_today, size: 14, color: colors.onSurface.withValues(alpha: 0.6)),
                     const SizedBox(width: 6),
-                    Text(item.date, style: TextStyle(color: colors.onSurface.withOpacity(0.6), fontSize: 13, fontWeight: FontWeight.w500)),
+                    Text(item.date, style: TextStyle(color: colors.onSurface.withValues(alpha: 0.6), fontSize: 13, fontWeight: FontWeight.w500)),
                   ],
                 ),
                 ElevatedButton(
@@ -303,7 +303,7 @@ class _ContestsScreenState extends State<ContestsScreen> {
       color: colors.surface,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
-        side: BorderSide(color: colors.outline.withOpacity(0.1)),
+        side: BorderSide(color: colors.outline.withValues(alpha: 0.1)),
       ),
       child: ListTile(
         contentPadding: const EdgeInsets.all(16),
@@ -348,7 +348,7 @@ class _ContestsScreenState extends State<ContestsScreen> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                 decoration: BoxDecoration(
-                  color: colors.primary.withOpacity(0.1),
+                  color: colors.primary.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(4),
                 ),
                 child: Text(item.level, style: TextStyle(color: colors.primary, fontSize: 10, fontWeight: FontWeight.bold)),

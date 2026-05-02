@@ -35,7 +35,7 @@ class ChatScreen extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(groupName, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold), overflow: TextOverflow.ellipsis),
-                  Text('$memberCount members', style: TextStyle(fontSize: 12, color: Colors.white.withOpacity(0.8))),
+                  Text('$memberCount members', style: TextStyle(fontSize: 12, color: Colors.white.withValues(alpha: 0.8))),
                 ],
               ),
             ),
@@ -93,13 +93,13 @@ class ChatScreen extends StatelessWidget {
         children: [
           Row(
             children: [
-              Text(sender, style: TextStyle(fontSize: 12, color: colors.onSurface.withOpacity(0.6), fontWeight: FontWeight.bold)),
+              Text(sender, style: TextStyle(fontSize: 12, color: colors.onSurface.withValues(alpha: 0.6), fontWeight: FontWeight.bold)),
               if (isCommittee) ...[
                 const SizedBox(width: 8),
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                   decoration: BoxDecoration(
-                    color: themeColor.withOpacity(0.1),
+                    color: themeColor.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(4),
                   ),
                   child: Text('Committee', style: TextStyle(color: themeColor, fontSize: 9, fontWeight: FontWeight.bold)),
@@ -117,12 +117,12 @@ class ChatScreen extends StatelessWidget {
                 bottomLeft: Radius.circular(16),
                 bottomRight: Radius.circular(16),
               ),
-              border: Border.all(color: colors.outline.withOpacity(0.1)),
+              border: Border.all(color: colors.outline.withValues(alpha: 0.1)),
             ),
             child: Text(message, style: TextStyle(color: colors.onSurface, fontSize: 14)),
           ),
           const SizedBox(height: 4),
-          Text(time, style: TextStyle(fontSize: 10, color: colors.onSurface.withOpacity(0.4))),
+          Text(time, style: TextStyle(fontSize: 10, color: colors.onSurface.withValues(alpha: 0.4))),
         ],
       ),
     );
@@ -149,7 +149,7 @@ class ChatScreen extends StatelessWidget {
             child: Text(message, style: const TextStyle(color: Colors.white, fontSize: 14)),
           ),
           const SizedBox(height: 4),
-          Text(time, style: TextStyle(fontSize: 10, color: colors.onSurface.withOpacity(0.4))),
+          Text(time, style: TextStyle(fontSize: 10, color: colors.onSurface.withValues(alpha: 0.4))),
         ],
       ),
     );
@@ -160,22 +160,22 @@ class ChatScreen extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
         color: colors.surface,
-        border: Border(top: BorderSide(color: colors.outline.withOpacity(0.1))),
+        border: Border(top: BorderSide(color: colors.outline.withValues(alpha: 0.1))),
       ),
       child: SafeArea(
         child: Row(
           children: [
             IconButton(
-              icon: Icon(Icons.attach_file, color: colors.onSurface.withOpacity(0.5)),
+              icon: Icon(Icons.attach_file, color: colors.onSurface.withValues(alpha: 0.5)),
               onPressed: () {},
             ),
             Expanded(
               child: TextField(
                 decoration: InputDecoration(
                   hintText: 'Type a message...',
-                  hintStyle: TextStyle(color: colors.onSurface.withOpacity(0.4)),
+                  hintStyle: TextStyle(color: colors.onSurface.withValues(alpha: 0.4)),
                   filled: true,
-                  fillColor: colors.background,
+                  fillColor: colors.surface,
                   contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(24),

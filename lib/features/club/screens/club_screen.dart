@@ -57,7 +57,7 @@ class ClubScreen extends StatelessWidget {
       color: colors.surface,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
-        side: BorderSide(color: colors.outline.withOpacity(0.1)),
+        side: BorderSide(color: colors.outline.withValues(alpha: 0.1)),
       ),
       child: Padding(
         padding: const EdgeInsets.all(16.0),
@@ -68,7 +68,7 @@ class ClubScreen extends StatelessWidget {
               children: [
                 CircleAvatar(
                   radius: 24, // Optional: adjust the size if needed
-                  backgroundColor: colors.primary.withOpacity(0.1),
+                  backgroundColor: colors.primary.withValues(alpha: 0.1),
                   backgroundImage: const AssetImage('assets/branding/cpc.jpg'),
                 ),
                 const SizedBox(width: 12),
@@ -78,7 +78,7 @@ class ClubScreen extends StatelessWidget {
             const SizedBox(height: 16),
             Text(
               'The Shyamoli Engineering College Computer Programming Club (ShEC CPC) is a vibrant community of passionate students dedicated to fostering excellence in computer science and programming. Founded in 2015, our club has grown to become one of the most active student organizations on campus.\n\nWe organize regular workshops, hackathons, coding competitions, and tech talks to help students enhance their programming skills, stay updated with industry trends, and build a strong professional network.',
-              style: TextStyle(color: colors.onSurface.withOpacity(0.8), height: 1.5),
+              style: TextStyle(color: colors.onSurface.withValues(alpha: 0.8), height: 1.5),
             ),
           ],
         ),
@@ -93,7 +93,7 @@ class ClubScreen extends StatelessWidget {
       color: colors.surface,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
-        side: BorderSide(color: colors.outline.withOpacity(0.1)),
+        side: BorderSide(color: colors.outline.withValues(alpha: 0.1)),
       ),
       child: Padding(
         padding: const EdgeInsets.all(16.0),
@@ -104,7 +104,7 @@ class ClubScreen extends StatelessWidget {
             const SizedBox(height: 8),
             Text(
               'To create a collaborative learning environment where students can develop their technical skills, work on innovative projects, and prepare for successful careers in technology.',
-              style: TextStyle(color: colors.onSurface.withOpacity(0.8), height: 1.4),
+              style: TextStyle(color: colors.onSurface.withValues(alpha: 0.8), height: 1.4),
             ),
 
             const Divider(height: 32),
@@ -112,7 +112,7 @@ class ClubScreen extends StatelessWidget {
             const SizedBox(height: 8),
             Text(
               "To be the leading student programming community that produces skilled software engineers and innovators who contribute to Bangladesh's growing tech industry.",
-              style: TextStyle(color: colors.onSurface.withOpacity(0.8), height: 1.4),
+              style: TextStyle(color: colors.onSurface.withValues(alpha: 0.8), height: 1.4),
             ),
 
             const Divider(height: 32),
@@ -153,7 +153,7 @@ class ClubScreen extends StatelessWidget {
       color: colors.surface,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
-        side: BorderSide(color: colors.outline.withOpacity(0.1)),
+        side: BorderSide(color: colors.outline.withValues(alpha: 0.1)),
       ),
       child: Column(
         children: [
@@ -180,7 +180,7 @@ class ClubScreen extends StatelessWidget {
       leading: Container(
         padding: const EdgeInsets.all(10),
         decoration: BoxDecoration(
-          color: iconColor.withOpacity(0.1),
+          color: iconColor.withValues(alpha: 0.1),
           borderRadius: BorderRadius.circular(8),
         ),
         child: Icon(icon, color: iconColor),
@@ -200,7 +200,7 @@ class ClubScreen extends StatelessWidget {
       color: colors.surface,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
-        side: BorderSide(color: colors.outline.withOpacity(0.1)),
+        side: BorderSide(color: colors.outline.withValues(alpha: 0.1)),
       ),
       child: Column(
         children: [
@@ -243,7 +243,7 @@ class ClubScreen extends StatelessWidget {
               ),
             ),
             const SizedBox(width: 8),
-            Text('• $year', style: TextStyle(color: colors.onSurface.withOpacity(0.5), fontSize: 13)),
+            Text('• $year', style: TextStyle(color: colors.onSurface.withValues(alpha: 0.5), fontSize: 13)),
           ],
         ),
       ),
@@ -251,6 +251,6 @@ class ClubScreen extends StatelessWidget {
   }
 
   Widget _buildDivider(ColorScheme colors) {
-    return Divider(height: 1, indent: 70, endIndent: 16, color: colors.outline.withOpacity(0.1));
+    return Divider(height: 1, indent: 70, endIndent: 16, color: colors.outline.withValues(alpha: 0.1));
   }
 }

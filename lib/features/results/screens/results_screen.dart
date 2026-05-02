@@ -63,17 +63,17 @@ class _ResultsScreenState extends State<ResultsScreen> {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(Icons.assignment_late, size: 64, color: colors.onSurface.withOpacity(0.3)),
+                    Icon(Icons.assignment_late, size: 64, color: colors.onSurface.withValues(alpha: 0.3)),
                     const SizedBox(height: 16),
                     Text(
                       'No results found.',
-                      style: TextStyle(fontSize: 18, color: colors.onSurface.withOpacity(0.6)),
+                      style: TextStyle(fontSize: 18, color: colors.onSurface.withValues(alpha: 0.6)),
                     ),
                     const SizedBox(height: 8),
                     Text(
                       'Click the Sync icon in the top right to fetch your latest results.',
                       textAlign: TextAlign.center,
-                      style: TextStyle(fontSize: 14, color: colors.onSurface.withOpacity(0.5)),
+                      style: TextStyle(fontSize: 14, color: colors.onSurface.withValues(alpha: 0.5)),
                     ),
                   ],
                 ),
@@ -103,7 +103,7 @@ class _ResultsScreenState extends State<ResultsScreen> {
       color: colors.surface,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
-        side: BorderSide(color: colors.outline.withOpacity(0.1)),
+        side: BorderSide(color: colors.outline.withValues(alpha: 0.1)),
       ),
       child: Theme(
         data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
@@ -138,7 +138,7 @@ class _ResultsScreenState extends State<ResultsScreen> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
-        color: color.shade100.withOpacity(0.5),
+        color: color.shade100.withValues(alpha: 0.5),
         borderRadius: BorderRadius.circular(6),
         border: Border.all(color: color.shade300),
       ),
@@ -190,7 +190,7 @@ class _ResultsScreenState extends State<ResultsScreen> {
               ),
               Text(
                 subject.point,
-                style: TextStyle(fontSize: 12, color: colors.onSurface.withOpacity(0.6)),
+                style: TextStyle(fontSize: 12, color: colors.onSurface.withValues(alpha: 0.6)),
               ),
             ],
           ),

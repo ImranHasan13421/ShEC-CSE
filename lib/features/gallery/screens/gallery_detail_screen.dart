@@ -41,9 +41,9 @@ class GalleryDetailScreen extends StatelessWidget {
                   item.imagePath,
                   fit: BoxFit.cover,
                   errorBuilder: (_, __, ___) => Container(
-                    color: item.color.withOpacity(0.2),
+                    color: item.color.withValues(alpha: 0.2),
                     child: Center(
-                      child: Icon(item.icon, size: 80, color: item.color.withOpacity(0.5)),
+                      child: Icon(item.icon, size: 80, color: item.color.withValues(alpha: 0.5)),
                     ),
                   ),
                 ),
@@ -62,9 +62,9 @@ class GalleryDetailScreen extends StatelessWidget {
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                     decoration: BoxDecoration(
-                      color: item.color.withOpacity(0.15),
+                      color: item.color.withValues(alpha: 0.15),
                       borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: item.color.withOpacity(0.4)),
+                      border: Border.all(color: item.color.withValues(alpha: 0.4)),
                     ),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
@@ -97,12 +97,12 @@ class GalleryDetailScreen extends StatelessWidget {
                   if (item.createdByName.isNotEmpty)
                     Row(
                       children: [
-                        Icon(Icons.person_outline, size: 14, color: colors.onSurface.withOpacity(0.5)),
+                        Icon(Icons.person_outline, size: 14, color: colors.onSurface.withValues(alpha: 0.5)),
                         const SizedBox(width: 4),
                         Text(
                           'Added by ${item.createdByName}',
                           style: TextStyle(
-                            color: colors.onSurface.withOpacity(0.5),
+                            color: colors.onSurface.withValues(alpha: 0.5),
                             fontSize: 13,
                           ),
                         ),
@@ -131,7 +131,7 @@ class GalleryDetailScreen extends StatelessWidget {
                       style: TextStyle(
                         fontSize: 16,
                         height: 1.7,
-                        color: colors.onSurface.withOpacity(0.8),
+                        color: colors.onSurface.withValues(alpha: 0.8),
                       ),
                     )
                   : Text(
@@ -139,7 +139,7 @@ class GalleryDetailScreen extends StatelessWidget {
                       style: TextStyle(
                         fontSize: 16,
                         fontStyle: FontStyle.italic,
-                        color: colors.onSurface.withOpacity(0.4),
+                        color: colors.onSurface.withValues(alpha: 0.4),
                       ),
                     ),
             ),

@@ -40,12 +40,12 @@ class YearsScreen extends StatelessWidget {
       color: colors.surface,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
-        side: BorderSide(color: colors.outline.withOpacity(0.1)),
+        side: BorderSide(color: colors.outline.withValues(alpha: 0.1)),
       ),
       child: ListTile(
         contentPadding: const EdgeInsets.all(16),
         leading: CircleAvatar(
-          backgroundColor: color.withOpacity(0.1),
+          backgroundColor: color.withValues(alpha: 0.1),
           child: Icon(Icons.school, color: color),
         ),
         title: Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
@@ -98,13 +98,13 @@ class SemestersScreen extends StatelessWidget {
       color: colors.surface,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
-        side: BorderSide(color: colors.outline.withOpacity(0.1)),
+        side: BorderSide(color: colors.outline.withValues(alpha: 0.1)),
       ),
       child: ListTile(
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         leading: Container(
           padding: const EdgeInsets.all(10),
-          decoration: BoxDecoration(color: color.withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
+          decoration: BoxDecoration(color: color.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(8)),
           child: Icon(Icons.layers, color: color),
         ),
         title: Text('Semester $semIndex', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
@@ -186,7 +186,7 @@ class SessionsScreen extends StatelessWidget {
             color: colors.surface,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(12),
-              side: BorderSide(color: colors.outline.withOpacity(0.1)),
+              side: BorderSide(color: colors.outline.withValues(alpha: 0.1)),
             ),
             child: ListTile(
               leading: Icon(Icons.calendar_month, color: color),
@@ -341,9 +341,9 @@ class _PdfsScreenState extends State<PdfsScreen> {
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: widget.color.withOpacity(0.1),
+                  color: widget.color.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: widget.color.withOpacity(0.3)),
+                  border: Border.all(color: widget.color.withValues(alpha: 0.3)),
                 ),
                 child: Row(
                   children: [
@@ -367,13 +367,13 @@ class _PdfsScreenState extends State<PdfsScreen> {
                 color: colors.surface,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
-                  side: BorderSide(color: colors.outline.withOpacity(0.1)),
+                  side: BorderSide(color: colors.outline.withValues(alpha: 0.1)),
                 ),
                 child: ListTile(
                   contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                   leading: Container(
                     padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(color: Colors.redAccent.withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
+                    decoration: BoxDecoration(color: Colors.redAccent.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(8)),
                     child: const Icon(Icons.picture_as_pdf, color: Colors.redAccent),
                   ),
                   title: Text(pdf.name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
@@ -381,9 +381,9 @@ class _PdfsScreenState extends State<PdfsScreen> {
                     padding: const EdgeInsets.only(top: 4.0),
                     child: Row(
                       children: [
-                        Text(pdf.size, style: TextStyle(color: colors.onSurface.withOpacity(0.6), fontSize: 12)),
+                        Text(pdf.size, style: TextStyle(color: colors.onSurface.withValues(alpha: 0.6), fontSize: 12)),
                         const SizedBox(width: 8),
-                        Text('• ${pdf.date}', style: TextStyle(color: colors.onSurface.withOpacity(0.4), fontSize: 12)),
+                        Text('• ${pdf.date}', style: TextStyle(color: colors.onSurface.withValues(alpha: 0.4), fontSize: 12)),
                       ],
                     ),
                   ),

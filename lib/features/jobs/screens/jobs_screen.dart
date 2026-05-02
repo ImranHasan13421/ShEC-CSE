@@ -269,7 +269,7 @@ class _JobsScreenState extends State<JobsScreen> {
         style: TextStyle(
           fontSize: 16,
           fontWeight: FontWeight.bold,
-          color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
+          color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
         ),
       ),
     );
@@ -285,7 +285,7 @@ class _JobsScreenState extends State<JobsScreen> {
       color: colors.surface,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
-        side: BorderSide(color: colors.outline.withOpacity(0.1)),
+        side: BorderSide(color: colors.outline.withValues(alpha: 0.1)),
       ),
       child: InkWell(
         onTap: () {
@@ -308,7 +308,7 @@ class _JobsScreenState extends State<JobsScreen> {
                   Container(
                     padding: const EdgeInsets.all(10),
                     decoration: BoxDecoration(
-                      color: job.iconColor.withOpacity(0.1),
+                      color: job.iconColor.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Icon(job.icon, color: job.iconColor, size: 28),
@@ -333,7 +333,7 @@ class _JobsScreenState extends State<JobsScreen> {
                                   if (!job.isApproved)
                                     Container(
                                       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                      decoration: BoxDecoration(color: Colors.red.withOpacity(0.1), borderRadius: BorderRadius.circular(4)),
+                                      decoration: BoxDecoration(color: Colors.red.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(4)),
                                       child: const Text('PENDING', style: TextStyle(color: Colors.red, fontSize: 10, fontWeight: FontWeight.bold)),
                                     ),
                                   if (!job.isVisible)
@@ -348,7 +348,7 @@ class _JobsScreenState extends State<JobsScreen> {
                             IconButton(
                               icon: Icon(
                                 job.isStarred ? Icons.star : Icons.star_border,
-                                color: job.isStarred ? Colors.amber : colors.onSurface.withOpacity(0.3),
+                                color: job.isStarred ? Colors.amber : colors.onSurface.withValues(alpha: 0.3),
                               ),
                               onPressed: () => _toggleStar(job, stateNotifier),
                               constraints: const BoxConstraints(),
@@ -389,7 +389,7 @@ class _JobsScreenState extends State<JobsScreen> {
                         const SizedBox(height: 4),
                         Text(
                           job.company,
-                          style: TextStyle(color: colors.onSurface.withOpacity(0.7), fontSize: 14, fontWeight: FontWeight.w500),
+                          style: TextStyle(color: colors.onSurface.withValues(alpha: 0.7), fontSize: 14, fontWeight: FontWeight.w500),
                         ),
                       ],
                     ),
@@ -399,11 +399,11 @@ class _JobsScreenState extends State<JobsScreen> {
               const SizedBox(height: 16),
               Row(
                 children: [
-                  Icon(Icons.location_on, size: 14, color: colors.onSurface.withOpacity(0.5)),
+                  Icon(Icons.location_on, size: 14, color: colors.onSurface.withValues(alpha: 0.5)),
                   const SizedBox(width: 4),
                   Text(
                     job.location,
-                    style: TextStyle(color: colors.onSurface.withOpacity(0.6), fontSize: 12),
+                    style: TextStyle(color: colors.onSurface.withValues(alpha: 0.6), fontSize: 12),
                   ),
                 ],
               ),
@@ -413,9 +413,9 @@ class _JobsScreenState extends State<JobsScreen> {
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                     decoration: BoxDecoration(
-                      color: job.typeColor.withOpacity(0.1),
+                      color: job.typeColor.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(6),
-                      border: Border.all(color: job.typeColor.withOpacity(0.3)),
+                      border: Border.all(color: job.typeColor.withValues(alpha: 0.3)),
                     ),
                     child: Text(
                       job.jobType,
@@ -423,11 +423,11 @@ class _JobsScreenState extends State<JobsScreen> {
                     ),
                   ),
                   const Spacer(),
-                  Icon(Icons.access_time, size: 12, color: colors.error.withOpacity(0.8)),
+                  Icon(Icons.access_time, size: 12, color: colors.error.withValues(alpha: 0.8)),
                   const SizedBox(width: 4),
                   Text(
                     'Deadline: ${job.deadline}',
-                    style: TextStyle(color: colors.error.withOpacity(0.8), fontSize: 12, fontWeight: FontWeight.w500),
+                    style: TextStyle(color: colors.error.withValues(alpha: 0.8), fontSize: 12, fontWeight: FontWeight.w500),
                   ),
                 ],
               ),
@@ -465,7 +465,7 @@ class JobDetailScreen extends StatelessWidget {
                   color: colors.surface,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
-                    side: BorderSide(color: colors.outline.withOpacity(0.1)),
+                    side: BorderSide(color: colors.outline.withValues(alpha: 0.1)),
                   ),
                   child: Padding(
                     padding: const EdgeInsets.all(16.0),
@@ -476,25 +476,25 @@ class JobDetailScreen extends StatelessWidget {
                         const SizedBox(height: 8),
                         Row(
                           children: [
-                            Icon(Icons.business, size: 16, color: colors.onSurface.withOpacity(0.6)),
+                            Icon(Icons.business, size: 16, color: colors.onSurface.withValues(alpha: 0.6)),
                             const SizedBox(width: 8),
-                            Text(job.company, style: TextStyle(fontSize: 16, color: colors.onSurface.withOpacity(0.8))),
+                            Text(job.company, style: TextStyle(fontSize: 16, color: colors.onSurface.withValues(alpha: 0.8))),
                           ],
                         ),
                         const SizedBox(height: 8),
                         Row(
                           children: [
-                            Icon(Icons.location_on, size: 16, color: colors.onSurface.withOpacity(0.6)),
+                            Icon(Icons.location_on, size: 16, color: colors.onSurface.withValues(alpha: 0.6)),
                             const SizedBox(width: 8),
-                            Text(job.location, style: TextStyle(fontSize: 14, color: colors.onSurface.withOpacity(0.8))),
+                            Text(job.location, style: TextStyle(fontSize: 14, color: colors.onSurface.withValues(alpha: 0.8))),
                           ],
                         ),
                         const SizedBox(height: 8),
                         Row(
                           children: [
-                            Icon(Icons.monetization_on, size: 16, color: colors.onSurface.withOpacity(0.6)),
+                            Icon(Icons.monetization_on, size: 16, color: colors.onSurface.withValues(alpha: 0.6)),
                             const SizedBox(width: 8),
-                            Text(job.salary, style: TextStyle(fontSize: 14, color: colors.onSurface.withOpacity(0.8))),
+                            Text(job.salary, style: TextStyle(fontSize: 14, color: colors.onSurface.withValues(alpha: 0.8))),
                           ],
                         ),
                         const SizedBox(height: 16),
@@ -503,7 +503,7 @@ class JobDetailScreen extends StatelessWidget {
                             Container(
                               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                               decoration: BoxDecoration(
-                                color: job.typeColor.withOpacity(0.1),
+                                color: job.typeColor.withValues(alpha: 0.1),
                                 borderRadius: BorderRadius.circular(6),
                               ),
                               child: Text(job.jobType, style: TextStyle(color: job.typeColor, fontWeight: FontWeight.bold)),
@@ -512,7 +512,7 @@ class JobDetailScreen extends StatelessWidget {
                             Container(
                               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                               decoration: BoxDecoration(
-                                color: colors.error.withOpacity(0.1),
+                                color: colors.error.withValues(alpha: 0.1),
                                 borderRadius: BorderRadius.circular(6),
                               ),
                               child: Text('Deadline: ${job.deadline}', style: TextStyle(color: colors.error, fontWeight: FontWeight.bold)),
@@ -567,7 +567,7 @@ class JobDetailScreen extends StatelessWidget {
              decoration: BoxDecoration(
                color: Theme.of(context).colorScheme.surface,
                boxShadow: [
-                 BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, -5)),
+                 BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10, offset: const Offset(0, -5)),
                ],
              ),
              child: SafeArea(
@@ -609,7 +609,7 @@ class JobDetailScreen extends StatelessWidget {
       color: colors.surface,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
-        side: BorderSide(color: colors.outline.withOpacity(0.1)),
+        side: BorderSide(color: colors.outline.withValues(alpha: 0.1)),
       ),
       child: Padding(
         padding: const EdgeInsets.all(16.0),
@@ -644,7 +644,7 @@ class JobDetailScreen extends StatelessWidget {
       color: colors.surface,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
-        side: BorderSide(color: colors.outline.withOpacity(0.1)),
+        side: BorderSide(color: colors.outline.withValues(alpha: 0.1)),
       ),
       child: Padding(
         padding: const EdgeInsets.all(16.0),

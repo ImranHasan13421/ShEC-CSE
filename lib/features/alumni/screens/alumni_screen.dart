@@ -224,9 +224,9 @@ class _AlumniScreenState extends State<AlumniScreen> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(Icons.school_outlined, size: 64, color: colors.onSurface.withOpacity(0.3)),
+                  Icon(Icons.school_outlined, size: 64, color: colors.onSurface.withValues(alpha: 0.3)),
                   const SizedBox(height: 16),
-                  Text('No alumni listed yet.', style: TextStyle(color: colors.onSurface.withOpacity(0.5))),
+                  Text('No alumni listed yet.', style: TextStyle(color: colors.onSurface.withValues(alpha: 0.5))),
                 ],
               ),
             );
@@ -291,7 +291,7 @@ class _AlumniScreenState extends State<AlumniScreen> {
                         if (!alumni.isApproved)
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                            decoration: BoxDecoration(color: Colors.red.withOpacity(0.1), borderRadius: BorderRadius.circular(4)),
+                            decoration: BoxDecoration(color: Colors.red.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(4)),
                             child: const Text('PENDING', style: TextStyle(color: Colors.red, fontSize: 9, fontWeight: FontWeight.bold)),
                           ),
                         if (isAdmin)
@@ -322,7 +322,7 @@ class _AlumniScreenState extends State<AlumniScreen> {
                       Text(
                         '${alumni.session.isNotEmpty ? 'Session: ${alumni.session}' : ''}'
                         '${alumni.passingYear.isNotEmpty ? ' • Passed: ${alumni.passingYear}' : ''}',
-                        style: TextStyle(color: colors.onSurface.withOpacity(0.5), fontSize: 12),
+                        style: TextStyle(color: colors.onSurface.withValues(alpha: 0.5), fontSize: 12),
                       ),
                     if (alumni.areasOfExpertise.isNotEmpty) ...[
                       const SizedBox(height: 6),

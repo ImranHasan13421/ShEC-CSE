@@ -91,7 +91,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       children: [
         const Text('Welcome Back!', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
         const SizedBox(height: 4),
-        Text('Stay updated with departmental & club activities.', style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6))),
+        Text('Stay updated with departmental & club activities.', style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6))),
         const SizedBox(height: 24),
 
         // --- ANIMATED GALLERY CAROUSEL ---
@@ -149,7 +149,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             if (shortcuts.isEmpty) {
               return Container(
                 padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(color: Theme.of(context).colorScheme.surface, borderRadius: BorderRadius.circular(12), border: Border.all(color: Theme.of(context).colorScheme.outline.withOpacity(0.1))),
+                decoration: BoxDecoration(color: Theme.of(context).colorScheme.surface, borderRadius: BorderRadius.circular(12), border: Border.all(color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.1))),
                 child: const Center(child: Text('Tap Edit to add shortcuts.')),
               );
             }
@@ -251,7 +251,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Center(child: Container(width: 40, height: 4, margin: const EdgeInsets.only(bottom: 24), decoration: BoxDecoration(color: colors.onSurface.withOpacity(0.2), borderRadius: BorderRadius.circular(2)))),
+                    Center(child: Container(width: 40, height: 4, margin: const EdgeInsets.only(bottom: 24), decoration: BoxDecoration(color: colors.onSurface.withValues(alpha: 0.2), borderRadius: BorderRadius.circular(2)))),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
@@ -260,7 +260,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       ],
                     ),
                     const SizedBox(height: 8),
-                    Text('Select and drag up to 4 shortcuts for your dashboard.', style: TextStyle(color: colors.onSurface.withOpacity(0.6))),
+                    Text('Select and drag up to 4 shortcuts for your dashboard.', style: TextStyle(color: colors.onSurface.withValues(alpha: 0.6))),
                     const SizedBox(height: 16),
 
                     if (activeShortcuts.value.isNotEmpty) ...[
@@ -283,7 +283,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           return ListTile(
                             key: ValueKey('active_${item.id}'),
                             contentPadding: EdgeInsets.zero,
-                            leading: CircleAvatar(backgroundColor: item.color.withOpacity(0.1), child: Icon(item.icon, color: item.color, size: 20)),
+                            leading: CircleAvatar(backgroundColor: item.color.withValues(alpha: 0.1), child: Icon(item.icon, color: item.color, size: 20)),
                             title: Text(item.title, style: const TextStyle(fontWeight: FontWeight.w600)),
                             trailing: Row(
                               mainAxisSize: MainAxisSize.min,
@@ -312,7 +312,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           final item = unselectedShortcuts[index];
                           return ListTile(
                             contentPadding: EdgeInsets.zero,
-                            leading: CircleAvatar(backgroundColor: item.color.withOpacity(0.1), child: Icon(item.icon, color: item.color, size: 20)),
+                            leading: CircleAvatar(backgroundColor: item.color.withValues(alpha: 0.1), child: Icon(item.icon, color: item.color, size: 20)),
                             title: Text(item.title, style: const TextStyle(fontWeight: FontWeight.w600)),
                             trailing: IconButton(
                               icon: const Icon(Icons.add_circle, color: Colors.green),
@@ -350,7 +350,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         children: [
           CircleAvatar(
             radius: 28,
-            backgroundColor: color.withOpacity(0.15),
+            backgroundColor: color.withValues(alpha: 0.15),
             child: Icon(icon, color: color, size: 28),
           ),
           const SizedBox(height: 8),
@@ -455,23 +455,23 @@ class _DashboardScreenState extends State<DashboardScreen> {
       margin: const EdgeInsets.only(bottom: 12),
       elevation: 0,
       color: colors.surface,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12), side: BorderSide(color: colors.outline.withOpacity(0.1))),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12), side: BorderSide(color: colors.outline.withValues(alpha: 0.1))),
       child: ListTile(
         onTap: onTap,
         contentPadding: const EdgeInsets.all(16),
-        leading: CircleAvatar(backgroundColor: iconColor.withOpacity(0.1), child: Icon(icon, color: iconColor)),
+        leading: CircleAvatar(backgroundColor: iconColor.withValues(alpha: 0.1), child: Icon(icon, color: iconColor)),
         title: Text(title, style: const TextStyle(fontWeight: FontWeight.bold), maxLines: 1, overflow: TextOverflow.ellipsis),
         subtitle: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const SizedBox(height: 4),
-            Text(subtitle, style: TextStyle(color: colors.onSurface.withOpacity(0.6)), maxLines: 1, overflow: TextOverflow.ellipsis),
+            Text(subtitle, style: TextStyle(color: colors.onSurface.withValues(alpha: 0.6)), maxLines: 1, overflow: TextOverflow.ellipsis),
             const SizedBox(height: 8),
             Row(
               children: [
-                Container(padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2), decoration: BoxDecoration(color: colors.primary.withOpacity(0.1), borderRadius: BorderRadius.circular(4)), child: Text(tag, style: TextStyle(color: colors.primary, fontSize: 10, fontWeight: FontWeight.bold))),
+                Container(padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2), decoration: BoxDecoration(color: colors.primary.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(4)), child: Text(tag, style: TextStyle(color: colors.primary, fontSize: 10, fontWeight: FontWeight.bold))),
                 const Spacer(),
-                Text(date, style: TextStyle(color: colors.onSurface.withOpacity(0.5), fontSize: 12)),
+                Text(date, style: TextStyle(color: colors.onSurface.withValues(alpha: 0.5), fontSize: 12)),
               ],
             )
           ],

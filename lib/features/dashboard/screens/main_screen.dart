@@ -121,7 +121,7 @@ class _HomeLayoutState extends State<HomeLayout> {
           onTap: (index) => setState(() => _currentIndex = index),
           type: BottomNavigationBarType.fixed,
           selectedItemColor: colors.primary,
-          unselectedItemColor: colors.onSurface.withOpacity(0.5),
+          unselectedItemColor: colors.onSurface.withValues(alpha: 0.5),
           items: const [
             BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
             BottomNavigationBarItem(icon: Icon(Icons.notifications), label: 'Notices'),
