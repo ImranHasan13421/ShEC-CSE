@@ -172,9 +172,22 @@ class _DashboardScreenState extends State<DashboardScreen> {
             return ValueListenableBuilder<List<NoticeItem>>(
               valueListenable: deptNoticesState,
               builder: (context, deptNotices, _) {
-                // Combine and sort by date/latest
+                // Combine, sort by pinned first, then by date (latest first)
                 final allNotices = [...clubNotices, ...deptNotices];
-                final latest = allNotices.where((n) => n.isApproved && n.isVisible).take(3).toList();
+                final filtered = allNotices.where((n) => n.isApproved && n.isVisible).toList();
+                
+                // Sort: Pinned first, then by createdAt descending
+                filtered.sort((a, b) {
+                  if (a.isPinned && !b.isPinned) return -1;
+                  if (!a.isPinned && b.isPinned) return 1;
+                  
+                  // If both pinned or both unpinned, sort by date
+                  final dateA = a.createdAt ?? DateTime(2000);
+                  final dateB = b.createdAt ?? DateTime(2000);
+                  return dateB.compareTo(dateA);
+                });
+
+                final latest = filtered.take(3).toList();
                 
                 if (latest.isEmpty) return const Padding(padding: EdgeInsets.all(20), child: Center(child: Text('No recent notices')));
                 

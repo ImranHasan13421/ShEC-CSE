@@ -319,6 +319,15 @@ class _NoticesScreenState extends State<NoticesScreen> {
           return n.tags.contains(selectedFilterTag);
         }).toList();
 
+        // Sort: Pinned first, then by createdAt descending
+        filtered.sort((a, b) {
+          if (a.isPinned && !b.isPinned) return -1;
+          if (!a.isPinned && b.isPinned) return 1;
+          final dateA = a.createdAt ?? DateTime(2000);
+          final dateB = b.createdAt ?? DateTime(2000);
+          return dateB.compareTo(dateA);
+        });
+
         if (filtered.isEmpty) {
           return Center(
             child: Column(

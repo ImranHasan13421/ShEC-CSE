@@ -11,6 +11,7 @@ class NoticeItem {
   final bool isApproved;
   final bool isVisible;
   final String createdByName;
+  final DateTime? createdAt;
 
   NoticeItem({
     required this.id,
@@ -23,6 +24,7 @@ class NoticeItem {
     this.isApproved = false,
     this.isVisible = true,
     this.createdByName = '',
+    this.createdAt,
   });
 
   NoticeItem copyWith({
@@ -48,6 +50,7 @@ class NoticeItem {
       isApproved: isApproved ?? this.isApproved,
       isVisible: isVisible ?? this.isVisible,
       createdByName: createdByName ?? this.createdByName,
+      createdAt: createdAt ?? this.createdAt,
     );
   }
 
@@ -63,6 +66,7 @@ class NoticeItem {
       isApproved: json['is_approved'] as bool? ?? false,
       isVisible: json['is_visible'] as bool? ?? true,
       createdByName: json['created_by_name'] as String? ?? '',
+      createdAt: json['created_at'] != null ? DateTime.parse(json['created_at']) : null,
     );
   }
 
