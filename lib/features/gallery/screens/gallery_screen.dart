@@ -17,7 +17,6 @@ class _GalleryScreenState extends State<GalleryScreen> {
   @override
   void initState() {
     super.initState();
-    // Always force-refresh on first open so we get latest items promptly
     GalleryService.fetchGalleryItems(forceRefresh: true);
   }
 
@@ -81,7 +80,6 @@ class _GalleryScreenState extends State<GalleryScreen> {
                     ),
                     const SizedBox(height: 8),
 
-                    // ── Image Picker ──
                     const Text('Photo *', style: TextStyle(fontWeight: FontWeight.bold)),
                     const SizedBox(height: 8),
                     if (selectedImage != null) ...[
@@ -157,15 +155,11 @@ class _GalleryScreenState extends State<GalleryScreen> {
                             ? null
                             : () async {
                                 if (titleController.text.isEmpty) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(content: Text('Please enter a title')),
-                                  );
+                                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please enter a title')));
                                   return;
                                 }
                                 if (selectedImage == null && (currentImageUrl == null || currentImageUrl!.isEmpty)) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(content: Text('Please select an image')),
-                                  );
+                                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please select an image')));
                                   return;
                                 }
 
@@ -178,9 +172,7 @@ class _GalleryScreenState extends State<GalleryScreen> {
                                 if (!context.mounted) return;
                                 if (finalImageUrl == null || finalImageUrl.isEmpty) {
                                   setModalState(() => isUploading = false);
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(content: Text('Image upload failed. Try again.')),
-                                  );
+                                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Image upload failed. Try again.')));
                                   return;
                                 }
 
@@ -190,7 +182,6 @@ class _GalleryScreenState extends State<GalleryScreen> {
                                   title: titleController.text.trim(),
                                   description: descriptionController.text.trim(),
                                   imagePath: finalImageUrl,
-                                  color: Colors.blue,
                                   isVisible: isVisible,
                                   createdByName: existingItem?.createdByName ?? currentProfile.value.name,
                                 );
@@ -283,6 +274,7 @@ class _GalleryScreenState extends State<GalleryScreen> {
     final colors = Theme.of(context).colorScheme;
     final profile = currentProfile.value;
     final isAdmin = profile.role != UserRole.student;
+    const defaultColor = Colors.blue;
 
     return Card(
       elevation: 4,
@@ -308,18 +300,18 @@ class _GalleryScreenState extends State<GalleryScreen> {
                             loadingBuilder: (ctx, child, progress) {
                               if (progress == null) return child;
                               return Container(
-                                color: item.color.withValues(alpha: 0.05),
+                                color: defaultColor.withValues(alpha: 0.05),
                                 child: const Center(child: CircularProgressIndicator(strokeWidth: 2)),
                               );
                             },
                             errorBuilder: (_, __, ___) => Container(
-                              color: item.color.withValues(alpha: 0.1),
-                              child: Center(child: Icon(Icons.photo_library, size: 48, color: item.color.withValues(alpha: 0.8))),
+                              color: defaultColor.withValues(alpha: 0.1),
+                              child: const Center(child: Icon(Icons.photo_library, size: 48, color: defaultColor)),
                             ),
                           )
                         : Container(
-                            color: item.color.withValues(alpha: 0.1),
-                            child: Center(child: Icon(Icons.photo_library, size: 48, color: item.color.withValues(alpha: 0.8))),
+                            color: defaultColor.withValues(alpha: 0.1),
+                            child: const Center(child: Icon(Icons.photo_library, size: 48, color: defaultColor)),
                           ),
                   ),
                 ),

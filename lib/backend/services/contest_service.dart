@@ -15,16 +15,9 @@ class ContestService {
     if (!isAdmin) {
       query = query.eq('is_approved', true).eq('is_visible', true);
     }
-    // Only fetch non-courses as user wants to remove courses feature
-    query = query.eq('is_course', false);
     
     final response = await query.order('created_at', ascending: false);
-
-    final List<ContestItem> fetchedContests = [];
-    for (var row in response) {
-      final item = ContestItem.fromJson(row);
-      fetchedContests.add(item);
-    }
+    final List<ContestItem> fetchedContests = response.map((row) => ContestItem.fromJson(row)).toList();
 
     contestState.value = fetchedContests;
     courseState.value = [];
@@ -39,7 +32,6 @@ class ContestService {
     data['is_approved'] = isSuperUser;
     data['is_visible'] = true;
     data['created_by_name'] = profile.name;
-    data['is_course'] = false; // Always false now
     
     final response = await _client
         .from('contests')
@@ -64,7 +56,6 @@ class ContestService {
     
     final data = item.toJson();
     
-    // Reset approval if edited by non-superuser
     if (!isSuperUser) {
       data['is_approved'] = false;
     }
@@ -107,4 +98,3 @@ class ContestService {
       .subscribe();
   }
 }
-

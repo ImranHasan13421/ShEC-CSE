@@ -11,6 +11,7 @@ class NoticeDetailScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
     final isAdmin = currentProfile.value.role != UserRole.student;
+    const defaultColor = Colors.blue;
 
     return Scaffold(
       backgroundColor: colors.surface,
@@ -48,7 +49,7 @@ class NoticeDetailScreen extends StatelessWidget {
                         ),
                       ),
                       child: Center(
-                        child: Icon(notice.icon, size: 64, color: Colors.white.withValues(alpha: 0.5)),
+                        child: Icon(Icons.notifications, size: 64, color: Colors.white.withValues(alpha: 0.5)),
                       ),
                     ),
             ),
@@ -64,17 +65,17 @@ class NoticeDetailScreen extends StatelessWidget {
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                         decoration: BoxDecoration(
-                          color: notice.iconColor.withValues(alpha: 0.1),
+                          color: defaultColor.withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(20),
                         ),
-                        child: Row(
+                        child: const Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Icon(notice.icon, size: 16, color: notice.iconColor),
-                            const SizedBox(width: 8),
+                            Icon(Icons.notifications, size: 16, color: defaultColor),
+                            SizedBox(width: 8),
                             Text(
                               'Notice',
-                              style: TextStyle(color: notice.iconColor, fontWeight: FontWeight.bold, fontSize: 12),
+                              style: TextStyle(color: defaultColor, fontWeight: FontWeight.bold, fontSize: 12),
                             ),
                           ],
                         ),

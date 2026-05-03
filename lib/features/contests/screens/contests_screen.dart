@@ -113,8 +113,6 @@ class _ContestsScreenState extends State<ContestsScreen> {
                                 date: dateController.text.trim(),
                                 url: urlController.text.trim(),
                                 description: descriptionController.text.trim(),
-                                iconColor: existingItem?.iconColor ?? Colors.blue,
-                                isCourse: false,
                                 isVisible: isVisible,
                                 createdByName: existingItem?.createdByName ?? currentProfile.value.name,
                               );
@@ -204,6 +202,7 @@ class _ContestsScreenState extends State<ContestsScreen> {
     final colors = Theme.of(context).colorScheme;
     final isAdmin = currentProfile.value.role != UserRole.student;
     final isSuperUser = currentProfile.value.designation == 'President' || currentProfile.value.designation == 'Vice President';
+    const contestIconColor = Colors.orange;
 
     return Card(
       margin: const EdgeInsets.only(bottom: 16),
@@ -223,10 +222,10 @@ class _ContestsScreenState extends State<ContestsScreen> {
                 Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: item.iconColor.withValues(alpha: 0.1),
+                    color: contestIconColor.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  child: Icon(Icons.emoji_events, color: item.iconColor, size: 28),
+                  child: const Icon(Icons.emoji_events, color: contestIconColor, size: 28),
                 ),
                 const SizedBox(width: 16),
                 Expanded(
@@ -285,17 +284,19 @@ class _ContestsScreenState extends State<ContestsScreen> {
               ],
             ),
             const Divider(height: 32),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton.icon(
-                onPressed: () => _launchURL(item.url),
-                icon: const Icon(Icons.launch, size: 18),
-                label: const Text('Join Now', style: TextStyle(fontWeight: FontWeight.bold)),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: colors.primary,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            SliverToBoxAdapter(
+              child: SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: () => _launchURL(item.url),
+                  icon: const Icon(Icons.launch, size: 18),
+                  label: const Text('Join Now', style: TextStyle(fontWeight: FontWeight.bold)),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: colors.primary,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
                 ),
               ),
             ),

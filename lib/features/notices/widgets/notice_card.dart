@@ -26,6 +26,7 @@ class NoticeCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
+    const defaultColor = Colors.blue;
 
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
@@ -45,22 +46,20 @@ class NoticeCard extends StatelessWidget {
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Notice Image (Small square)
               ClipRRect(
                 borderRadius: BorderRadius.circular(10),
                 child: Container(
                   width: 60,
                   height: 60,
-                  color: notice.iconColor.withOpacity(0.1),
+                  color: defaultColor.withOpacity(0.1),
                   child: notice.imagePath != null && notice.imagePath!.isNotEmpty && notice.imagePath!.startsWith('http')
                       ? Image.network(notice.imagePath!, fit: BoxFit.cover, 
-                          errorBuilder: (_, __, ___) => Icon(notice.icon, color: notice.iconColor, size: 24))
-                      : Icon(notice.icon, color: notice.iconColor, size: 24),
+                          errorBuilder: (_, __, ___) => const Icon(Icons.notifications, color: defaultColor, size: 24))
+                      : const Icon(Icons.notifications, color: defaultColor, size: 24),
                 ),
               ),
               const SizedBox(width: 14),
               
-              // Text Content
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -93,12 +92,12 @@ class NoticeCard extends StatelessWidget {
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                             decoration: BoxDecoration(
-                              color: notice.tagColor.withOpacity(0.1),
+                              color: defaultColor.withOpacity(0.1),
                               borderRadius: BorderRadius.circular(6),
                             ),
                             child: Text(
                               notice.tags.first,
-                              style: TextStyle(color: notice.tagColor, fontSize: 10, fontWeight: FontWeight.bold),
+                              style: const TextStyle(color: defaultColor, fontSize: 10, fontWeight: FontWeight.bold),
                             ),
                           ),
                       ],

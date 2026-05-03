@@ -8,8 +8,6 @@ class ContestItem {
   final String date;
   final String url;
   final String description;
-  final Color iconColor;
-  final bool isCourse;
   final bool isApproved;
   final bool isVisible;
   final String createdByName;
@@ -22,8 +20,6 @@ class ContestItem {
     required this.date,
     required this.url,
     this.description = '',
-    required this.iconColor,
-    this.isCourse = false,
     this.isApproved = false,
     this.isVisible = true,
     this.createdByName = '',
@@ -38,8 +34,6 @@ class ContestItem {
       date: json['date'] as String,
       url: json['url'] as String,
       description: json['description'] as String? ?? '',
-      iconColor: Color(json['icon_color'] as int),
-      isCourse: json['is_course'] as bool? ?? false,
       isApproved: json['is_approved'] as bool? ?? false,
       isVisible: json['is_visible'] as bool? ?? true,
       createdByName: json['created_by_name'] as String? ?? '',
@@ -54,8 +48,6 @@ class ContestItem {
       'date': date,
       'url': url,
       'description': description,
-      'icon_color': iconColor.value,
-      'is_course': isCourse,
       'is_approved': isApproved,
       'is_visible': isVisible,
       'created_by_name': createdByName,
@@ -70,8 +62,6 @@ class ContestItem {
     String? date,
     String? url,
     String? description,
-    Color? iconColor,
-    bool? isCourse,
     bool? isApproved,
     bool? isVisible,
     String? createdByName,
@@ -84,8 +74,6 @@ class ContestItem {
       date: date ?? this.date,
       url: url ?? this.url,
       description: description ?? this.description,
-      iconColor: iconColor ?? this.iconColor,
-      isCourse: isCourse ?? this.isCourse,
       isApproved: isApproved ?? this.isApproved,
       isVisible: isVisible ?? this.isVisible,
       createdByName: createdByName ?? this.createdByName,

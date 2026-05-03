@@ -195,13 +195,10 @@ class _NoticesScreenState extends State<NoticesScreen> {
                           try {
                             final noticeItem = NoticeItem(
                               id: existingNotice?.id ?? '',
-                              icon: Icons.notifications,
-                              iconColor: Colors.blue,
                               title: titleController.text.trim(),
                               description: descriptionController.text.trim(),
                               imagePath: finalImageUrl,
                               tags: selectedTags,
-                              tagColor: Colors.blue,
                               date: existingNotice?.date ?? '${DateTime.now().day}/${DateTime.now().month}/${DateTime.now().year}',
                               isVisible: isVisible,
                               createdByName: existingNotice?.createdByName ?? currentProfile.value.name,

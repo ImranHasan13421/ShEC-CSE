@@ -16,7 +16,6 @@ class NoticeService {
 
     var query = _client.from('notices').select();
     
-    // Only filter for non-admins
     if (!isAdmin) {
       query = query.eq('is_approved', true).eq('is_visible', true);
     }
@@ -61,13 +60,10 @@ class NoticeService {
       'description': notice.description,
       'image_path': notice.imagePath ?? '',
       'tags': notice.tags,
-      'tag_color': notice.tagColor.value,
       'is_pinned': notice.isPinned,
       'is_approved': isSuperUser, 
       'is_visible': true,
       'created_by_name': profile.name,
-      'icon_key': 'notifications',
-      'icon_color': Colors.blue.value,
     };
     
     final now = DateTime.now();
@@ -146,7 +142,6 @@ class NoticeService {
     fetchNotices(forceRefresh: true);
   }
 
-  // Real-time subscription
   static void subscribeToNotices() {
     _client
       .channel('public:notices')

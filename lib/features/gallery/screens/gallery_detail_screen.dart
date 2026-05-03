@@ -8,6 +8,7 @@ class GalleryDetailScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
+    const defaultColor = Colors.blue;
 
     return Scaffold(
       backgroundColor: colors.surface,
@@ -36,12 +37,12 @@ class GalleryDetailScreen extends StatelessWidget {
                         item.imagePath,
                         fit: BoxFit.cover,
                         errorBuilder: (_, __, ___) => Container(
-                          color: item.color.withValues(alpha: 0.15),
+                          color: defaultColor.withValues(alpha: 0.15),
                           child: const Center(child: Icon(Icons.photo_library, size: 80, color: Colors.grey)),
                         ),
                       )
                     : Container(
-                        color: item.color.withValues(alpha: 0.15),
+                        color: defaultColor.withValues(alpha: 0.15),
                         child: const Center(child: Icon(Icons.photo_library, size: 80, color: Colors.grey)),
                       ),
               ),
@@ -59,16 +60,16 @@ class GalleryDetailScreen extends StatelessWidget {
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                     decoration: BoxDecoration(
-                      color: item.color.withValues(alpha: 0.12),
+                      color: defaultColor.withValues(alpha: 0.12),
                       borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: item.color.withValues(alpha: 0.3)),
+                      border: Border.all(color: defaultColor.withValues(alpha: 0.3)),
                     ),
-                    child: Row(
+                    child: const Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(Icons.photo_library, color: item.color, size: 14),
-                        const SizedBox(width: 6),
-                        Text('Gallery', style: TextStyle(color: item.color, fontWeight: FontWeight.bold, fontSize: 12)),
+                        Icon(Icons.photo_library, color: defaultColor, size: 14),
+                        SizedBox(width: 6),
+                        Text('Gallery', style: TextStyle(color: defaultColor, fontWeight: FontWeight.bold, fontSize: 12)),
                       ],
                     ),
                   ),
