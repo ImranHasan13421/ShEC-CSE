@@ -17,6 +17,8 @@ class JobDetailScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
+    const iconColor = Colors.blue;
+    const typeColor = Colors.teal;
 
     return Scaffold(
       body: CustomScrollView(
@@ -27,9 +29,9 @@ class JobDetailScreen extends StatelessWidget {
             flexibleSpace: FlexibleSpaceBar(
               title: Text(job.company, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
               background: Container(
-                color: job.iconColor.withOpacity(0.1),
-                child: Center(
-                  child: Icon(job.icon, size: 80, color: job.iconColor),
+                color: iconColor.withOpacity(0.1),
+                child: const Center(
+                  child: Icon(Icons.work, size: 80, color: iconColor),
                 ),
               ),
             ),
@@ -55,11 +57,11 @@ class JobDetailScreen extends StatelessWidget {
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                         decoration: BoxDecoration(
-                          color: job.typeColor.withOpacity(0.1),
+                          color: typeColor.withOpacity(0.1),
                           borderRadius: BorderRadius.circular(20),
-                          border: Border.all(color: job.typeColor.withOpacity(0.3)),
+                          border: Border.all(color: typeColor.withOpacity(0.3)),
                         ),
-                        child: Text(job.jobType, style: TextStyle(color: job.typeColor, fontWeight: FontWeight.bold, fontSize: 12)),
+                        child: Text(job.jobType, style: const TextStyle(color: typeColor, fontWeight: FontWeight.bold, fontSize: 12)),
                       ),
                     ],
                   ),
@@ -74,36 +76,6 @@ class JobDetailScreen extends StatelessWidget {
                     job.description.isNotEmpty ? job.description : 'No description provided.',
                     style: TextStyle(fontSize: 15, height: 1.6, color: colors.onSurface.withOpacity(0.8)),
                   ),
-                  if (job.requirements.isNotEmpty) ...[
-                    const SizedBox(height: 24),
-                    const Text('Requirements', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                    const SizedBox(height: 12),
-                    ...job.requirements.map((req) => Padding(
-                      padding: const EdgeInsets.only(bottom: 8.0),
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text('• ', style: TextStyle(fontWeight: FontWeight.bold)),
-                          Expanded(child: Text(req, style: TextStyle(color: colors.onSurface.withOpacity(0.8)))),
-                        ],
-                      ),
-                    )),
-                  ],
-                  if (job.responsibilities.isNotEmpty) ...[
-                    const SizedBox(height: 24),
-                    const Text('Responsibilities', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                    const SizedBox(height: 12),
-                    ...job.responsibilities.map((resp) => Padding(
-                      padding: const EdgeInsets.only(bottom: 8.0),
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text('• ', style: TextStyle(fontWeight: FontWeight.bold)),
-                          Expanded(child: Text(resp, style: TextStyle(color: colors.onSurface.withOpacity(0.8)))),
-                        ],
-                      ),
-                    )),
-                  ],
                   const SizedBox(height: 100), // Space for bottom button
                 ],
               ),

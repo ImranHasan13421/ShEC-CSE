@@ -20,29 +20,26 @@ class _JobsScreenState extends State<JobsScreen> {
     JobService.fetchJobs();
   }
 
-  void _toggleStar(JobItem job, ValueNotifier<List<JobItem>> stateNotifier) async {
+  void _toggleStar(JobItem job) async {
     try {
       job.isStarred = !job.isStarred;
-      stateNotifier.value = List.from(stateNotifier.value);
-      
-      String category = stateNotifier == recommendedJobsState ? 'recommended' : 'recent';
-      await JobService.updateJobInDB(job, category);
+      jobsState.value = List.from(jobsState.value);
+      await JobService.updateJobInDB(job);
     } catch (e) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error updating star: $e')));
     }
   }
 
-  void _deleteJob(JobItem job, ValueNotifier<List<JobItem>> stateNotifier) async {
+  void _deleteJob(JobItem job) async {
     try {
-      String category = stateNotifier == recommendedJobsState ? 'recommended' : 'recent';
-      await JobService.deleteJobFromDB(job.id, category);
+      await JobService.deleteJobFromDB(job.id);
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Job deleted')));
     } catch (e) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error deleting job: $e')));
     }
   }
 
-  void _showJobForm(BuildContext context, {JobItem? existingJob, ValueNotifier<List<JobItem>>? defaultStateNotifier}) {
+  void _showJobForm(BuildContext context, {JobItem? existingJob}) {
     final roleController = TextEditingController(text: existingJob?.role ?? '');
     final companyController = TextEditingController(text: existingJob?.company ?? '');
     final locationController = TextEditingController(text: existingJob?.location ?? '');
@@ -50,14 +47,8 @@ class _JobsScreenState extends State<JobsScreen> {
     final deadlineController = TextEditingController(text: existingJob?.deadline ?? '');
     final descriptionController = TextEditingController(text: existingJob?.description ?? '');
     final applyUrlController = TextEditingController(text: existingJob?.applyUrl ?? '');
-    final reqController = TextEditingController();
-    final respController = TextEditingController();
     
     String? selectedJobType = existingJob?.jobType ?? 'Full Time';
-    String? selectedCategory = existingJob?.category ?? (defaultStateNotifier == recommendedJobsState ? 'recommended' : 'recent');
-    
-    List<String> requirements = List.from(existingJob?.requirements ?? []);
-    List<String> responsibilities = List.from(existingJob?.responsibilities ?? []);
     bool isVisible = existingJob?.isVisible ?? true;
 
     showModalBottomSheet(
@@ -85,14 +76,13 @@ class _JobsScreenState extends State<JobsScreen> {
             final colors = Theme.of(context).colorScheme;
 
             return Container(
-              height: MediaQuery.of(context).size.height * 0.85,
+              height: MediaQuery.of(context).size.height * 0.7,
               decoration: BoxDecoration(
                 color: colors.surface,
                 borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
               ),
               child: Column(
                 children: [
-                  // Handle Bar
                   Center(
                     child: Container(
                       margin: const EdgeInsets.symmetric(vertical: 12),
@@ -109,8 +99,6 @@ class _JobsScreenState extends State<JobsScreen> {
                         children: [
                           Text(existingJob == null ? 'Post a New Job' : 'Edit Job Posting', 
                               style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
-                          const SizedBox(height: 4),
-                          Text('Fill in the details for the position', style: TextStyle(color: colors.onSurface.withOpacity(0.6))),
                           const SizedBox(height: 24),
                           
                           _buildTextField('Job Role', roleController, Icons.work_outline, 'e.g. Software Engineer'),
@@ -151,17 +139,6 @@ class _JobsScreenState extends State<JobsScreen> {
                             ],
                           ),
                           const SizedBox(height: 16),
-                          
-                          DropdownButtonFormField<String>(
-                            value: selectedCategory,
-                            decoration: _inputDecoration('Target Category', Icons.category_outlined),
-                            items: [
-                              const DropdownMenuItem(value: 'recent', child: Text('Regular (Recent)')),
-                              const DropdownMenuItem(value: 'recommended', child: Text('Featured (Recommended)')),
-                            ],
-                            onChanged: (value) => setModalState(() => selectedCategory = value),
-                          ),
-                          const SizedBox(height: 16),
 
                           _buildTextField('Apply URL', applyUrlController, Icons.link, 'LinkedIn/Google Form link'),
                           const SizedBox(height: 16),
@@ -169,18 +146,11 @@ class _JobsScreenState extends State<JobsScreen> {
                           _buildTextField('Description', descriptionController, Icons.description_outlined, 'Summary of the job...', maxLines: 4),
                           const SizedBox(height: 24),
                           
-                          _buildListInput('Requirements', reqController, requirements, (val) => setModalState(() => requirements.add(val)), (idx) => setModalState(() => requirements.removeAt(idx)), colors),
-                          const SizedBox(height: 24),
-                          
-                          _buildListInput('Responsibilities', respController, responsibilities, (val) => setModalState(() => responsibilities.add(val)), (idx) => setModalState(() => responsibilities.removeAt(idx)), colors),
-                          const SizedBox(height: 24),
-                          
                           Container(
                             padding: const EdgeInsets.all(12),
-                            decoration: BoxDecoration(color: colors.primaryContainer.withOpacity(0.3), borderRadius: BorderRadius.circular(12)),
+                            decoration: BoxDecoration(color: colors.primaryContainer.withOpacity(0.2), borderRadius: BorderRadius.circular(12)),
                             child: SwitchListTile(
                               title: const Text('Visible to Public Members', style: TextStyle(fontWeight: FontWeight.w600)),
-                              subtitle: const Text('Hide this job if it\'s no longer active'),
                               value: isVisible,
                               onChanged: (val) => setModalState(() => isVisible = val),
                             ),
@@ -206,21 +176,15 @@ class _JobsScreenState extends State<JobsScreen> {
                                       jobType: selectedJobType!,
                                       description: descriptionController.text.trim(),
                                       applyUrl: applyUrlController.text.trim(),
-                                      typeColor: Colors.teal,
-                                      iconColor: Colors.blue,
-                                      icon: Icons.work,
                                       isVisible: isVisible,
                                       createdByName: currentProfile.value.name,
-                                      requirements: requirements,
-                                      responsibilities: responsibilities,
-                                      category: selectedCategory!,
                                     );
                                     
                                     if (existingJob == null) {
-                                      await JobService.addJobToDB(jobData, selectedCategory!);
+                                      await JobService.addJobToDB(jobData);
                                       if (mounted) messenger.showSnackBar(const SnackBar(content: Text('Job posted successfully!')));
                                     } else {
-                                      await JobService.updateJobInDB(jobData, selectedCategory!);
+                                      await JobService.updateJobInDB(jobData);
                                       if (mounted) messenger.showSnackBar(const SnackBar(content: Text('Job updated successfully!')));
                                     }
                                   } catch (e) {
@@ -232,7 +196,6 @@ class _JobsScreenState extends State<JobsScreen> {
                                 backgroundColor: colors.primary,
                                 foregroundColor: Colors.white,
                                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                                elevation: 0,
                               ),
                               child: Text(existingJob == null ? 'Post Job' : 'Save Changes', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                             ),
@@ -256,7 +219,6 @@ class _JobsScreenState extends State<JobsScreen> {
       labelText: label,
       prefixIcon: Icon(icon, size: 20),
       border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.grey.withOpacity(0.3))),
-      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.grey.withOpacity(0.3))),
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
     );
   }
@@ -269,54 +231,6 @@ class _JobsScreenState extends State<JobsScreen> {
     );
   }
 
-  Widget _buildListInput(String label, TextEditingController controller, List<String> items, Function(String) onAdd, Function(int) onRemove, ColorScheme colors) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(label, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-        const SizedBox(height: 12),
-        if (items.isNotEmpty)
-          Container(
-            margin: const EdgeInsets.only(bottom: 12),
-            decoration: BoxDecoration(color: colors.surfaceContainerLow, borderRadius: BorderRadius.circular(12)),
-            child: ListView.separated(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              itemCount: items.length,
-              separatorBuilder: (_, __) => Divider(height: 1, color: colors.outline.withOpacity(0.1)),
-              itemBuilder: (context, index) => ListTile(
-                dense: true,
-                title: Text(items[index], style: const TextStyle(fontSize: 14)),
-                trailing: IconButton(icon: const Icon(Icons.remove_circle_outline, size: 18, color: Colors.red), onPressed: () => onRemove(index)),
-              ),
-            ),
-          ),
-        Row(
-          children: [
-            Expanded(
-              child: TextField(
-                controller: controller,
-                decoration: _inputDecoration('Add $label', Icons.add_circle_outline).copyWith(
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                ),
-              ),
-            ),
-            const SizedBox(width: 12),
-            IconButton.filledTonal(
-              onPressed: () {
-                if (controller.text.isNotEmpty) {
-                  onAdd(controller.text.trim());
-                  controller.clear();
-                }
-              },
-              icon: const Icon(Icons.add),
-            ),
-          ],
-        ),
-      ],
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -325,49 +239,26 @@ class _JobsScreenState extends State<JobsScreen> {
       ),
       body: RefreshIndicator(
         onRefresh: () => JobService.fetchJobs(),
-        child: ListView(
-          padding: const EdgeInsets.all(16.0),
-          children: [
-            _buildSectionTitle(context, 'Recommended for You'),
-            ValueListenableBuilder<List<JobItem>>(
-              valueListenable: recommendedJobsState,
-              builder: (context, jobs, _) {
-                final profile = currentProfile.value;
-                final isAdmin = profile.role != UserRole.student;
-                final visibleJobs = jobs.where((j) {
-                  if (isAdmin) return true;
-                  return j.isApproved && j.isVisible;
-                }).toList();
-  
-                if (visibleJobs.isEmpty) {
-                  return const Padding(padding: EdgeInsets.symmetric(vertical: 16), child: Center(child: Text('No recommended jobs.')));
-                }
-                return Column(
-                  children: visibleJobs.map((job) => _buildJobCard(job, recommendedJobsState)).toList(),
-                );
-              },
-            ),
-            const SizedBox(height: 16),
-            _buildSectionTitle(context, 'Recently Posted'),
-            ValueListenableBuilder<List<JobItem>>(
-              valueListenable: recentJobsState,
-              builder: (context, jobs, _) {
-                final profile = currentProfile.value;
-                final isAdmin = profile.role != UserRole.student;
-                final visibleJobs = jobs.where((j) {
-                  if (isAdmin) return true;
-                  return j.isApproved && j.isVisible;
-                }).toList();
-  
-                if (visibleJobs.isEmpty) {
-                  return const Padding(padding: EdgeInsets.symmetric(vertical: 16), child: Center(child: Text('No recent jobs.')));
-                }
-                return Column(
-                  children: visibleJobs.map((job) => _buildJobCard(job, recentJobsState)).toList(),
-                );
-              },
-            ),
-          ],
+        child: ValueListenableBuilder<List<JobItem>>(
+          valueListenable: jobsState,
+          builder: (context, jobs, _) {
+            final profile = currentProfile.value;
+            final isAdmin = profile.role != UserRole.student;
+            final visibleJobs = jobs.where((j) {
+              if (isAdmin) return true;
+              return j.isApproved && j.isVisible;
+            }).toList();
+
+            if (visibleJobs.isEmpty) {
+              return const Center(child: Text('No jobs posted yet.'));
+            }
+
+            return ListView.builder(
+              padding: const EdgeInsets.all(16),
+              itemCount: visibleJobs.length,
+              itemBuilder: (context, index) => _buildJobCard(visibleJobs[index]),
+            );
+          },
         ),
       ),
       floatingActionButton: ValueListenableBuilder<ProfileData>(
@@ -385,22 +276,10 @@ class _JobsScreenState extends State<JobsScreen> {
     );
   }
 
-  Widget _buildSectionTitle(BuildContext context, String title) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12.0, left: 4.0),
-      child: Text(
-        title,
-        style: TextStyle(
-          fontSize: 16,
-          fontWeight: FontWeight.bold,
-          color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildJobCard(JobItem job, ValueNotifier<List<JobItem>> stateNotifier) {
+  Widget _buildJobCard(JobItem job) {
     final colors = Theme.of(context).colorScheme;
+    const iconColor = Colors.blue;
+    const typeColor = Colors.teal;
 
     return Card(
       key: ValueKey(job.id),
@@ -432,10 +311,10 @@ class _JobsScreenState extends State<JobsScreen> {
                   Container(
                     padding: const EdgeInsets.all(10),
                     decoration: BoxDecoration(
-                      color: job.iconColor.withValues(alpha: 0.1),
+                      color: iconColor.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(8),
                     ),
-                    child: Icon(job.icon, color: job.iconColor, size: 28),
+                    child: const Icon(Icons.work, color: iconColor, size: 28),
                   ),
                   const SizedBox(width: 16),
                   Expanded(
@@ -460,25 +339,18 @@ class _JobsScreenState extends State<JobsScreen> {
                                       decoration: BoxDecoration(color: Colors.red.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(4)),
                                       child: const Text('PENDING', style: TextStyle(color: Colors.red, fontSize: 10, fontWeight: FontWeight.bold)),
                                     ),
-                                  if (!job.isVisible)
-                                    const Padding(
-                                      padding: EdgeInsets.only(left: 8.0),
-                                      child: Text('HIDDEN', style: TextStyle(color: Colors.orange, fontSize: 10, fontWeight: FontWeight.bold)),
-                                    ),
                                 ],
                               ),
                             ),
-                            // The Star Button
                             IconButton(
                               icon: Icon(
                                 job.isStarred ? Icons.star : Icons.star_border,
                                 color: job.isStarred ? Colors.amber : colors.onSurface.withValues(alpha: 0.3),
                               ),
-                              onPressed: () => _toggleStar(job, stateNotifier),
+                              onPressed: () => _toggleStar(job),
                               constraints: const BoxConstraints(),
                               padding: EdgeInsets.zero,
                             ),
-                            // Edit/Delete for Committee Members
                             ValueListenableBuilder<ProfileData>(
                               valueListenable: currentProfile,
                               builder: (context, profile, _) {
@@ -487,9 +359,9 @@ class _JobsScreenState extends State<JobsScreen> {
                                     icon: const Icon(Icons.more_vert, size: 20),
                                     onSelected: (value) {
                                       if (value == 'edit') {
-                                        _showJobForm(context, existingJob: job, defaultStateNotifier: stateNotifier);
+                                        _showJobForm(context, existingJob: job);
                                       } else if (value == 'delete') {
-                                        _deleteJob(job, stateNotifier);
+                                        _deleteJob(job);
                                       } else if (value == 'approve') {
                                         JobService.approveJob(job.id);
                                       } else if (value == 'visibility') {
@@ -537,13 +409,13 @@ class _JobsScreenState extends State<JobsScreen> {
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                     decoration: BoxDecoration(
-                      color: job.typeColor.withValues(alpha: 0.1),
+                      color: typeColor.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(6),
-                      border: Border.all(color: job.typeColor.withValues(alpha: 0.3)),
+                      border: Border.all(color: typeColor.withValues(alpha: 0.3)),
                     ),
                     child: Text(
                       job.jobType,
-                      style: TextStyle(color: job.typeColor, fontSize: 11, fontWeight: FontWeight.bold),
+                      style: TextStyle(color: typeColor, fontSize: 11, fontWeight: FontWeight.bold),
                     ),
                   ),
                   const Spacer(),

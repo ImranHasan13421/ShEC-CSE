@@ -17,29 +17,17 @@ class JobService {
     }
     
     final response = await query.order('created_at', ascending: false);
+    final List<JobItem> jobs = response.map((row) => JobItem.fromJson(row)).toList();
 
-    final List<JobItem> recommended = [];
-    final List<JobItem> recent = [];
-
-    for (var row in response) {
-      final job = JobItem.fromJson(row);
-      if (job.category == 'recommended') {
-        recommended.add(job);
-      } else {
-        recent.add(job);
-      }
-    }
-
-    recommendedJobsState.value = recommended;
-    recentJobsState.value = recent;
+    jobsState.value = jobs;
     CacheService.markFresh(CacheKeys.jobsRecommended);
   }
 
-  static Future<void> addJobToDB(JobItem job, String category) async {
+  static Future<void> addJobToDB(JobItem job) async {
     final profile = currentProfile.value;
     final isSuperUser = profile.designation == 'President' || profile.designation == 'Vice President';
     
-    final data = job.copyWith(category: category).toJson();
+    final data = job.toJson();
     data['is_approved'] = isSuperUser;
     data['is_visible'] = true;
     data['created_by_name'] = profile.name;
@@ -51,16 +39,12 @@ class JobService {
         .single();
 
     final newJob = JobItem.fromJson(response);
-    if (newJob.category == 'recommended') {
-      recommendedJobsState.value = List.from(recommendedJobsState.value)..insert(0, newJob);
-    } else {
-      recentJobsState.value = List.from(recentJobsState.value)..insert(0, newJob);
-    }
+    jobsState.value = List.from(jobsState.value)..insert(0, newJob);
     CacheService.invalidate(CacheKeys.jobsRecommended);
   }
 
-  static Future<void> updateJobInDB(JobItem job, String category) async {
-    final data = job.copyWith(category: category).toJson();
+  static Future<void> updateJobInDB(JobItem job) async {
+    final data = job.toJson();
     data.remove('is_approved'); // Don't overwrite existing status on normal edit
     
     await _client
@@ -84,19 +68,14 @@ class JobService {
     fetchJobs(forceRefresh: true);
   }
 
-  static Future<void> deleteJobFromDB(String id, String category) async {
+  static Future<void> deleteJobFromDB(String id) async {
     await _client
         .from('jobs')
         .delete()
         .eq('id', id);
 
-    if (category == 'recommended') {
-      recommendedJobsState.value = List.from(recommendedJobsState.value)
+    jobsState.value = List.from(jobsState.value)
         ..removeWhere((job) => job.id == id);
-    } else {
-      recentJobsState.value = List.from(recentJobsState.value)
-        ..removeWhere((job) => job.id == id);
-    }
     CacheService.invalidate(CacheKeys.jobsRecommended);
   }
 
