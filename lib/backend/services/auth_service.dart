@@ -165,6 +165,11 @@ class AuthService {
   }
 
   static Future<void> updateProfile(ProfileData profile) async {
+    await updateAnyProfile(profile);
+    await fetchCurrentUserProfile();
+  }
+
+  static Future<void> updateAnyProfile(ProfileData profile) async {
     await _client.from('profiles').update({
       'first_name': profile.firstName,
       'last_name': profile.lastName,
@@ -177,7 +182,6 @@ class AuthService {
       'profile_pic': profile.imagePath, 
       'du_reg': profile.duRegNo,
     }).eq('id', profile.id);
-    await fetchCurrentUserProfile();
   }
 
   static Future<void> approveUser(String userId) async {

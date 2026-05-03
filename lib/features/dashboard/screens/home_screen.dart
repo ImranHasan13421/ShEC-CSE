@@ -199,7 +199,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 icon: Icons.emoji_events, 
                 iconColor: Colors.orange, 
                 title: c.title, 
-                subtitle: '${c.platform} | ${c.level}', 
+                subtitle: '${c.platform} | Level/Div: ${c.level}', 
                 tag: 'Contest', 
                 date: c.date,
                 onTap: () => widget.onNavigateToTab?.call(3),

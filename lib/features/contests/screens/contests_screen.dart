@@ -74,10 +74,29 @@ class _ContestsScreenState extends State<ContestsScreen> {
                         decoration: const InputDecoration(labelText: 'Level / Div', border: OutlineInputBorder()),
                       )),
                       const SizedBox(width: 12),
-                      Expanded(child: TextField(
-                        controller: dateController,
-                        decoration: const InputDecoration(labelText: 'Date & Time', border: OutlineInputBorder()),
-                      )),
+                      Expanded(
+                        child: InkWell(
+                          onTap: () async {
+                            final picked = await showDatePicker(
+                              context: context,
+                              initialDate: DateTime.now(),
+                              firstDate: DateTime.now(),
+                              lastDate: DateTime(2101),
+                            );
+                            if (picked != null) {
+                              setModalState(() {
+                                dateController.text = "${picked.day}/${picked.month}/${picked.year}";
+                              });
+                            }
+                          },
+                          child: AbsorbPointer(
+                            child: TextField(
+                              controller: dateController,
+                              decoration: const InputDecoration(labelText: 'Date', border: OutlineInputBorder(), prefixIcon: Icon(Icons.calendar_today, size: 18)),
+                            ),
+                          ),
+                        ),
+                      ),
                     ]),
                     const SizedBox(height: 12),
                     TextField(
@@ -149,7 +168,7 @@ class _ContestsScreenState extends State<ContestsScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Programming Contests'),
+        title: const Text('Contests'),
       ),
       body: ValueListenableBuilder<List<ContestItem>>(
         valueListenable: contestState,
@@ -272,7 +291,7 @@ class _ContestsScreenState extends State<ContestsScreen> {
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                     decoration: BoxDecoration(color: colors.secondaryContainer, borderRadius: BorderRadius.circular(6)),
-                    child: Text(item.level, style: TextStyle(color: colors.onSecondaryContainer, fontSize: 11, fontWeight: FontWeight.bold)),
+                    child: Text('Level/Div: ${item.level}', style: TextStyle(color: colors.onSecondaryContainer, fontSize: 11, fontWeight: FontWeight.bold)),
                   ),
                 if (item.level.isNotEmpty) const SizedBox(width: 12),
                 Icon(Icons.calendar_month, size: 14, color: colors.onSurface.withValues(alpha: 0.5)),

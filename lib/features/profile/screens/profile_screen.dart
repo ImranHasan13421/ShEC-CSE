@@ -114,12 +114,23 @@ class _ProfileScreenState extends State<ProfileScreen> {
         }
       }
 
+      final profile = currentProfile.value;
+      final isSuperuser = profile.designation == 'President' || profile.designation == 'Vice President';
+
       // 1. Update Profile Metadata
-      final updatedProfile = currentProfile.value.copyWith(
+      final updatedProfile = profile.copyWith(
         firstName: _firstNameController.text.trim(),
         lastName: _lastNameController.text.trim(),
         name: '${_firstNameController.text.trim()} ${_lastNameController.text.trim()}',
         imagePath: finalImageUrl,
+        // Allow superusers to save these fields too
+        studentId: isSuperuser ? _universityIdController.text.trim() : profile.studentId,
+        universityId: isSuperuser ? _universityIdController.text.trim() : profile.universityId,
+        classRoll: isSuperuser ? _classRollController.text.trim() : profile.classRoll,
+        session: isSuperuser ? (_selectedSession ?? profile.session) : profile.session,
+        batch: isSuperuser ? (_selectedBatch ?? profile.batch) : profile.batch,
+        phone: isSuperuser ? _phoneController.text.trim() : profile.phone,
+        duRegNo: isSuperuser ? _duRegController.text.trim() : profile.duRegNo,
       );
 
       await AuthService.updateProfile(updatedProfile);
@@ -159,6 +170,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
+    final profile = currentProfile.value;
+    final isSuperuser = profile.designation == 'President' || profile.designation == 'Vice President';
 
     return Scaffold(
       appBar: AppBar(title: const Text('Edit Profile')),
@@ -179,8 +192,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       backgroundImage: _displayImage,
                       child: _displayImage == null
                           ? Text(
-                              (currentProfile.value.firstName.isNotEmpty
-                                  ? currentProfile.value.firstName[0]
+                              (profile.firstName.isNotEmpty
+                                  ? profile.firstName[0]
                                   : '?').toUpperCase(),
                               style: TextStyle(fontSize: 52, fontWeight: FontWeight.bold, color: colors.onPrimaryContainer),
                             )
@@ -223,33 +236,72 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ),
 
               const SizedBox(height: 24),
-              _sectionLabel('Academic Information (Locked)'),
+              _sectionLabel(isSuperuser ? 'Academic Information' : 'Academic Information (Locked)'),
               const SizedBox(height: 12),
               Row(children: [
-                Expanded(child: _buildTextField('University ID', _universityIdController, Icons.badge, readOnly: true)),
+                Expanded(child: _buildTextField('University ID', _universityIdController, Icons.badge, readOnly: !isSuperuser)),
                 const SizedBox(width: 16),
-                Expanded(child: _buildTextField('Class Roll', _classRollController, Icons.numbers, readOnly: true)),
+                Expanded(child: _buildTextField('Class Roll', _classRollController, Icons.numbers, readOnly: !isSuperuser)),
               ]),
               const SizedBox(height: 16),
               
-              _buildTextField('Session', TextEditingController(text: _selectedSession), Icons.date_range, readOnly: true),
-              const SizedBox(height: 16),
-              
-              _buildTextField('Batch', TextEditingController(text: _selectedBatch != null ? 'Batch $_selectedBatch' : ''), Icons.group, readOnly: true),
-              const SizedBox(height: 16),
-              
-              _buildTextField('Phone', _phoneController, Icons.phone, readOnly: true),
-              const SizedBox(height: 16),
-              _buildTextField('DU Registration No.', _duRegController, Icons.app_registration, readOnly: true),
-              
-              const Padding(
-                padding: EdgeInsets.only(top: 8.0),
-                child: Text(
-                  'Contact admin to update academic details.',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(fontSize: 12, color: Colors.grey, fontStyle: FontStyle.italic),
+              if (isSuperuser) ...[
+                Row(
+                  children: [
+                    Expanded(
+                      child: Builder(builder: (context) {
+                        final generatedSessions = [for (var i = 2015; i <= 2026; i++) '${i}-${i + 1}'];
+                        if (_selectedSession != null && _selectedSession!.isNotEmpty && !generatedSessions.contains(_selectedSession)) {
+                          generatedSessions.add(_selectedSession!);
+                          generatedSessions.sort((a, b) => b.compareTo(a));
+                        }
+                        return DropdownButtonFormField<String>(
+                          value: _selectedSession,
+                          decoration: _inputDecoration('Session', Icons.date_range),
+                          items: generatedSessions.map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
+                          onChanged: (val) => setState(() => _selectedSession = val),
+                        );
+                      }),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Builder(builder: (context) {
+                        final generatedBatches = [for (var i = 1; i <= 10; i++) '$i'];
+                        if (_selectedBatch != null && _selectedBatch!.isNotEmpty && !generatedBatches.contains(_selectedBatch)) {
+                          generatedBatches.add(_selectedBatch!);
+                        }
+                        generatedBatches.sort((a, b) => int.parse(a).compareTo(int.parse(b)));
+                        return DropdownButtonFormField<String>(
+                          value: _selectedBatch,
+                          decoration: _inputDecoration('Batch', Icons.group),
+                          items: generatedBatches.map((s) => DropdownMenuItem(value: s, child: Text('Batch $s'))).toList(),
+                          onChanged: (val) => setState(() => _selectedBatch = val),
+                        );
+                      }),
+                    ),
+                  ],
                 ),
-              ),
+              ] else ...[
+                _buildTextField('Session', TextEditingController(text: _selectedSession), Icons.date_range, readOnly: true),
+                const SizedBox(height: 16),
+                _buildTextField('Batch', TextEditingController(text: _selectedBatch != null ? 'Batch $_selectedBatch' : ''), Icons.group, readOnly: true),
+              ],
+              
+              const SizedBox(height: 16),
+              
+              _buildTextField('Phone', _phoneController, Icons.phone, readOnly: !isSuperuser),
+              const SizedBox(height: 16),
+              _buildTextField('DU Registration No.', _duRegController, Icons.app_registration, readOnly: !isSuperuser),
+              
+              if (!isSuperuser)
+                const Padding(
+                  padding: EdgeInsets.only(top: 8.0),
+                  child: Text(
+                    'Contact admin to update academic details.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(fontSize: 12, color: Colors.grey, fontStyle: FontStyle.italic),
+                  ),
+                ),
 
               const SizedBox(height: 40),
 

@@ -147,6 +147,21 @@ class _ClubMembersScreenState extends State<ClubMembersScreen> with SingleTicker
                         _deleteMember(member);
                       },
                     ),
+
+                  if (isSuperuser) ...[
+                    const Divider(height: 16),
+                    SizedBox(
+                      width: double.infinity,
+                      child: OutlinedButton.icon(
+                        icon: const Icon(Icons.edit_note),
+                        label: const Text('Update Member Info'),
+                        onPressed: () {
+                          Navigator.pop(context);
+                          _showEditMemberSheet(member);
+                        },
+                      ),
+                    ),
+                  ],
                 ]
               ],
             ),
@@ -252,6 +267,147 @@ class _ClubMembersScreenState extends State<ClubMembersScreen> with SingleTicker
         if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error deleting member: $e')));
       }
     }
+  }
+
+  void _showEditMemberSheet(ProfileData member) {
+    final firstNameController = TextEditingController(text: member.firstName);
+    final lastNameController = TextEditingController(text: member.lastName);
+    final classIdController = TextEditingController(text: member.studentId);
+    final universityIdController = TextEditingController(text: member.universityId);
+    final classRollController = TextEditingController(text: member.classRoll);
+    final duRegController = TextEditingController(text: member.duRegNo);
+    final phoneController = TextEditingController(text: member.phone);
+    String selectedSession = member.session;
+    String selectedBatch = member.batch;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(25))),
+      builder: (modalContext) {
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            return Padding(
+              padding: EdgeInsets.only(
+                bottom: MediaQuery.of(modalContext).viewInsets.bottom,
+                left: 24, right: 24, top: 24,
+              ),
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('Edit Member Info', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+                    const SizedBox(height: 20),
+                    Row(
+                      children: [
+                        Expanded(child: TextField(controller: firstNameController, decoration: const InputDecoration(labelText: 'First Name', border: OutlineInputBorder()))),
+                        const SizedBox(width: 12),
+                        Expanded(child: TextField(controller: lastNameController, decoration: const InputDecoration(labelText: 'Last Name', border: OutlineInputBorder()))),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(controller: classIdController, decoration: const InputDecoration(labelText: 'University ID (e.g. 2021-3-1-20)', border: OutlineInputBorder())),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        Expanded(child: TextField(controller: classRollController, decoration: const InputDecoration(labelText: 'Class Roll', border: OutlineInputBorder()))),
+                        const SizedBox(width: 12),
+                        Expanded(child: TextField(controller: duRegController, decoration: const InputDecoration(labelText: 'DU Reg No', border: OutlineInputBorder()))),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Builder(
+                            builder: (context) {
+                              final generatedSessions = [for (var i = 2015; i <= 2026; i++) '${i}-${i + 1}'];
+                              if (selectedSession.isNotEmpty && !generatedSessions.contains(selectedSession)) {
+                                generatedSessions.add(selectedSession);
+                                generatedSessions.sort((a, b) => b.compareTo(a)); // Sort descending for sessions
+                              }
+                              return DropdownButtonFormField<String>(
+                                value: selectedSession.isNotEmpty ? selectedSession : null,
+                                decoration: const InputDecoration(labelText: 'Session', border: OutlineInputBorder()),
+                                items: generatedSessions.map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
+                                onChanged: (val) => setModalState(() => selectedSession = val!),
+                              );
+                            }
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Builder(
+                            builder: (context) {
+                              final generatedBatches = [for (var i = 1; i <= 10; i++) '$i'];
+                              if (selectedBatch.isNotEmpty && !generatedBatches.contains(selectedBatch)) {
+                                generatedBatches.add(selectedBatch);
+                              }
+                              generatedBatches.sort((a, b) => int.parse(a).compareTo(int.parse(b)));
+                              return DropdownButtonFormField<String>(
+                                value: selectedBatch.isNotEmpty ? selectedBatch : null,
+                                decoration: const InputDecoration(labelText: 'Batch', border: OutlineInputBorder()),
+                                items: generatedBatches.map((s) => DropdownMenuItem(value: s, child: Text('Batch $s'))).toList(),
+                                onChanged: (val) => setModalState(() => selectedBatch = val!),
+                              );
+                            }
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(controller: phoneController, decoration: const InputDecoration(labelText: 'Phone Number', border: OutlineInputBorder())),
+                    const SizedBox(height: 32),
+                    SizedBox(
+                      width: double.infinity,
+                      height: 56,
+                      child: ElevatedButton(
+                        onPressed: () async {
+                          final updated = ProfileData(
+                            id: member.id,
+                            firstName: firstNameController.text.trim(),
+                            lastName: lastNameController.text.trim(),
+                            name: '${firstNameController.text.trim()} ${lastNameController.text.trim()}',
+                            email: member.email,
+                            roll: classIdController.text.trim(),
+                            studentId: classIdController.text.trim(),
+                            universityId: universityIdController.text.trim(),
+                            classRoll: classRollController.text.trim(),
+                            duRegNo: duRegController.text.trim(),
+                            session: selectedSession,
+                            batch: selectedBatch,
+                            phone: phoneController.text.trim(),
+                            imagePath: member.imagePath,
+                            role: member.role,
+                            designation: member.designation,
+                            isApproved: member.isApproved,
+                            isAlumni: member.isAlumni,
+                          );
+
+                          try {
+                            await AuthService.updateAnyProfile(updated);
+                            if (mounted) {
+                              Navigator.pop(modalContext);
+                              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Member information updated')));
+                              _fetchMembers();
+                            }
+                          } catch (e) {
+                            if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+                          }
+                        },
+                        child: const Text('Save Changes', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                      ),
+                    ),
+                    const SizedBox(height: 32),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
   }
 
   @override
