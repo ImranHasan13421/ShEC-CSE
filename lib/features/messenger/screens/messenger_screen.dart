@@ -1,115 +1,86 @@
 import 'package:flutter/material.dart';
-import 'package:ShEC_CSE/features/messenger/screens/chat_screen.dart'; // Make sure this imports the file we just updated
+import 'package:ShEC_CSE/features/messenger/screens/chat_screen.dart';
+import 'package:ShEC_CSE/features/messenger/models/chat_state.dart';
+import 'package:ShEC_CSE/backend/services/chat_service.dart';
 
-class MessengerScreen extends StatelessWidget {
+class MessengerScreen extends StatefulWidget {
   const MessengerScreen({super.key});
+
+  @override
+  State<MessengerScreen> createState() => _MessengerScreenState();
+}
+
+class _MessengerScreenState extends State<MessengerScreen> {
+  @override
+  void initState() {
+    super.initState();
+    ChatService.fetchRooms();
+  }
 
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
 
     return Scaffold(
-      body: ListView(
-        padding: const EdgeInsets.symmetric(vertical: 8),
-        children: [
-          // 0. Alumni Association
-          _buildChatTile(
-            context: context,
-            title: 'Alumni Association',
-            subtitle: 'Interested, meet me at home...',
-            time: '5:16 PM',
-            unreadCount: 0,
-            icon: Icons.diamond_outlined,
-            iconColor: Colors.red, // Distinct Indigo Color
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => ChatScreen(
-                    groupName: 'Alumni Association',
-                    memberCount: '21',
-                    themeColor: Colors.red,
-                    messages: _getAlumniMesseges(),
-                  ),
-                ),
-              );
-            },
-          ),
+      body: ValueListenableBuilder<bool>(
+        valueListenable: isLoadingChatRooms,
+        builder: (context, isLoading, _) {
+          if (isLoading) return const Center(child: CircularProgressIndicator());
 
-          // 1. General Club Group
-          _buildChatTile(
-            context: context,
-            title: 'General Club Group',
-            subtitle: 'Got it! See you all there.',
-            time: '9:15 AM',
-            unreadCount: 0,
-            icon: Icons.groups,
-            iconColor: colors.primary, // Default Teal
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => ChatScreen(
-                    groupName: 'General Club Group',
-                    memberCount: '156',
-                    themeColor: colors.primary,
-                    messages: _getGeneralMessages(),
-                  ),
-                ),
-              );
-            },
-          ),
+          return ValueListenableBuilder<List<ChatRoom>>(
+            valueListenable: chatRoomsList,
+            builder: (context, rooms, _) {
+              if (rooms.isEmpty) return const Center(child: Text('No active chat groups.'));
 
-          // 2. Problem Solving and Instruction Group
-          _buildChatTile(
-            context: context,
-            title: 'Problem Solving and Instruction Group',
-            subtitle: 'We will cover this optimization tomorrow!',
-            time: 'Yesterday',
-            unreadCount: 3,
-            icon: Icons.code,
-            iconColor: Colors.indigo, // Distinct Indigo Color
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => ChatScreen(
-                    groupName: 'Problem Solving & Instruction',
-                    memberCount: '84',
-                    themeColor: Colors.indigo,
-                    messages: _getProblemSolvingMessages(),
-                  ),
-                ),
+              return ListView.builder(
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                itemCount: rooms.length,
+                itemBuilder: (context, index) {
+                  final room = rooms[index];
+                  return _buildChatTile(
+                    context: context,
+                    title: room.name,
+                    subtitle: room.description,
+                    time: '', // Could be updated with last message time
+                    unreadCount: 0,
+                    icon: _getIcon(room.type),
+                    iconColor: _getColor(room.type, colors),
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => ChatScreen(
+                            roomId: room.id,
+                            groupName: room.name,
+                            themeColor: _getColor(room.type, colors),
+                          ),
+                        ),
+                      );
+                    },
+                  );
+                },
               );
             },
-          ),
-
-          // 3. Course Related Discussion Group
-          _buildChatTile(
-            context: context,
-            title: 'Course Related Discussion Group',
-            subtitle: 'Make sure to focus on process scheduling.',
-            time: 'Mon',
-            unreadCount: 0,
-            icon: Icons.menu_book,
-            iconColor: Colors.orange, // Distinct Orange Color
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => ChatScreen(
-                    groupName: 'Course Related Discussion',
-                    memberCount: '120',
-                    themeColor: Colors.orange.shade700,
-                    messages: _getCourseMessages(),
-                  ),
-                ),
-              );
-            },
-          ),
-        ],
+          );
+        },
       ),
     );
+  }
+
+  IconData _getIcon(ChatRoomType type) {
+    switch (type) {
+      case ChatRoomType.committee: return Icons.shield;
+      case ChatRoomType.problemSolving: return Icons.code;
+      default: return Icons.groups;
+    }
+  }
+
+  Color _getColor(ChatRoomType type, ColorScheme colors) {
+    switch (type) {
+      case ChatRoomType.committee: return Colors.red;
+      case ChatRoomType.problemSolving: return Colors.indigo;
+      default: return colors.primary;
+    }
   }
 
   Widget _buildChatTile({

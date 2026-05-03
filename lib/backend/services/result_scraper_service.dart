@@ -98,7 +98,9 @@ class ResultScraperService {
       final String resultId = resultResponse['id'];
 
       // 2. Insert subject results
-      final List<dynamic> subjects = data['subjects'];
+      final dynamic subjectsRaw = data['subjects'];
+      final List<dynamic> subjects = (subjectsRaw is List) ? subjectsRaw : [];
+      
       if (subjects.isNotEmpty) {
         // Delete old subject results for this specific exam if any (due to upsert logic)
         await _client.from('subject_results').delete().eq('result_id', resultId);
