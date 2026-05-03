@@ -59,8 +59,15 @@ class ContestService {
   }
 
   static Future<void> updateContestInDB(ContestItem item) async {
+    final profile = currentProfile.value;
+    final isSuperUser = profile.designation == 'President' || profile.designation == 'Vice President';
+    
     final data = item.toJson();
-    data.remove('is_approved'); // Don't overwrite existing status on normal edit
+    
+    // Reset approval if edited by non-superuser
+    if (!isSuperUser) {
+      data['is_approved'] = false;
+    }
     
     await _client
         .from('contests')

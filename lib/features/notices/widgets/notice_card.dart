@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../backend/services/notice_service.dart';
 import '../models/notice_state.dart';
 import '../screens/notice_detail_screen.dart';
 
@@ -143,10 +144,13 @@ class NoticeCard extends StatelessWidget {
         if (val == 'delete') onDelete?.call();
         if (val == 'approve') onApprove?.call();
         if (val == 'visibility') onToggleVisibility?.call();
+        if (val == 'pin') NoticeService.toggleNoticePin(notice.id, !notice.isPinned);
       },
       itemBuilder: (_) => [
         if (!notice.isApproved && isSuperUser)
           const PopupMenuItem(value: 'approve', child: Text('Approve', style: TextStyle(color: Colors.green))),
+        if (isSuperUser)
+          PopupMenuItem(value: 'pin', child: Text(notice.isPinned ? 'Unpin' : 'Pin')),
         PopupMenuItem(value: 'visibility', child: Text(notice.isVisible ? 'Hide' : 'Show')),
         const PopupMenuItem(value: 'edit', child: Text('Edit')),
         const PopupMenuItem(value: 'delete', child: Text('Delete', style: TextStyle(color: Colors.red))),

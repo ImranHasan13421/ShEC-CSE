@@ -31,6 +31,7 @@ class ChatService {
       'room_id': roomId,
       'sender_id': user.id,
       'sender_name': profile.name.isEmpty ? 'Member' : profile.name,
+      'sender_image': profile.imagePath, // Save the profile image path
       'text': text,
     }).select().single();
 

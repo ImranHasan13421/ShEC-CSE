@@ -43,6 +43,7 @@ class ChatMessage {
   final String roomId;
   final String senderId;
   final String senderName;
+  final String? senderImage;
   final String text;
   final DateTime createdAt;
   final bool isMe;
@@ -52,6 +53,7 @@ class ChatMessage {
     required this.roomId,
     required this.senderId,
     required this.senderName,
+    this.senderImage,
     required this.text,
     required this.createdAt,
     required this.isMe,
@@ -63,6 +65,7 @@ class ChatMessage {
       roomId: json['room_id'],
       senderId: json['sender_id'],
       senderName: json['sender_name'],
+      senderImage: json['sender_image'],
       text: json['text'],
       createdAt: DateTime.parse(json['created_at']),
       isMe: json['sender_id'] == currentUserId,

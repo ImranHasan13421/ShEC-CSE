@@ -55,7 +55,6 @@ class NoticeService {
     final profile = currentProfile.value;
     final isSuperUser = profile.designation == 'President' || profile.designation == 'Vice President';
     
-    // Create data map manually to ensure correct field names
     final Map<String, dynamic> data = {
       'category': category,
       'title': notice.title,
@@ -64,14 +63,13 @@ class NoticeService {
       'tags': notice.tags,
       'tag_color': notice.tagColor.value,
       'is_pinned': notice.isPinned,
-      'is_approved': isSuperUser, // Superusers auto-approve their own
+      'is_approved': isSuperUser, 
       'is_visible': true,
       'created_by_name': profile.name,
-      'icon_key': 'notifications', // Default icon key
+      'icon_key': 'notifications',
       'icon_color': Colors.blue.value,
     };
     
-    // Remove null date to let DB default work, or set it explicitly
     final now = DateTime.now();
     data['date'] = '${now.day}/${now.month}/${now.year}';
 
@@ -96,8 +94,14 @@ class NoticeService {
   }
 
   static Future<void> updateNoticeInDB(NoticeItem notice, String category) async {
+    final profile = currentProfile.value;
+    final isSuperUser = profile.designation == 'President' || profile.designation == 'Vice President';
+    
     final data = notice.toJson(category);
-    data.remove('is_approved'); // Don't overwrite existing status on normal edit
+    
+    if (!isSuperUser) {
+      data['is_approved'] = false;
+    }
     
     try {
       await _client
@@ -111,6 +115,12 @@ class NoticeService {
       debugPrint('Error updating notice: $e');
       rethrow;
     }
+  }
+
+  static Future<void> toggleNoticePin(String id, bool isPinned) async {
+    await _client.from('notices').update({'is_pinned': isPinned}).eq('id', id);
+    CacheService.invalidate(CacheKeys.notices);
+    fetchNotices(forceRefresh: true);
   }
 
   static Future<void> deleteNoticeFromDB(String id, String category) async {

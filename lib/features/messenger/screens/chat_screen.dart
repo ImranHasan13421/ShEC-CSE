@@ -49,7 +49,6 @@ class _ChatScreenState extends State<ChatScreen> {
     _subscription = ChatService.subscribeToRoom(widget.roomId, (newMessage) {
       if (mounted) {
         setState(() {
-          // Only add if not already present (prevents duplicates from local echo)
           if (!_messages.any((m) => m.id == newMessage.id)) {
             _messages.add(newMessage);
           }
@@ -87,7 +86,6 @@ class _ChatScreenState extends State<ChatScreen> {
 
     _messageController.clear();
     
-    // 1. Local Echo: Add to UI immediately
     final tempMsg = ChatMessage(
       id: 'temp_${DateTime.now().millisecondsSinceEpoch}',
       roomId: widget.roomId,
@@ -103,10 +101,8 @@ class _ChatScreenState extends State<ChatScreen> {
     });
     _scrollToBottom();
 
-    // 2. Send to server
     final realMsg = await ChatService.sendMessage(widget.roomId, text);
     
-    // 3. Replace temp message with real one to sync ID
     if (mounted && realMsg != null) {
       setState(() {
         final index = _messages.indexWhere((m) => m.id == tempMsg.id);
@@ -166,6 +162,7 @@ class _ChatScreenState extends State<ChatScreen> {
                       return _buildReceivedMessage(
                         context: context,
                         sender: msg.senderName,
+                        senderImage: msg.senderImage,
                         message: msg.text,
                         time: DateFormat('h:mm a').format(msg.createdAt),
                       );
@@ -184,37 +181,56 @@ class _ChatScreenState extends State<ChatScreen> {
     required String sender,
     required String message,
     required String time,
+    String? senderImage,
   }) {
     final colors = Theme.of(context).colorScheme;
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 16.0, right: 40.0),
-      child: Column(
+      child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(sender, style: TextStyle(fontSize: 12, color: colors.onSurface.withOpacity(0.6), fontWeight: FontWeight.bold)),
-          const SizedBox(height: 4),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            decoration: BoxDecoration(
-              color: colors.surface,
-              borderRadius: const BorderRadius.only(
-                topRight: Radius.circular(16),
-                bottomLeft: Radius.circular(16),
-                bottomRight: Radius.circular(16),
-              ),
-              border: Border.all(color: colors.outline.withOpacity(0.1)),
-            ),
-            child: Text(message, style: TextStyle(color: colors.onSurface, fontSize: 14)),
+          CircleAvatar(
+            radius: 16,
+            backgroundImage: (senderImage != null && senderImage.isNotEmpty)
+                ? NetworkImage(senderImage)
+                : null,
+            child: (senderImage == null || senderImage.isEmpty)
+                ? const Icon(Icons.person, size: 16)
+                : null,
           ),
-          const SizedBox(height: 4),
-          Text(time, style: TextStyle(fontSize: 10, color: colors.onSurface.withOpacity(0.4))),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(sender, style: TextStyle(fontSize: 12, color: colors.onSurface.withOpacity(0.6), fontWeight: FontWeight.bold)),
+                const SizedBox(height: 4),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  decoration: BoxDecoration(
+                    color: colors.surface,
+                    borderRadius: const BorderRadius.only(
+                      topRight: Radius.circular(16),
+                      bottomLeft: Radius.circular(16),
+                      bottomRight: Radius.circular(16),
+                    ),
+                    border: Border.all(color: colors.outline.withOpacity(0.1)),
+                  ),
+                  child: Text(message, style: TextStyle(color: colors.onSurface, fontSize: 14)),
+                ),
+                const SizedBox(height: 4),
+                Text(time, style: TextStyle(fontSize: 10, color: colors.onSurface.withOpacity(0.4))),
+              ],
+            ),
+          ),
         ],
       ),
     );
   }
 
   Widget _buildSentMessage({required BuildContext context, required String message, required String time}) {
+    final colors = Theme.of(context).colorScheme;
     return Padding(
       padding: const EdgeInsets.only(bottom: 16.0, left: 40.0),
       child: Column(
@@ -233,7 +249,7 @@ class _ChatScreenState extends State<ChatScreen> {
             child: Text(message, style: const TextStyle(color: Colors.white, fontSize: 14)),
           ),
           const SizedBox(height: 4),
-          Text(time, style: TextStyle(fontSize: 10, color: Colors.black.withOpacity(0.4))),
+          Text(time, style: TextStyle(fontSize: 10, color: colors.onSurface.withOpacity(0.4))),
         ],
       ),
     );
