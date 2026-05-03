@@ -300,7 +300,7 @@ class _ClubScreenState extends State<ClubScreen> {
               ),
             ),
             const SizedBox(width: 8),
-            Text('• ${member.batch} th Batch', style: TextStyle(color: colors.onSurface.withOpacity(0.5), fontSize: 13)),
+            Text('• ${member.batch}', style: TextStyle(color: colors.onSurface.withOpacity(0.5), fontSize: 13)),
           ],
         ),
       ),

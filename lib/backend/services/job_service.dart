@@ -2,6 +2,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../features/jobs/models/job_state.dart';
 import '../../features/profile/models/profile_state.dart';
 import '../../core/services/cache_service.dart';
+import 'notification_service.dart';
 
 class JobService {
   static final SupabaseClient _client = Supabase.instance.client;
@@ -87,7 +88,20 @@ class JobService {
         event: PostgresChangeEvent.all,
         schema: 'public',
         table: 'jobs',
-        callback: (payload) => fetchJobs(forceRefresh: true),
+        callback: (payload) {
+          if (payload.eventType == PostgresChangeEvent.insert) {
+            final data = payload.newRecord;
+            if (data['created_by_name'] != currentProfile.value.name) {
+              NotificationService.incrementUnread('jobs');
+              NotificationService.showNotification(
+                id: 2,
+                title: 'New Job Opening: ${data['title']}',
+                body: '${data['company']} is hiring! Check it out in the Job Board.',
+              );
+            }
+          }
+          fetchJobs(forceRefresh: true);
+        },
       )
       .subscribe();
   }

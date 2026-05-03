@@ -9,6 +9,7 @@ import 'package:ShEC_CSE/features/notices/screens/notices_screen.dart';
 import 'package:ShEC_CSE/features/jobs/screens/jobs_screen.dart';
 import 'package:ShEC_CSE/features/contests/screens/contests_screen.dart';
 import 'package:ShEC_CSE/features/messenger/screens/messenger_screen.dart';
+import 'package:ShEC_CSE/backend/services/notification_service.dart';
 import 'package:ShEC_CSE/features/club/screens/club_screen.dart';
 import 'package:ShEC_CSE/features/gallery/screens/gallery_screen.dart';
 import 'package:ShEC_CSE/features/profile/screens/profile_screen.dart';
@@ -22,6 +23,9 @@ import 'package:ShEC_CSE/features/alumni/screens/alumni_screen.dart';
 import 'package:ShEC_CSE/backend/services/notice_service.dart';
 import 'package:ShEC_CSE/backend/services/job_service.dart';
 import 'package:ShEC_CSE/backend/services/contest_service.dart';
+import 'package:ShEC_CSE/backend/services/chat_service.dart';
+
+import '../../../backend/services/notification_service.dart';
 
 class HomeLayout extends StatefulWidget {
   const HomeLayout({super.key});
@@ -30,13 +34,14 @@ class HomeLayout extends StatefulWidget {
   State<HomeLayout> createState() => _HomeLayoutState();
 }
 
-class _HomeLayoutState extends State<HomeLayout> {
+class _HomeLayoutState extends State<HomeLayout> with WidgetsBindingObserver {
   int _currentIndex = 0;
   late List<Widget> _screens;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _screens = [
       DashboardScreen(
         onNavigateToTab: (index) {
@@ -49,10 +54,30 @@ class _HomeLayoutState extends State<HomeLayout> {
       const MessengerScreen(),
       const ContestsScreen(),
     ];
+    // Initialize Notification Service
+    NotificationService.initialize();
     // Initialize Real-time subscriptions
     NoticeService.subscribeToNotices();
     JobService.subscribeToJobs();
     ContestService.subscribeToContests();
+    ChatService.subscribeToAllMessages();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      // Re-fetch and re-subscribe to ensure we didn't miss anything while in background
+      NoticeService.fetchNotices(forceRefresh: true);
+      JobService.fetchJobs(forceRefresh: true);
+      ContestService.fetchContestsAndCourses(forceRefresh: true);
+      ChatService.fetchRooms();
+    }
   }
 
 
@@ -102,18 +127,50 @@ class _HomeLayoutState extends State<HomeLayout> {
           index: _currentIndex,
           children: _screens,
         ),
-        bottomNavigationBar: BottomNavigationBar(
-          currentIndex: _currentIndex,
-          onTap: (index) => setState(() => _currentIndex = index),
-          type: BottomNavigationBarType.fixed,
-          selectedItemColor: colors.primary,
-          unselectedItemColor: colors.onSurface.withValues(alpha: 0.5),
-          items: const [
-            BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
-            BottomNavigationBarItem(icon: Icon(Icons.notifications), label: 'Notices'),
-            BottomNavigationBarItem(icon: Icon(Icons.message), label: 'Messenger'),
-            BottomNavigationBarItem(icon: Icon(Icons.emoji_events), label: 'Contests'),
-          ],
+        bottomNavigationBar: ValueListenableBuilder<Map<String, int>>(
+          valueListenable: NotificationService.unreadCounts,
+          builder: (context, unread, _) {
+            return BottomNavigationBar(
+              currentIndex: _currentIndex,
+              onTap: (index) {
+                setState(() => _currentIndex = index);
+                // Clear unread for the selected tab
+                if (index == 1) NotificationService.clearUnread('notices');
+                if (index == 2) NotificationService.clearUnread('messenger');
+                if (index == 3) NotificationService.clearUnread('contests');
+              },
+              type: BottomNavigationBarType.fixed,
+              selectedItemColor: colors.primary,
+              unselectedItemColor: colors.onSurface.withValues(alpha: 0.5),
+              items: [
+                const BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
+                BottomNavigationBarItem(
+                  icon: Badge(
+                    label: unread['notices']! > 0 ? Text('${unread['notices']}') : null,
+                    isLabelVisible: unread['notices']! > 0,
+                    child: const Icon(Icons.notifications),
+                  ),
+                  label: 'Notices',
+                ),
+                BottomNavigationBarItem(
+                  icon: Badge(
+                    label: unread['messenger']! > 0 ? Text('${unread['messenger']}') : null,
+                    isLabelVisible: unread['messenger']! > 0,
+                    child: const Icon(Icons.message),
+                  ),
+                  label: 'Messenger',
+                ),
+                BottomNavigationBarItem(
+                  icon: Badge(
+                    label: unread['contests']! > 0 ? Text('${unread['contests']}') : null,
+                    isLabelVisible: unread['contests']! > 0,
+                    child: const Icon(Icons.emoji_events),
+                  ),
+                  label: 'Contests',
+                ),
+              ],
+            );
+          },
         ),
       ),
     );
@@ -171,7 +228,19 @@ class _HomeLayoutState extends State<HomeLayout> {
                 
                 _drawerSection(context, 'Academic & Career'),
                 _drawerItem(context, Icons.assignment_outlined, 'Results', const ResultsScreen()),
-                _drawerItem(context, Icons.work_outline, 'Job Board', const JobsScreen()),
+                ValueListenableBuilder<Map<String, int>>(
+                  valueListenable: NotificationService.unreadCounts,
+                  builder: (context, unread, _) {
+                    return _drawerItem(
+                      context, 
+                      Icons.work_outline, 
+                      'Job Board', 
+                      const JobsScreen(),
+                      badgeCount: unread['jobs'] ?? 0,
+                      onTap: () => NotificationService.clearUnread('jobs'),
+                    );
+                  }
+                ),
                 _drawerItem(context, Icons.folder_copy_outlined, 'Previous Resources', const YearsScreen()),
                 
                 const Divider(),
@@ -229,13 +298,16 @@ class _HomeLayoutState extends State<HomeLayout> {
     );
   }
 
-  Widget _drawerItem(BuildContext context, IconData icon, String title, Widget destination) {
+  Widget _drawerItem(BuildContext context, IconData icon, String title, Widget destination, {int badgeCount = 0, VoidCallback? onTap}) {
     return ListTile(
-      leading: Icon(icon, size: 22),
+      leading: badgeCount > 0 
+          ? Badge(label: Text('$badgeCount'), child: Icon(icon, size: 22))
+          : Icon(icon, size: 22),
       title: Text(title, style: const TextStyle(fontSize: 14)),
       dense: true,
       onTap: () {
         Navigator.pop(context);
+        if (onTap != null) onTap();
         Navigator.push(context, MaterialPageRoute(builder: (_) => destination));
       },
     );

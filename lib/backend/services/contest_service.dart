@@ -2,6 +2,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../features/contests/models/contest_state.dart';
 import '../../features/profile/models/profile_state.dart';
 import '../../core/services/cache_service.dart';
+import 'notification_service.dart';
 
 class ContestService {
   static final SupabaseClient _client = Supabase.instance.client;
@@ -93,7 +94,20 @@ class ContestService {
         event: PostgresChangeEvent.all,
         schema: 'public',
         table: 'contests',
-        callback: (payload) => fetchContestsAndCourses(forceRefresh: true),
+        callback: (payload) {
+          if (payload.eventType == PostgresChangeEvent.insert) {
+            final data = payload.newRecord;
+            if (data['created_by_name'] != currentProfile.value.name) {
+              NotificationService.incrementUnread('contests');
+              NotificationService.showNotification(
+                id: 3,
+                title: 'New Contest: ${data['title']}',
+                body: 'Level: ${data['level']}. Register now!',
+              );
+            }
+          }
+          fetchContestsAndCourses(forceRefresh: true);
+        },
       )
       .subscribe();
   }

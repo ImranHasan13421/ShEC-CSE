@@ -4,6 +4,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../features/notices/models/notice_state.dart';
 import '../../features/profile/models/profile_state.dart';
 import '../../core/services/cache_service.dart';
+import 'package:ShEC_CSE/backend/services/notification_service.dart';
 
 class NoticeService {
   static final SupabaseClient _client = Supabase.instance.client;
@@ -149,7 +150,21 @@ class NoticeService {
         event: PostgresChangeEvent.all,
         schema: 'public',
         table: 'notices',
-        callback: (payload) => fetchNotices(forceRefresh: true),
+        callback: (payload) {
+          if (payload.eventType == PostgresChangeEvent.insert) {
+            final data = payload.newRecord;
+            // Notify if it's not our own notice
+            if (data['created_by_name'] != currentProfile.value.name) {
+               NotificationService.incrementUnread('notices');
+               NotificationService.showNotification(
+                id: 1,
+                title: 'New Notice: ${data['title']}',
+                body: data['description'] ?? 'A new notice has been posted.',
+              );
+            }
+          }
+          fetchNotices(forceRefresh: true);
+        },
       )
       .subscribe();
   }

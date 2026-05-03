@@ -1,6 +1,7 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../features/messenger/models/chat_state.dart';
 import '../../features/profile/models/profile_state.dart';
+import 'notification_service.dart';
 
 class ChatService {
   static final SupabaseClient _client = Supabase.instance.client;
@@ -78,5 +79,43 @@ class ChatService {
       print('Error fetching history: $e');
       return [];
     }
+  }
+
+  // Global subscription for background notifications
+  static void subscribeToAllMessages() {
+    final userId = _client.auth.currentUser?.id;
+    if (userId == null) return;
+
+    _client
+      .channel('global_messages')
+      .onPostgresChanges(
+        event: PostgresChangeEvent.insert,
+        schema: 'public',
+        table: 'messages',
+        callback: (payload) {
+          final data = payload.newRecord;
+          if (data['sender_id'] != userId) {
+            final room = chatRoomsList.value.firstWhere(
+              (r) => r.id == data['room_id'],
+              orElse: () => ChatRoom(
+                id: '', 
+                name: 'Group', 
+                description: '', 
+                type: ChatRoomType.general,
+                iconKey: 'groups',
+                createdAt: DateTime.now(),
+              ),
+            );
+
+            NotificationService.incrementUnread('messenger');
+            NotificationService.showNotification(
+              id: 4,
+              title: '${data['sender_name']} (${room.name})',
+              body: data['text'] ?? 'Sent a message',
+            );
+          }
+        },
+      )
+      .subscribe();
   }
 }
