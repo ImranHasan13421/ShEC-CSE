@@ -1,8 +1,49 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-class ClubScreen extends StatelessWidget {
+import '../../profile/models/profile_state.dart';
+import '../../../backend/services/auth_service.dart';
+
+class ClubScreen extends StatefulWidget {
   const ClubScreen({super.key});
+
+  @override
+  State<ClubScreen> createState() => _ClubScreenState();
+}
+
+class _ClubScreenState extends State<ClubScreen> {
+  List<ProfileData> _committeeMembers = [];
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchCommittee();
+  }
+
+  Future<void> _fetchCommittee() async {
+    try {
+      final all = await AuthService.fetchAllMembers();
+      // Filter for committee or superuser roles
+      final filtered = all.where((m) => 
+        (m.role == UserRole.committeeMember || m.role == UserRole.superUser) && 
+        m.isApproved && 
+        m.designation != 'Student'
+      ).toList();
+      
+      // Sort by some priority if possible, but for now just use the list
+      if (mounted) {
+        setState(() {
+          _committeeMembers = filtered;
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
 
   Future<void> _launchURL(String urlString) async {
     final Uri url = Uri.parse(urlString);
@@ -18,19 +59,24 @@ class ClubScreen extends StatelessWidget {
       appBar: AppBar(
         title: const Text('Programming Club'),
       ),
-      body: ListView(
-        padding: const EdgeInsets.all(16.0),
-        children: [
-          _buildAboutCard(context),
-          const SizedBox(height: 16),
-          _buildMissionVisionCard(context),
-          const SizedBox(height: 16),
-          _buildSectionTitle(context, 'Club Activities'),
-          _buildActivitiesCard(context),
-          const SizedBox(height: 16),
-          _buildSectionTitle(context, 'Committee Members 2026'),
-          _buildCommitteeCard(context),
-        ],
+      body: RefreshIndicator(
+        onRefresh: _fetchCommittee,
+        child: ListView(
+          padding: const EdgeInsets.all(16.0),
+          children: [
+            _buildAboutCard(context),
+            const SizedBox(height: 16),
+            _buildMissionVisionCard(context),
+            const SizedBox(height: 16),
+            _buildSectionTitle(context, 'Club Activities'),
+            _buildActivitiesCard(context),
+            const SizedBox(height: 16),
+            _buildSectionTitle(context, 'Committee Members 2026'),
+            _isLoading 
+              ? const Center(child: Padding(padding: EdgeInsets.all(20), child: CircularProgressIndicator()))
+              : _buildCommitteeCard(context),
+          ],
+        ),
       ),
     );
   }
@@ -193,56 +239,68 @@ class ClubScreen extends StatelessWidget {
   }
 
   Widget _buildCommitteeCard(BuildContext context) {
+    if (_committeeMembers.isEmpty) {
+      return const Card(
+        child: Padding(
+          padding: EdgeInsets.all(20.0),
+          child: Center(child: Text('No committee members found.')),
+        ),
+      );
+    }
+
     final colors = Theme.of(context).colorScheme;
     return Card(
       elevation: 0,
       color: colors.surface,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
-        side: BorderSide(color: colors.outline.withValues(alpha: 0.1)),
+        side: BorderSide(color: colors.outline.withOpacity(0.1)),
       ),
       child: Column(
         children: [
-          _buildMemberItem(context, 'Saifur Rahman', 'President', '4th Year', Colors.blue, 'assets/committee_members/saifur.jpg'),
-          _buildDivider(colors),
-          _buildMemberItem(context, 'Tanvirul islam', 'Vice President', '4th Year', Colors.teal, 'assets/committee_members/tanvir.jpg'),
-          _buildDivider(colors),
-          _buildMemberItem(context, 'MD. Imran Hasan', 'General Secretary', '4th Year', Colors.indigo, 'assets/committee_members/imran.jpg'),
-          _buildDivider(colors),
-          _buildMemberItem(context, 'MD. Mehedi Hasan Mridul', 'Senior Treasurer', '4th Year', Colors.orange, 'assets/committee_members/mridul.jpg'),
-          _buildDivider(colors),
-          _buildMemberItem(context, 'Toifika Tasnim Oishe', 'Press & Media Joint Secretary', '4th Year', Colors.redAccent, 'assets/committee_members/oishe.jpg'),
-          _buildDivider(colors),
-          _buildMemberItem(context, 'Istiak Hossain Khan', 'Press & Media Joint Secretary', '4th Year', Colors.redAccent, 'assets/committee_members/istiak.jpg'),
-
+          for (int i = 0; i < _committeeMembers.length; i++) ...[
+            _buildMemberItem(context, _committeeMembers[i]),
+            if (i < _committeeMembers.length - 1) _buildDivider(colors),
+          ],
         ],
       ),
     );
   }
 
-  Widget _buildMemberItem(BuildContext context, String name, String role, String year, Color roleColor, String imagePath) {
+  Widget _buildMemberItem(BuildContext context, ProfileData member) {
     final colors = Theme.of(context).colorScheme;
+    // Simple color logic based on designation
+    Color roleColor = colors.primary;
+    if (member.designation.contains('President')) roleColor = Colors.blue;
+    if (member.designation.contains('Secretary')) roleColor = Colors.indigo;
+    if (member.designation.contains('Treasurer')) roleColor = Colors.orange;
+    if (member.designation.contains('Joint')) roleColor = Colors.redAccent;
+
     return ListTile(
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
       leading: CircleAvatar(
         backgroundColor: colors.primary.withOpacity(0.1),
-        backgroundImage: AssetImage(imagePath), // Uses the specific image passed in
+        backgroundImage: member.imagePath != null && member.imagePath!.isNotEmpty 
+            ? NetworkImage(member.imagePath!) 
+            : null,
+        child: member.imagePath == null || member.imagePath!.isEmpty
+            ? Text(member.firstName[0].toUpperCase())
+            : null,
       ),
-      title: Text(name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+      title: Text(member.name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
       subtitle: Padding(
         padding: const EdgeInsets.only(top: 4.0),
         child: Row(
-          // Wrapped the role in an Expanded widget so it doesn't overflow the screen bounds on small phones
           children: [
             Expanded(
               child: Text(
-                role,
+                member.designation,
                 style: TextStyle(color: roleColor, fontWeight: FontWeight.w600, fontSize: 13),
                 overflow: TextOverflow.ellipsis,
               ),
             ),
             const SizedBox(width: 8),
-            Text('• $year', style: TextStyle(color: colors.onSurface.withValues(alpha: 0.5), fontSize: 13)),
+            Text('• ${member.batch} th Batch', style: TextStyle(color: colors.onSurface.withOpacity(0.5), fontSize: 13)),
           ],
         ),
       ),
