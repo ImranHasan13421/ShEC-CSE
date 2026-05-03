@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../profile/models/profile_state.dart';
 import '../models/result_state.dart';
 import '../../../backend/services/result_service.dart';
 
@@ -13,7 +14,20 @@ class _ResultsScreenState extends State<ResultsScreen> {
   @override
   void initState() {
     super.initState();
-    ResultService.loadResultsFromDB();
+    _loadData();
+    currentProfile.addListener(_loadData);
+  }
+
+  void _loadData() {
+    if (mounted) {
+      ResultService.loadResultsFromDB();
+    }
+  }
+
+  @override
+  void dispose() {
+    currentProfile.removeListener(_loadData);
+    super.dispose();
   }
 
   @override

@@ -10,15 +10,21 @@ class ResultService {
   // 1. Load results from the new normalized tables
   static Future<void> loadResultsFromDB() async {
     final profile = currentProfile.value;
-    if (profile.id.isEmpty) return;
+    if (profile.id.isEmpty) {
+      debugPrint('Skipping results load: Profile ID is empty');
+      return;
+    }
 
     try {
+      debugPrint('Loading results for user ID: ${profile.id}');
       // Fetch all exam summaries for the user
       final resultsResponse = await _client
           .from('results')
           .select()
           .eq('user_id', profile.id)
           .order('created_at', ascending: false);
+      
+      debugPrint('Found ${resultsResponse.length} exam results in DB');
 
       final List<ExamResult> examResults = [];
 

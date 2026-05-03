@@ -59,16 +59,26 @@ class ResultScraperService {
       final response = await http.get(url).timeout(const Duration(minutes: 2));
       
       if (response.statusCode == 200) {
-        final data = json.decode(response.body);
+        final Map<String, dynamic> data = json.decode(response.body);
         
-        // If results were found (GPA is not null or subjects not empty)
-        if (data['gpa'] != null || data['cgpa'] != null || (data['subjects'] as List).isNotEmpty) {
+        // Handle API error response
+        if (data.containsKey('error')) {
+          debugPrint('API Error for Exam $examId: ${data['error']}');
+          return;
+        }
+
+        // Safely check for results
+        final subjects = data['subjects'];
+        final bool hasSubjects = subjects is List && subjects.isNotEmpty;
+        final bool hasGpa = data['gpa'] != null || data['cgpa'] != null;
+
+        if (hasGpa || hasSubjects) {
           await _saveResultToDB(userId, regNo, examId, sessId, examName, data);
         }
       }
     } catch (e) {
       // It's expected that many exams will return no results
-      debugPrint('No result or error for Exam $examId: $e');
+      debugPrint('Scrape error for Exam $examId: $e');
     }
   }
 

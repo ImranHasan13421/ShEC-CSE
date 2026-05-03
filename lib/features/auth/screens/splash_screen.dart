@@ -119,53 +119,53 @@ class _SplashScreenState extends State<SplashScreen> {
           ),
 
           // ── BOTTOM ANIMATED BRANDING ──
-          Align(
-            alignment: Alignment.bottomCenter,
-            child: SafeArea(
-              child: Padding(
-                padding: const EdgeInsets.only(bottom: 40.0),
-                child: AnimatedOpacity(
-                  duration: const Duration(milliseconds: 800),
-                  opacity: _showBranding ? 1.0 : 0.0,
-                  child: AnimatedSlide(
-                    duration: const Duration(milliseconds: 800),
-                    curve: Curves.easeOutCubic,
-                    offset: _showBranding ? Offset.zero : const Offset(0, 0.5),
-                    // REMOVED 'const' from Column so the Paint object can evaluate
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Text(
-                          'A',
-                          style: TextStyle(color: Colors.white54, fontSize: 12, letterSpacing: 2),
-                        ),
-                        const SizedBox(height: 6),
-                        Text(
-                          'Ezze Softwares',
-                          style: TextStyle(
-                            fontSize: 24,
-                            fontWeight: FontWeight.w900,
-                            letterSpacing: 1.2,
-                            // Use a gradient with foreground
-                            foreground: Paint()..shader = const LinearGradient(
-                              colors: [Color(0xFF09E5ED), Color(0xFF0404AC)], // Example Light & Dark Blues
-                              begin: Alignment.topCenter,
-                              end: Alignment.bottomCenter,
-                            ).createShader(const Rect.fromLTWH(0.0, 0.0, 200.0, 70.0)),
-                          ),
-                        ),
-                        const SizedBox(height: 6),
-                        const Text(
-                          'PRODUCT',
-                          style: TextStyle(color: Colors.white54, fontSize: 10, letterSpacing: 5, fontWeight: FontWeight.bold),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ),
+          // Align(
+          //   alignment: Alignment.bottomCenter,
+          //   child: SafeArea(
+          //     child: Padding(
+          //       padding: const EdgeInsets.only(bottom: 40.0),
+          //       child: AnimatedOpacity(
+          //         duration: const Duration(milliseconds: 800),
+          //         opacity: _showBranding ? 1.0 : 0.0,
+          //         child: AnimatedSlide(
+          //           duration: const Duration(milliseconds: 800),
+          //           curve: Curves.easeOutCubic,
+          //           offset: _showBranding ? Offset.zero : const Offset(0, 0.5),
+          //           // REMOVED 'const' from Column so the Paint object can evaluate
+          //           child: Column(
+          //             mainAxisSize: MainAxisSize.min,
+          //             children: [
+          //               const Text(
+          //                 'A',
+          //                 style: TextStyle(color: Colors.white54, fontSize: 12, letterSpacing: 2),
+          //               ),
+          //               const SizedBox(height: 6),
+          //               Text(
+          //                 'Ezze Softwares',
+          //                 style: TextStyle(
+          //                   fontSize: 24,
+          //                   fontWeight: FontWeight.w900,
+          //                   letterSpacing: 1.2,
+          //                   // Use a gradient with foreground
+          //                   foreground: Paint()..shader = const LinearGradient(
+          //                     colors: [Color(0xFF09E5ED), Color(0xFF0404AC)], // Example Light & Dark Blues
+          //                     begin: Alignment.topCenter,
+          //                     end: Alignment.bottomCenter,
+          //                   ).createShader(const Rect.fromLTWH(0.0, 0.0, 200.0, 70.0)),
+          //                 ),
+          //               ),
+          //               const SizedBox(height: 6),
+          //               const Text(
+          //                 'PRODUCT',
+          //                 style: TextStyle(color: Colors.white54, fontSize: 10, letterSpacing: 5, fontWeight: FontWeight.bold),
+          //               ),
+          //             ],
+          //           ),
+          //         ),
+          //       ),
+          //     ),
+          //   ),
+          // ),
         ],
       ),
     );
