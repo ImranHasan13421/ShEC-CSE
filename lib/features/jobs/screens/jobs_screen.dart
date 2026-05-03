@@ -50,19 +50,20 @@ class _JobsScreenState extends State<JobsScreen> {
     final deadlineController = TextEditingController(text: existingJob?.deadline ?? '');
     final descriptionController = TextEditingController(text: existingJob?.description ?? '');
     final applyUrlController = TextEditingController(text: existingJob?.applyUrl ?? '');
+    final reqController = TextEditingController();
+    final respController = TextEditingController();
     
-    String? selectedJobType = existingJob?.jobType;
-    if (selectedJobType != null && !['Full Time', 'Part Time', 'Internship'].contains(selectedJobType)) {
-      selectedJobType = 'Full Time';
-    }
-
+    String? selectedJobType = existingJob?.jobType ?? 'Full Time';
+    String? selectedCategory = existingJob?.category ?? (defaultStateNotifier == recommendedJobsState ? 'recommended' : 'recent');
+    
+    List<String> requirements = List.from(existingJob?.requirements ?? []);
+    List<String> responsibilities = List.from(existingJob?.responsibilities ?? []);
     bool isVisible = existingJob?.isVisible ?? true;
-    ValueNotifier<List<JobItem>> targetNotifier = defaultStateNotifier ?? recentJobsState;
 
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      backgroundColor: Colors.transparent,
       builder: (modalContext) {
         return StatefulBuilder(
           builder: (BuildContext context, StateSetter setModalState) {
@@ -81,139 +82,238 @@ class _JobsScreenState extends State<JobsScreen> {
               }
             }
 
-            return Padding(
-              padding: EdgeInsets.only(
-                bottom: MediaQuery.of(modalContext).viewInsets.bottom,
-                left: 24, right: 24, top: 24,
+            final colors = Theme.of(context).colorScheme;
+
+            return Container(
+              height: MediaQuery.of(context).size.height * 0.85,
+              decoration: BoxDecoration(
+                color: colors.surface,
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
               ),
-              child: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(existingJob == null ? 'Add Job' : 'Edit Job', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-                    const SizedBox(height: 16),
-                    
-                    TextField(
-                      controller: roleController,
-                      decoration: const InputDecoration(labelText: 'Job Role *', border: OutlineInputBorder()),
+              child: Column(
+                children: [
+                  // Handle Bar
+                  Center(
+                    child: Container(
+                      margin: const EdgeInsets.symmetric(vertical: 12),
+                      width: 40, height: 4,
+                      decoration: BoxDecoration(color: colors.onSurface.withOpacity(0.2), borderRadius: BorderRadius.circular(2)),
                     ),
-                    const SizedBox(height: 12),
-                    TextField(
-                      controller: companyController,
-                      decoration: const InputDecoration(labelText: 'Company *', border: OutlineInputBorder()),
-                    ),
-                    const SizedBox(height: 12),
-                    TextField(
-                      controller: locationController,
-                      decoration: const InputDecoration(labelText: 'Location', border: OutlineInputBorder()),
-                    ),
-                    const SizedBox(height: 12),
-                    TextField(
-                      controller: salaryController,
-                      decoration: const InputDecoration(labelText: 'Salary/Stipend', border: OutlineInputBorder()),
-                    ),
-                    const SizedBox(height: 12),
-                    
-                    TextField(
-                      controller: deadlineController,
-                      readOnly: true,
-                      onTap: _selectDate,
-                      decoration: const InputDecoration(
-                        labelText: 'Deadline *', 
-                        border: OutlineInputBorder(),
-                        suffixIcon: Icon(Icons.calendar_today),
+                  ),
+                  
+                  Expanded(
+                    child: SingleChildScrollView(
+                      padding: const EdgeInsets.symmetric(horizontal: 24),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(existingJob == null ? 'Post a New Job' : 'Edit Job Posting', 
+                              style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+                          const SizedBox(height: 4),
+                          Text('Fill in the details for the position', style: TextStyle(color: colors.onSurface.withOpacity(0.6))),
+                          const SizedBox(height: 24),
+                          
+                          _buildTextField('Job Role', roleController, Icons.work_outline, 'e.g. Software Engineer'),
+                          const SizedBox(height: 16),
+                          _buildTextField('Company', companyController, Icons.business, 'e.g. Google'),
+                          const SizedBox(height: 16),
+                          
+                          Row(
+                            children: [
+                              Expanded(child: _buildTextField('Location', locationController, Icons.location_on_outlined, 'e.g. Dhaka (Remote)')),
+                              const SizedBox(width: 16),
+                              Expanded(child: _buildTextField('Salary/Stipend', salaryController, Icons.payments_outlined, 'e.g. 30k - 40k')),
+                            ],
+                          ),
+                          const SizedBox(height: 16),
+                          
+                          Row(
+                            children: [
+                              Expanded(
+                                child: InkWell(
+                                  onTap: _selectDate,
+                                  child: AbsorbPointer(
+                                    child: _buildTextField('Deadline', deadlineController, Icons.calendar_today_outlined, 'Select Date'),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 16),
+                              Expanded(
+                                child: DropdownButtonFormField<String>(
+                                  value: selectedJobType,
+                                  decoration: _inputDecoration('Job Type', Icons.access_time),
+                                  items: ['Full Time', 'Part Time', 'Internship'].map((String type) {
+                                    return DropdownMenuItem<String>(value: type, child: Text(type));
+                                  }).toList(),
+                                  onChanged: (value) => setModalState(() => selectedJobType = value),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 16),
+                          
+                          DropdownButtonFormField<String>(
+                            value: selectedCategory,
+                            decoration: _inputDecoration('Target Category', Icons.category_outlined),
+                            items: [
+                              const DropdownMenuItem(value: 'recent', child: Text('Regular (Recent)')),
+                              const DropdownMenuItem(value: 'recommended', child: Text('Featured (Recommended)')),
+                            ],
+                            onChanged: (value) => setModalState(() => selectedCategory = value),
+                          ),
+                          const SizedBox(height: 16),
+
+                          _buildTextField('Apply URL', applyUrlController, Icons.link, 'LinkedIn/Google Form link'),
+                          const SizedBox(height: 16),
+                          
+                          _buildTextField('Description', descriptionController, Icons.description_outlined, 'Summary of the job...', maxLines: 4),
+                          const SizedBox(height: 24),
+                          
+                          _buildListInput('Requirements', reqController, requirements, (val) => setModalState(() => requirements.add(val)), (idx) => setModalState(() => requirements.removeAt(idx)), colors),
+                          const SizedBox(height: 24),
+                          
+                          _buildListInput('Responsibilities', respController, responsibilities, (val) => setModalState(() => responsibilities.add(val)), (idx) => setModalState(() => responsibilities.removeAt(idx)), colors),
+                          const SizedBox(height: 24),
+                          
+                          Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(color: colors.primaryContainer.withOpacity(0.3), borderRadius: BorderRadius.circular(12)),
+                            child: SwitchListTile(
+                              title: const Text('Visible to Public Members', style: TextStyle(fontWeight: FontWeight.w600)),
+                              subtitle: const Text('Hide this job if it\'s no longer active'),
+                              value: isVisible,
+                              onChanged: (val) => setModalState(() => isVisible = val),
+                            ),
+                          ),
+                          const SizedBox(height: 32),
+                          
+                          SizedBox(
+                            width: double.infinity,
+                            height: 56,
+                            child: ElevatedButton(
+                              onPressed: () async {
+                                if (roleController.text.isNotEmpty && companyController.text.isNotEmpty) {
+                                  final messenger = ScaffoldMessenger.of(context);
+                                  Navigator.pop(modalContext);
+                                  try {
+                                    final jobData = JobItem(
+                                      id: existingJob?.id ?? '',
+                                      company: companyController.text.trim(),
+                                      role: roleController.text.trim(),
+                                      location: locationController.text.trim(),
+                                      salary: salaryController.text.trim(),
+                                      deadline: deadlineController.text.trim(),
+                                      jobType: selectedJobType!,
+                                      description: descriptionController.text.trim(),
+                                      applyUrl: applyUrlController.text.trim(),
+                                      typeColor: Colors.teal,
+                                      iconColor: Colors.blue,
+                                      icon: Icons.work,
+                                      isVisible: isVisible,
+                                      createdByName: currentProfile.value.name,
+                                      requirements: requirements,
+                                      responsibilities: responsibilities,
+                                      category: selectedCategory!,
+                                    );
+                                    
+                                    if (existingJob == null) {
+                                      await JobService.addJobToDB(jobData, selectedCategory!);
+                                      if (mounted) messenger.showSnackBar(const SnackBar(content: Text('Job posted successfully!')));
+                                    } else {
+                                      await JobService.updateJobInDB(jobData, selectedCategory!);
+                                      if (mounted) messenger.showSnackBar(const SnackBar(content: Text('Job updated successfully!')));
+                                    }
+                                  } catch (e) {
+                                    if (mounted) messenger.showSnackBar(SnackBar(content: Text('Error: $e')));
+                                  }
+                                }
+                              },
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: colors.primary,
+                                foregroundColor: Colors.white,
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                elevation: 0,
+                              ),
+                              child: Text(existingJob == null ? 'Post Job' : 'Save Changes', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                            ),
+                          ),
+                          const SizedBox(height: 40),
+                        ],
                       ),
                     ),
-                    const SizedBox(height: 12),
-                    
-                    DropdownButtonFormField<String>(
-                      value: selectedJobType,
-                      decoration: const InputDecoration(labelText: 'Job Type *', border: OutlineInputBorder()),
-                      items: ['Full Time', 'Part Time', 'Internship'].map((String type) {
-                        return DropdownMenuItem<String>(value: type, child: Text(type));
-                      }).toList(),
-                      onChanged: (value) => setModalState(() => selectedJobType = value),
-                    ),
-                    const SizedBox(height: 12),
-                    
-                    TextField(
-                      controller: descriptionController,
-                      decoration: const InputDecoration(labelText: 'Job Description', border: OutlineInputBorder()),
-                      maxLines: 3,
-                    ),
-                    const SizedBox(height: 12),
-                    TextField(
-                      controller: applyUrlController,
-                      decoration: const InputDecoration(labelText: 'Apply URL (LinkedIn, GForms, etc)', border: OutlineInputBorder()),
-                    ),
-                    const SizedBox(height: 12),
-                    SwitchListTile(
-                      title: const Text('Visible to Members'),
-                      value: isVisible,
-                      onChanged: (val) => setModalState(() => isVisible = val),
-                    ),
-                    const SizedBox(height: 24),
-                    SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton(
-                        onPressed: () async {
-                          if (roleController.text.isNotEmpty && companyController.text.isNotEmpty && selectedJobType != null) {
-                            final messenger = ScaffoldMessenger.of(context);
-                            Navigator.pop(modalContext);
-                            try {
-                              if (existingJob == null) {
-                                final newJob = JobItem(
-                                  id: '',
-                                  company: companyController.text.trim(),
-                                  role: roleController.text.trim(),
-                                  location: locationController.text.trim(),
-                                  salary: salaryController.text.trim(),
-                                  deadline: deadlineController.text.trim(),
-                                  jobType: selectedJobType!,
-                                  description: descriptionController.text.trim(),
-                                  applyUrl: applyUrlController.text.trim(),
-                                  typeColor: Colors.teal,
-                                  iconColor: Colors.blue,
-                                  icon: Icons.work,
-                                  isVisible: isVisible,
-                                  createdByName: currentProfile.value.name,
-                                );
-                                await JobService.addJobToDB(newJob, 'recent');
-                                if (mounted) messenger.showSnackBar(const SnackBar(content: Text('Job created successfully')));
-                              } else {
-                                final updatedJob = existingJob.copyWith(
-                                  company: companyController.text.trim(),
-                                  role: roleController.text.trim(),
-                                  location: locationController.text.trim(),
-                                  salary: salaryController.text.trim(),
-                                  deadline: deadlineController.text.trim(),
-                                  jobType: selectedJobType!,
-                                  description: descriptionController.text.trim(),
-                                  applyUrl: applyUrlController.text.trim(),
-                                  isVisible: isVisible,
-                                );
-                                
-                                String category = targetNotifier == recommendedJobsState ? 'recommended' : 'recent';
-                                await JobService.updateJobInDB(updatedJob, category);
-                                if (mounted) messenger.showSnackBar(const SnackBar(content: Text('Job updated successfully')));
-                              }
-                            } catch (e) {
-                              if (mounted) messenger.showSnackBar(SnackBar(content: Text('Error: $e')));
-                            }
-                          }
-                        },
-                        child: Text(existingJob == null ? 'Create' : 'Update'),
-                      ),
-                    ),
-                    const SizedBox(height: 24),
-                  ],
-                ),
+                  ),
+                ],
               ),
             );
           }
         );
       },
+    );
+  }
+
+  InputDecoration _inputDecoration(String label, IconData icon) {
+    return InputDecoration(
+      labelText: label,
+      prefixIcon: Icon(icon, size: 20),
+      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.grey.withOpacity(0.3))),
+      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.grey.withOpacity(0.3))),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+    );
+  }
+
+  Widget _buildTextField(String label, TextEditingController controller, IconData icon, String hint, {int maxLines = 1}) {
+    return TextField(
+      controller: controller,
+      maxLines: maxLines,
+      decoration: _inputDecoration(label, icon).copyWith(hintText: hint),
+    );
+  }
+
+  Widget _buildListInput(String label, TextEditingController controller, List<String> items, Function(String) onAdd, Function(int) onRemove, ColorScheme colors) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+        const SizedBox(height: 12),
+        if (items.isNotEmpty)
+          Container(
+            margin: const EdgeInsets.only(bottom: 12),
+            decoration: BoxDecoration(color: colors.surfaceContainerLow, borderRadius: BorderRadius.circular(12)),
+            child: ListView.separated(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: items.length,
+              separatorBuilder: (_, __) => Divider(height: 1, color: colors.outline.withOpacity(0.1)),
+              itemBuilder: (context, index) => ListTile(
+                dense: true,
+                title: Text(items[index], style: const TextStyle(fontSize: 14)),
+                trailing: IconButton(icon: const Icon(Icons.remove_circle_outline, size: 18, color: Colors.red), onPressed: () => onRemove(index)),
+              ),
+            ),
+          ),
+        Row(
+          children: [
+            Expanded(
+              child: TextField(
+                controller: controller,
+                decoration: _inputDecoration('Add $label', Icons.add_circle_outline).copyWith(
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                ),
+              ),
+            ),
+            const SizedBox(width: 12),
+            IconButton.filledTonal(
+              onPressed: () {
+                if (controller.text.isNotEmpty) {
+                  onAdd(controller.text.trim());
+                  controller.clear();
+                }
+              },
+              icon: const Icon(Icons.add),
+            ),
+          ],
+        ),
+      ],
     );
   }
 
