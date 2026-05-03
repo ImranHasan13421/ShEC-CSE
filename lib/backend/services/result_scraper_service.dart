@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
-import '../../features/profile/models/profile_state.dart';
 
 class ResultScraperService {
   static final SupabaseClient _client = Supabase.instance.client;

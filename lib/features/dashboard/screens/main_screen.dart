@@ -32,18 +32,12 @@ class HomeLayout extends StatefulWidget {
 
 class _HomeLayoutState extends State<HomeLayout> {
   int _currentIndex = 0;
+  late List<Widget> _screens;
 
   @override
   void initState() {
     super.initState();
-    // Initialize Real-time subscriptions
-    NoticeService.subscribeToNotices();
-    JobService.subscribeToJobs();
-    ContestService.subscribeToContests();
-  }
-
-  List<Widget> _getScreens() {
-    return [
+    _screens = [
       DashboardScreen(
         onNavigateToTab: (index) {
           setState(() {
@@ -55,7 +49,12 @@ class _HomeLayoutState extends State<HomeLayout> {
       const MessengerScreen(),
       const ContestsScreen(),
     ];
+    // Initialize Real-time subscriptions
+    NoticeService.subscribeToNotices();
+    JobService.subscribeToJobs();
+    ContestService.subscribeToContests();
   }
+
 
   @override
   Widget build(BuildContext context) {
@@ -101,7 +100,7 @@ class _HomeLayoutState extends State<HomeLayout> {
         drawer: _buildDrawer(context, colors),
         body: IndexedStack(
           index: _currentIndex,
-          children: _getScreens(),
+          children: _screens,
         ),
         bottomNavigationBar: BottomNavigationBar(
           currentIndex: _currentIndex,

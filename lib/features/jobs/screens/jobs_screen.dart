@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:url_launcher/url_launcher.dart';
 import 'package:ShEC_CSE/features/profile/models/profile_state.dart';
 import '../models/job_state.dart';
 import 'job_detail_screen.dart';

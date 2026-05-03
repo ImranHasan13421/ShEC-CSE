@@ -27,8 +27,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   String? _selectedSession;
   String? _selectedBatch;
-  List<Map<String, dynamic>> _sessions = [];
-  final List<String> _batches = List.generate(10, (index) => (index + 1).toString());
 
   String? _imageUrl;  
   File? _newImageFile; 
@@ -51,22 +49,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
     _passwordController = TextEditingController();
     _imageUrl = profile.imagePath;
 
-    _fetchSessions();
     _checkLostData();
   }
 
-  Future<void> _fetchSessions() async {
-    try {
-      final data = await AuthService.fetchSessions();
-      if (mounted) {
-        setState(() {
-          _sessions = data;
-        });
-      }
-    } catch (e) {
-      debugPrint('Error fetching sessions: $e');
-    }
-  }
 
   Future<void> _checkLostData() async {
     final ImagePicker picker = ImagePicker();

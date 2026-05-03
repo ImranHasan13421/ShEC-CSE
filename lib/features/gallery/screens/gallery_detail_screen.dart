@@ -37,12 +37,12 @@ class GalleryDetailScreen extends StatelessWidget {
                         item.imagePath,
                         fit: BoxFit.cover,
                         errorBuilder: (_, __, ___) => Container(
-                          color: defaultColor.withValues(alpha: 0.15),
+                          color: defaultColor.withOpacity(0.15),
                           child: const Center(child: Icon(Icons.photo_library, size: 80, color: Colors.grey)),
                         ),
                       )
                     : Container(
-                        color: defaultColor.withValues(alpha: 0.15),
+                        color: defaultColor.withOpacity(0.15),
                         child: const Center(child: Icon(Icons.photo_library, size: 80, color: Colors.grey)),
                       ),
               ),
@@ -60,9 +60,9 @@ class GalleryDetailScreen extends StatelessWidget {
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                     decoration: BoxDecoration(
-                      color: defaultColor.withValues(alpha: 0.12),
+                      color: defaultColor.withOpacity(0.12),
                       borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: defaultColor.withValues(alpha: 0.3)),
+                      border: Border.all(color: defaultColor.withOpacity(0.3)),
                     ),
                     child: const Row(
                       mainAxisSize: MainAxisSize.min,
@@ -80,10 +80,10 @@ class GalleryDetailScreen extends StatelessWidget {
                   if (item.createdByName.isNotEmpty)
                     Row(
                       children: [
-                        Icon(Icons.person_outline, size: 14, color: colors.onSurface.withValues(alpha: 0.5)),
+                        Icon(Icons.person_outline, size: 14, color: colors.onSurface.withOpacity(0.5)),
                         const SizedBox(width: 4),
                         Text('Added by ${item.createdByName}',
-                            style: TextStyle(color: colors.onSurface.withValues(alpha: 0.5), fontSize: 13)),
+                            style: TextStyle(color: colors.onSurface.withOpacity(0.5), fontSize: 13)),
                       ],
                     ),
                 ],

@@ -90,10 +90,10 @@ class _AlumniScreenState extends State<AlumniScreen> {
                         backgroundColor: Colors.grey.shade200,
                         backgroundImage: selectedImage != null
                             ? FileImage(selectedImage!)
-                            : (currentImageUrl != null && currentImageUrl!.isNotEmpty
-                                ? NetworkImage(currentImageUrl!) as ImageProvider
+                            : (currentImageUrl != null && currentImageUrl.isNotEmpty
+                                ? NetworkImage(currentImageUrl) as ImageProvider
                                 : null),
-                        child: (selectedImage == null && (currentImageUrl == null || currentImageUrl!.isEmpty))
+                        child: (selectedImage == null && (currentImageUrl == null || currentImageUrl.isEmpty))
                             ? const Icon(Icons.add_a_photo, size: 30, color: Colors.grey)
                             : null,
                       ),
@@ -178,7 +178,7 @@ class _AlumniScreenState extends State<AlumniScreen> {
                   SizedBox(
                     width: double.infinity,
                     child: ElevatedButton(
-                      onPressed: isUploading ? null : () async {
+                      onPressed: () async {
                         if (nameCtrl.text.isEmpty) return;
                         setModalState(() => isUploading = true);
                         String? finalImageUrl = currentImageUrl;

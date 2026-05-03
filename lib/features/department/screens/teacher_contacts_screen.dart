@@ -74,10 +74,10 @@ class _TeacherContactsScreenState extends State<TeacherContactsScreen> {
                           backgroundColor: Colors.grey.shade200,
                           backgroundImage: selectedImage != null
                               ? FileImage(selectedImage!)
-                              : (currentImageUrl != null && currentImageUrl!.isNotEmpty
-                                  ? NetworkImage(currentImageUrl!) as ImageProvider
+                              : (currentImageUrl != null && currentImageUrl.isNotEmpty
+                                  ? NetworkImage(currentImageUrl) as ImageProvider
                                   : null),
-                          child: (selectedImage == null && (currentImageUrl == null || currentImageUrl!.isEmpty))
+                          child: (selectedImage == null && (currentImageUrl == null || currentImageUrl.isEmpty))
                               ? const Icon(Icons.add_a_photo, size: 30, color: Colors.grey)
                               : null,
                         ),
@@ -146,7 +146,7 @@ class _TeacherContactsScreenState extends State<TeacherContactsScreen> {
                     SizedBox(
                       width: double.infinity,
                       child: ElevatedButton(
-                        onPressed: isUploading ? null : () async {
+                        onPressed: () async {
                           if (nameController.text.isEmpty || designationController.text.isEmpty) return;
                           setModalState(() => isUploading = true);
                           String? finalImageUrl = currentImageUrl;
@@ -177,9 +177,7 @@ class _TeacherContactsScreenState extends State<TeacherContactsScreen> {
                           }
                         },
                         style: ElevatedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 14)),
-                        child: isUploading
-                            ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                            : Text(existingTeacher == null ? 'Save Teacher' : 'Update'),
+                        child: Text(existingTeacher == null ? 'Save Teacher' : 'Update'),
                       ),
                     ),
                     const SizedBox(height: 24),

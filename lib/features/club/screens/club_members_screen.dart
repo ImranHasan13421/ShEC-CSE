@@ -177,7 +177,6 @@ class _ClubMembersScreenState extends State<ClubMembersScreen> with SingleTicker
       'Treasurer', 'Press Secretary', 'Executive Member', 'Member'
     ];
     String? selected = standardDesignations.contains(member.designation) ? member.designation : null;
-    final customController = TextEditingController(text: selected == null ? member.designation : '');
 
     showDialog(
       context: context,

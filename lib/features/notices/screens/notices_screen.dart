@@ -181,7 +181,7 @@ class _NoticesScreenState extends State<NoticesScreen> {
                     SizedBox(
                       width: double.infinity,
                       child: ElevatedButton(
-                        onPressed: isUploading ? null : () async {
+                        onPressed: () async {
                           if (titleController.text.isEmpty) return;
                           setModalState(() => isUploading = true);
                           
@@ -216,9 +216,7 @@ class _NoticesScreenState extends State<NoticesScreen> {
                             setModalState(() => isUploading = false);
                           }
                         },
-                        child: isUploading 
-                          ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                          : Text(existingNotice == null ? 'Create' : 'Update'),
+                        child: Text(existingNotice == null ? 'Create' : 'Update'),
                       ),
                     ),
                     const SizedBox(height: 24),

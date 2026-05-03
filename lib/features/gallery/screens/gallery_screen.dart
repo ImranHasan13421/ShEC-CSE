@@ -151,9 +151,7 @@ class _GalleryScreenState extends State<GalleryScreen> {
                     SizedBox(
                       width: double.infinity,
                       child: ElevatedButton(
-                        onPressed: isUploading
-                            ? null
-                            : () async {
+                        onPressed: () async {
                                 if (titleController.text.isEmpty) {
                                   ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please enter a title')));
                                   return;
@@ -193,9 +191,7 @@ class _GalleryScreenState extends State<GalleryScreen> {
                                 }
                               },
                         style: ElevatedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 14)),
-                        child: isUploading
-                            ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                            : Text(existingItem == null ? 'Create Gallery Item' : 'Update'),
+                        child: Text(existingItem == null ? 'Create Gallery Item' : 'Update'),
                       ),
                     ),
                     const SizedBox(height: 24),

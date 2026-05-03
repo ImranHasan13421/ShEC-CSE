@@ -3,9 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../backend/services/auth_service.dart';
-import 'login_screen.dart';
 import '../../../features/auth/screens/pending_approval_screen.dart';
-import '../../../features/profile/models/profile_state.dart';
 
 class SignupScreen extends StatefulWidget {
   const SignupScreen({super.key});

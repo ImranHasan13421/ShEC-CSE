@@ -6,6 +6,8 @@ import 'package:ShEC_CSE/features/auth/screens/login_screen.dart';
 import 'package:ShEC_CSE/features/auth/screens/pending_approval_screen.dart';
 import 'package:ShEC_CSE/features/profile/models/profile_state.dart';
 
+import '../../../backend/services/auth_service.dart';
+
 enum GifSize { small, medium, large, custom }
 
 class SplashScreen extends StatefulWidget {
@@ -18,17 +20,10 @@ class SplashScreen extends StatefulWidget {
 
 class _SplashScreenState extends State<SplashScreen> {
   bool _isExiting = false;
-  bool _showBranding = false;
 
   @override
   void initState() {
     super.initState();
-
-    // Trigger branding animation shortly after launch
-    Future.delayed(const Duration(milliseconds: 700), () {
-      if (mounted) setState(() => _showBranding = true);
-    });
-
     _startExitTimer();
   }
 
@@ -38,10 +33,18 @@ class _SplashScreenState extends State<SplashScreen> {
 
     if (!mounted) return;
 
+    // 2. If logged in, ensure profile is fetched before moving on
+    if (widget.isLoggedIn && currentProfile.value.id.isEmpty) {
+      try {
+        await AuthService.fetchCurrentUserProfile();
+      } catch (e) {
+        debugPrint('Splash profile fetch error: $e');
+      }
+    }
+
     // 2. Start fading out the GIF and Text
     setState(() {
       _isExiting = true;
-      _showBranding = false;
     });
 
     // ── 🆕 FIXED TIMING ──
@@ -117,55 +120,6 @@ class _SplashScreenState extends State<SplashScreen> {
               ),
             ),
           ),
-
-          // ── BOTTOM ANIMATED BRANDING ──
-          // Align(
-          //   alignment: Alignment.bottomCenter,
-          //   child: SafeArea(
-          //     child: Padding(
-          //       padding: const EdgeInsets.only(bottom: 40.0),
-          //       child: AnimatedOpacity(
-          //         duration: const Duration(milliseconds: 800),
-          //         opacity: _showBranding ? 1.0 : 0.0,
-          //         child: AnimatedSlide(
-          //           duration: const Duration(milliseconds: 800),
-          //           curve: Curves.easeOutCubic,
-          //           offset: _showBranding ? Offset.zero : const Offset(0, 0.5),
-          //           // REMOVED 'const' from Column so the Paint object can evaluate
-          //           child: Column(
-          //             mainAxisSize: MainAxisSize.min,
-          //             children: [
-          //               const Text(
-          //                 'A',
-          //                 style: TextStyle(color: Colors.white54, fontSize: 12, letterSpacing: 2),
-          //               ),
-          //               const SizedBox(height: 6),
-          //               Text(
-          //                 'Ezze Softwares',
-          //                 style: TextStyle(
-          //                   fontSize: 24,
-          //                   fontWeight: FontWeight.w900,
-          //                   letterSpacing: 1.2,
-          //                   // Use a gradient with foreground
-          //                   foreground: Paint()..shader = const LinearGradient(
-          //                     colors: [Color(0xFF09E5ED), Color(0xFF0404AC)], // Example Light & Dark Blues
-          //                     begin: Alignment.topCenter,
-          //                     end: Alignment.bottomCenter,
-          //                   ).createShader(const Rect.fromLTWH(0.0, 0.0, 200.0, 70.0)),
-          //                 ),
-          //               ),
-          //               const SizedBox(height: 6),
-          //               const Text(
-          //                 'PRODUCT',
-          //                 style: TextStyle(color: Colors.white54, fontSize: 10, letterSpacing: 5, fontWeight: FontWeight.bold),
-          //               ),
-          //             ],
-          //           ),
-          //         ),
-          //       ),
-          //     ),
-          //   ),
-          // ),
         ],
       ),
     );
