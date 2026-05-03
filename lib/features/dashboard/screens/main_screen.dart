@@ -17,9 +17,11 @@ import 'package:ShEC_CSE/features/resources/screens/resources_screen.dart';
 import 'package:ShEC_CSE/features/results/screens/results_screen.dart';
 import 'package:ShEC_CSE/features/department/screens/teacher_contacts_screen.dart';
 import 'package:ShEC_CSE/features/club/screens/club_members_screen.dart';
-import 'package:ShEC_CSE/features/about/screens/about_us_screen.dart';
 import 'package:ShEC_CSE/features/about/screens/contributors_screen.dart';
 import 'package:ShEC_CSE/features/alumni/screens/alumni_screen.dart';
+import 'package:ShEC_CSE/backend/services/notice_service.dart';
+import 'package:ShEC_CSE/backend/services/job_service.dart';
+import 'package:ShEC_CSE/backend/services/contest_service.dart';
 
 class HomeLayout extends StatefulWidget {
   const HomeLayout({super.key});
@@ -30,6 +32,15 @@ class HomeLayout extends StatefulWidget {
 
 class _HomeLayoutState extends State<HomeLayout> {
   int _currentIndex = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    // Initialize Real-time subscriptions
+    NoticeService.subscribeToNotices();
+    JobService.subscribeToJobs();
+    ContestService.subscribeToContests();
+  }
 
   List<Widget> _getScreens() {
     return [
@@ -121,151 +132,67 @@ class _HomeLayoutState extends State<HomeLayout> {
   Widget _buildDrawer(BuildContext context, ColorScheme colors) {
     return Drawer(
       backgroundColor: colors.surface,
-      child: ListView(
-        padding: EdgeInsets.zero,
+      child: Column(
         children: [
-          ValueListenableBuilder<ProfileData>(
-            valueListenable: currentProfile,
-            builder: (context, profile, _) {
-              return UserAccountsDrawerHeader(
-                decoration: BoxDecoration(color: colors.primary),
-                accountName: Text(profile.name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
-                accountEmail: Text('${profile.designation} • ${profile.email}'),
-                currentAccountPicture: GestureDetector(
-                  onTap: () {
-                    Navigator.pop(context);
-                    Navigator.push(context, MaterialPageRoute(builder: (_) => const ProfileScreen()));
+          Expanded(
+            child: ListView(
+              padding: EdgeInsets.zero,
+              children: [
+                ValueListenableBuilder<ProfileData>(
+                  valueListenable: currentProfile,
+                  builder: (context, profile, _) {
+                    return UserAccountsDrawerHeader(
+                      decoration: BoxDecoration(color: colors.primary),
+                      accountName: Text(profile.name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+                      accountEmail: Text('${profile.designation} • ${profile.email}'),
+                      currentAccountPicture: GestureDetector(
+                        onTap: () {
+                          Navigator.pop(context);
+                          Navigator.push(context, MaterialPageRoute(builder: (_) => const ProfileScreen()));
+                        },
+                        child: Container(
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            border: Border.all(color: Colors.white, width: 2),
+                          ),
+                          child: CircleAvatar(
+                            backgroundColor: Colors.white,
+                            backgroundImage: profile.imagePath != null && profile.imagePath!.startsWith('http')
+                                ? NetworkImage(profile.imagePath!) as ImageProvider
+                                : null,
+                            child: (profile.imagePath == null || !profile.imagePath!.startsWith('http'))
+                                ? const Icon(Icons.person, size: 40, color: Colors.grey)
+                                : null,
+                          ),
+                        ),
+                      ),
+                    );
                   },
-                  child: Container(
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      border: Border.all(color: Colors.white, width: 2),
-                    ),
-                    child: CircleAvatar(
-                      backgroundColor: Colors.white,
-                      backgroundImage: profile.imagePath != null && profile.imagePath!.startsWith('http')
-                          ? NetworkImage(profile.imagePath!) as ImageProvider
-                          : null,
-                      child: (profile.imagePath == null || !profile.imagePath!.startsWith('http'))
-                          ? const Icon(Icons.person, size: 40, color: Colors.grey)
-                          : null,
-                    ),
-                  ),
                 ),
-              );
-            },
-          ),
-          ListTile(
-            leading: const Icon(Icons.school),
-            title: const Text('CSE Department Info'),
-            onTap: () {
-              Navigator.pop(context);
-              Navigator.push(context, MaterialPageRoute(builder: (_) => const DepartmentScreen()));
-            },
-          ),
-          ListTile(
-            leading: const Icon(Icons.code),
-            title: const Text('Programming Club'),
-            onTap: () {
-              Navigator.pop(context);
-              Navigator.push(context, MaterialPageRoute(builder: (_) => const ClubScreen()));
-            },
-          ),
-          const Divider(),
-          const Padding(
-            padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            child: Text('Academic & Career', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey)),
-          ),
-          ListTile(
-            leading: const Icon(Icons.assignment),
-            title: const Text('Results'),
-            onTap: () {
-              Navigator.pop(context);
-              Navigator.push(context, MaterialPageRoute(builder: (_) => const ResultsScreen()));
-            },
-          ),
-          ListTile(
-            leading: const Icon(Icons.work),
-            title: const Text('Job Board'),
-            onTap: () {
-              Navigator.pop(context);
-              Navigator.push(context, MaterialPageRoute(builder: (_) => const JobsScreen()));
-            },
-          ),
-          ListTile(
-            leading: const Icon(Icons.folder_copy),
-            title: const Text('Previous Resources'),
-            onTap: () {
-              Navigator.pop(context);
-              Navigator.push(context, MaterialPageRoute(builder: (_) => const YearsScreen()));
-            },
-          ),
-          const Divider(),
-          const Padding(
-            padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            child: Text('Department & People', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey)),
-          ),
-          ListTile(
-            leading: const Icon(Icons.contact_phone),
-            title: const Text('Teacher Contacts'),
-            onTap: () {
-              Navigator.pop(context);
-              Navigator.push(context, MaterialPageRoute(builder: (_) => const TeacherContactsScreen()));
-            },
-          ),
-          ListTile(
-            leading: const Icon(Icons.people),
-            title: const Text('Club Members'),
-            onTap: () {
-              Navigator.pop(context);
-              Navigator.push(context, MaterialPageRoute(builder: (_) => const ClubMembersScreen()));
-            },
-          ),
-          ListTile(
-            leading: const Icon(Icons.school),
-            title: const Text('Alumni'),
-            onTap: () {
-              Navigator.pop(context);
-              Navigator.push(context, MaterialPageRoute(builder: (_) => const AlumniScreen()));
-            },
-          ),
-          const Divider(),
-          const Padding(
-            padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            child: Text('Media & Tools', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey)),
-          ),
-          ListTile(
-            leading: const Icon(Icons.photo_library),
-            title: const Text('Gallery'),
-            onTap: () {
-              Navigator.pop(context);
-              Navigator.push(context, MaterialPageRoute(builder: (_) => const GalleryScreen()));
-            },
-          ),
-          ListTile(
-            leading: const Icon(Icons.calculate),
-            title: const Text('CGPA Calculator'),
-            onTap: () {
-              Navigator.pop(context);
-              Navigator.push(context, MaterialPageRoute(builder: (_) => const CGPACalculatorScreen()));
-            },
-          ),
-          const Divider(),
-          ListTile(
-            leading: const Icon(Icons.info),
-            title: const Text('About Us'),
-            onTap: () {
-              Navigator.pop(context);
-              Navigator.push(context, MaterialPageRoute(builder: (_) => const AboutUsScreen()));
-            },
-          ),
-          ListTile(
-            leading: const Icon(Icons.group_work),
-            title: const Text('Contributors'),
-            onTap: () {
-              Navigator.pop(context);
-              Navigator.push(context, MaterialPageRoute(builder: (_) => const ContributorsScreen()));
-            },
+                
+                _drawerSection(context, 'Academic & Career'),
+                _drawerItem(context, Icons.assignment_outlined, 'Results', const ResultsScreen()),
+                _drawerItem(context, Icons.work_outline, 'Job Board', const JobsScreen()),
+                _drawerItem(context, Icons.folder_copy_outlined, 'Previous Resources', const YearsScreen()),
+                
+                const Divider(),
+                _drawerSection(context, 'Department & People'),
+                _drawerItem(context, Icons.contact_phone_outlined, 'Teacher Contacts', const TeacherContactsScreen()),
+                _drawerItem(context, Icons.people_outline, 'Club Members', const ClubMembersScreen()),
+                _drawerItem(context, Icons.school_outlined, 'Alumni', const AlumniScreen()),
+                
+                const Divider(),
+                _drawerSection(context, 'Media & Tools'),
+                _drawerItem(context, Icons.photo_library_outlined, 'Gallery', const GalleryScreen()),
+                _drawerItem(context, Icons.calculate_outlined, 'CGPA Calculator', const CGPACalculatorScreen()),
+                
+                const Divider(),
+                _drawerSection(context, 'Abouts'),
+                _drawerItem(context, Icons.account_balance_outlined, 'CSE Department Info', const DepartmentScreen()),
+                _drawerItem(context, Icons.code, 'Programming Club', const ClubScreen()),
+                _drawerItem(context, Icons.group_work_outlined, 'Contributors', const ContributorsScreen()),
+              ],
+            ),
           ),
           const Divider(),
           ListTile(
@@ -282,8 +209,36 @@ class _HomeLayoutState extends State<HomeLayout> {
               }
             },
           ),
+          const SizedBox(height: 12),
         ],
       ),
+    );
+  }
+
+  Widget _drawerSection(BuildContext context, String title) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: Text(
+        title,
+        style: TextStyle(
+          fontWeight: FontWeight.bold,
+          color: Theme.of(context).colorScheme.primary,
+          fontSize: 12,
+          letterSpacing: 1.0,
+        ),
+      ),
+    );
+  }
+
+  Widget _drawerItem(BuildContext context, IconData icon, String title, Widget destination) {
+    return ListTile(
+      leading: Icon(icon, size: 22),
+      title: Text(title, style: const TextStyle(fontSize: 14)),
+      dense: true,
+      onTap: () {
+        Navigator.pop(context);
+        Navigator.push(context, MaterialPageRoute(builder: (_) => destination));
+      },
     );
   }
 }

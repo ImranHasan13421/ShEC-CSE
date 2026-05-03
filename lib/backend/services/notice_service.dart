@@ -145,4 +145,17 @@ class NoticeService {
     CacheService.invalidate(CacheKeys.notices);
     fetchNotices(forceRefresh: true);
   }
+
+  // Real-time subscription
+  static void subscribeToNotices() {
+    _client
+      .channel('public:notices')
+      .onPostgresChanges(
+        event: PostgresChangeEvent.all,
+        schema: 'public',
+        table: 'notices',
+        callback: (payload) => fetchNotices(forceRefresh: true),
+      )
+      .subscribe();
+  }
 }

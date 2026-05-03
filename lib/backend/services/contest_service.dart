@@ -93,4 +93,18 @@ class ContestService {
     contestState.value = List.from(contestState.value)..removeWhere((i) => i.id == item.id);
     CacheService.invalidate(CacheKeys.contests);
   }
+
+  // Real-time subscription
+  static void subscribeToContests() {
+    _client
+      .channel('public:contests')
+      .onPostgresChanges(
+        event: PostgresChangeEvent.all,
+        schema: 'public',
+        table: 'contests',
+        callback: (payload) => fetchContestsAndCourses(forceRefresh: true),
+      )
+      .subscribe();
+  }
 }
+

@@ -4,7 +4,6 @@ class TeacherContact {
   final String id;
   final String name;
   final String designation; // e.g., Professor, Assistant Professor
-  final String role;        // e.g., Head of Department, Lab In-Charge
   final String phone;
   final String email;
   final String imagePath;
@@ -20,7 +19,6 @@ class TeacherContact {
     required this.id,
     required this.name,
     required this.designation,
-    this.role = '',
     this.phone = '',
     this.email = '',
     this.imagePath = '',
@@ -46,7 +44,6 @@ class TeacherContact {
       id: json['id'] as String,
       name: json['name'] as String,
       designation: json['designation'] as String? ?? '',
-      role: json['role'] as String? ?? '',
       phone: json['phone'] as String? ?? '',
       email: json['email'] as String? ?? '',
       imagePath: json['image_path'] as String? ?? '',
@@ -64,7 +61,6 @@ class TeacherContact {
     return {
       'name': name,
       'designation': designation,
-      'role': role,
       'phone': phone,
       'email': email,
       'image_path': imagePath,

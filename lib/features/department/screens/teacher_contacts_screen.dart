@@ -23,7 +23,6 @@ class _TeacherContactsScreenState extends State<TeacherContactsScreen> {
   void _showTeacherForm({TeacherContact? existingTeacher}) {
     final nameController = TextEditingController(text: existingTeacher?.name ?? '');
     final designationController = TextEditingController(text: existingTeacher?.designation ?? '');
-    final roleController = TextEditingController(text: existingTeacher?.role ?? '');
     final phoneController = TextEditingController(text: existingTeacher?.phone ?? '');
     final emailController = TextEditingController(text: existingTeacher?.email ?? '');
     final officeController = TextEditingController(text: existingTeacher?.officeRoom ?? '');
@@ -67,8 +66,6 @@ class _TeacherContactsScreenState extends State<TeacherContactsScreen> {
                       style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
                     ),
                     const SizedBox(height: 16),
-
-                    // Photo picker
                     Center(
                       child: GestureDetector(
                         onTap: () => pickImage(setModalState),
@@ -87,12 +84,9 @@ class _TeacherContactsScreenState extends State<TeacherContactsScreen> {
                       ),
                     ),
                     const SizedBox(height: 16),
-
                     _field(nameController, 'Full Name *'),
                     const SizedBox(height: 12),
                     _field(designationController, 'Designation (e.g. Assistant Professor) *'),
-                    const SizedBox(height: 12),
-                    _field(roleController, 'Role (e.g. Head of Department)'),
                     const SizedBox(height: 12),
                     Row(children: [
                       Expanded(child: _field(departmentController, 'Department')),
@@ -106,18 +100,14 @@ class _TeacherContactsScreenState extends State<TeacherContactsScreen> {
                     const SizedBox(height: 12),
                     _field(emailController, 'Email', keyboardType: TextInputType.emailAddress),
                     const SizedBox(height: 16),
-
-                    // Expertise chips
                     const Text('Areas of Expertise', style: TextStyle(fontWeight: FontWeight.bold)),
                     const SizedBox(height: 8),
                     Wrap(
                       spacing: 6,
-                      children: [
-                        ...expertiseList.map((e) => Chip(
-                          label: Text(e, style: const TextStyle(fontSize: 12)),
-                          onDeleted: () => setModalState(() => expertiseList.remove(e)),
-                        )),
-                      ],
+                      children: expertiseList.map((e) => Chip(
+                        label: Text(e, style: const TextStyle(fontSize: 12)),
+                        onDeleted: () => setModalState(() => expertiseList.remove(e)),
+                      )).toList(),
                     ),
                     Row(
                       children: [
@@ -156,41 +146,36 @@ class _TeacherContactsScreenState extends State<TeacherContactsScreen> {
                     SizedBox(
                       width: double.infinity,
                       child: ElevatedButton(
-                        onPressed: isUploading
-                            ? null
-                            : () async {
-                                if (nameController.text.isEmpty || designationController.text.isEmpty) {
-                                  return;
-                                }
-                                setModalState(() => isUploading = true);
-                                String? finalImageUrl = currentImageUrl;
-                                if (selectedImage != null) {
-                                  finalImageUrl = await TeacherService.uploadImage(selectedImage!);
-                                }
-                                final teacher = TeacherContact(
-                                  id: existingTeacher?.id ?? '',
-                                  name: nameController.text.trim(),
-                                  designation: designationController.text.trim(),
-                                  role: roleController.text.trim(),
-                                  phone: phoneController.text.trim(),
-                                  email: emailController.text.trim(),
-                                  officeRoom: officeController.text.trim(),
-                                  department: departmentController.text.trim(),
-                                  joinYear: joinYearController.text.trim(),
-                                  areasOfExpertise: expertiseList,
-                                  imagePath: finalImageUrl ?? '',
-                                  isVisible: isVisible,
-                                  createdByName: existingTeacher?.createdByName ?? currentProfile.value.name,
-                                );
-                                if (mounted) {
-                                  Navigator.pop(modalContext);
-                                  if (existingTeacher == null) {
-                                    await TeacherService.addTeacher(teacher);
-                                  } else {
-                                    await TeacherService.updateTeacher(teacher);
-                                  }
-                                }
-                              },
+                        onPressed: isUploading ? null : () async {
+                          if (nameController.text.isEmpty || designationController.text.isEmpty) return;
+                          setModalState(() => isUploading = true);
+                          String? finalImageUrl = currentImageUrl;
+                          if (selectedImage != null) {
+                            finalImageUrl = await TeacherService.uploadImage(selectedImage!);
+                          }
+                          final teacher = TeacherContact(
+                            id: existingTeacher?.id ?? '',
+                            name: nameController.text.trim(),
+                            designation: designationController.text.trim(),
+                            phone: phoneController.text.trim(),
+                            email: emailController.text.trim(),
+                            officeRoom: officeController.text.trim(),
+                            department: departmentController.text.trim(),
+                            joinYear: joinYearController.text.trim(),
+                            areasOfExpertise: expertiseList,
+                            imagePath: finalImageUrl ?? '',
+                            isVisible: isVisible,
+                            createdByName: existingTeacher?.createdByName ?? currentProfile.value.name,
+                          );
+                          if (mounted) {
+                            Navigator.pop(modalContext);
+                            if (existingTeacher == null) {
+                              await TeacherService.addTeacher(teacher);
+                            } else {
+                              await TeacherService.updateTeacher(teacher);
+                            }
+                          }
+                        },
                         style: ElevatedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 14)),
                         child: isUploading
                             ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
@@ -212,11 +197,7 @@ class _TeacherContactsScreenState extends State<TeacherContactsScreen> {
     return TextField(
       controller: ctrl,
       keyboardType: keyboardType,
-      decoration: InputDecoration(
-        labelText: label,
-        border: const OutlineInputBorder(),
-        isDense: true,
-      ),
+      decoration: InputDecoration(labelText: label, border: const OutlineInputBorder(), isDense: true),
     );
   }
 
@@ -228,14 +209,8 @@ class _TeacherContactsScreenState extends State<TeacherContactsScreen> {
         valueListenable: teachersState,
         builder: (context, teachers, _) {
           final isAdmin = currentProfile.value.role != UserRole.student;
-          final visible = isAdmin
-              ? teachers
-              : teachers.where((t) => t.isApproved && t.isVisible).toList();
-
-          if (visible.isEmpty) {
-            return const Center(child: Text('No teacher contacts available.'));
-          }
-
+          final visible = isAdmin ? teachers : teachers.where((t) => t.isApproved && t.isVisible).toList();
+          if (visible.isEmpty) return const Center(child: Text('No teacher contacts available.'));
           return ListView.builder(
             padding: const EdgeInsets.all(16),
             itemCount: visible.length,
@@ -275,7 +250,6 @@ class _TeacherContactsScreenState extends State<TeacherContactsScreen> {
           padding: const EdgeInsets.all(16),
           child: Row(
             children: [
-              // Avatar
               CircleAvatar(
                 radius: 32,
                 backgroundColor: colors.primaryContainer,
@@ -285,30 +259,18 @@ class _TeacherContactsScreenState extends State<TeacherContactsScreen> {
                     : null,
               ),
               const SizedBox(width: 16),
-              // Info
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Row(
                       children: [
-                        Expanded(
-                          child: Text(teacher.name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                        ),
+                        Expanded(child: Text(teacher.name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16))),
                         if (!teacher.isApproved)
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                             decoration: BoxDecoration(color: Colors.red.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(4)),
                             child: const Text('PENDING', style: TextStyle(color: Colors.red, fontSize: 9, fontWeight: FontWeight.bold)),
-                          ),
-                        if (!teacher.isVisible)
-                          Padding(
-                            padding: const EdgeInsets.only(left: 4),
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                              decoration: BoxDecoration(color: Colors.orange.withOpacity(0.1), borderRadius: BorderRadius.circular(4)),
-                              child: const Text('HIDDEN', style: TextStyle(color: Colors.orange, fontSize: 9, fontWeight: FontWeight.bold)),
-                            ),
                           ),
                         if (isAdmin)
                           PopupMenuButton<String>(
@@ -320,8 +282,7 @@ class _TeacherContactsScreenState extends State<TeacherContactsScreen> {
                               if (val == 'visibility') TeacherService.toggleTeacherVisibility(teacher.id, !teacher.isVisible);
                             },
                             itemBuilder: (_) => [
-                              if (!teacher.isApproved &&
-                                  (profile.designation == 'President' || profile.designation == 'Vice President'))
+                              if (!teacher.isApproved && (profile.designation == 'President' || profile.designation == 'Vice President'))
                                 const PopupMenuItem(value: 'approve', child: Text('Approve', style: TextStyle(color: Colors.green))),
                               PopupMenuItem(value: 'visibility', child: Text(teacher.isVisible ? 'Hide' : 'Show')),
                               const PopupMenuItem(value: 'edit', child: Text('Edit')),
@@ -331,8 +292,6 @@ class _TeacherContactsScreenState extends State<TeacherContactsScreen> {
                       ],
                     ),
                     Text(teacher.designation, style: TextStyle(color: colors.primary, fontWeight: FontWeight.bold, fontSize: 13)),
-                    if (teacher.role.isNotEmpty)
-                      Text(teacher.role, style: TextStyle(color: colors.onSurface.withOpacity(0.6), fontSize: 12)),
                     const SizedBox(height: 8),
                     if (teacher.areasOfExpertise.isNotEmpty)
                       Wrap(
@@ -340,10 +299,7 @@ class _TeacherContactsScreenState extends State<TeacherContactsScreen> {
                         runSpacing: 4,
                         children: teacher.areasOfExpertise.take(3).map((area) => Container(
                           padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: colors.primaryContainer,
-                            borderRadius: BorderRadius.circular(6),
-                          ),
+                          decoration: BoxDecoration(color: colors.primaryContainer, borderRadius: BorderRadius.circular(6)),
                           child: Text(area, style: TextStyle(color: colors.onPrimaryContainer, fontSize: 10)),
                         )).toList(),
                       ),

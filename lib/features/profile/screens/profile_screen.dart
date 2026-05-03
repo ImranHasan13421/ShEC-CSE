@@ -23,6 +23,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   late TextEditingController _classRollController;
   late TextEditingController _phoneController;
   late TextEditingController _duRegController;
+  late TextEditingController _passwordController;
 
   String? _selectedSession;
   String? _selectedBatch;
@@ -32,6 +33,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   String? _imageUrl;  
   File? _newImageFile; 
   bool _isUploading = false;
+  bool _showPassword = false;
 
   @override
   void initState() {
@@ -46,6 +48,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     _selectedBatch = profile.batch.isNotEmpty ? profile.batch : null;
     _phoneController = TextEditingController(text: profile.phone);
     _duRegController = TextEditingController(text: profile.duRegNo);
+    _passwordController = TextEditingController();
     _imageUrl = profile.imagePath;
 
     _fetchSessions();
@@ -58,9 +61,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
       if (mounted) {
         setState(() {
           _sessions = data;
-          if (_selectedSession != null && !_sessions.any((s) => s['session'] == _selectedSession)) {
-            // Keep current value if not in list yet
-          }
         });
       }
     } catch (e) {
@@ -86,6 +86,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     _classRollController.dispose();
     _phoneController.dispose();
     _duRegController.dispose();
+    _passwordController.dispose();
     super.dispose();
   }
 
@@ -128,21 +129,22 @@ class _ProfileScreenState extends State<ProfileScreen> {
         }
       }
 
+      // 1. Update Profile Metadata
       final updatedProfile = currentProfile.value.copyWith(
         firstName: _firstNameController.text.trim(),
         lastName: _lastNameController.text.trim(),
         name: '${_firstNameController.text.trim()} ${_lastNameController.text.trim()}',
-        universityId: _universityIdController.text.trim(),
-        classRoll: _classRollController.text.trim(),
-        studentId: '${_universityIdController.text.trim()} / ${_classRollController.text.trim()}',
-        session: _selectedSession ?? '',
-        batch: _selectedBatch ?? '',
-        phone: _phoneController.text.trim(),
-        duRegNo: _duRegController.text.trim(),
         imagePath: finalImageUrl,
       );
 
       await AuthService.updateProfile(updatedProfile);
+
+      // 2. Update Password if provided
+      if (_passwordController.text.isNotEmpty) {
+        await Supabase.instance.client.auth.updateUser(
+          UserAttributes(password: _passwordController.text.trim()),
+        );
+      }
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -220,51 +222,50 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 Expanded(child: _buildTextField('Last Name', _lastNameController, Icons.person_outline)),
               ]),
               const SizedBox(height: 16),
-              _buildTextField('Email (View Only)', _emailController, Icons.email, readOnly: true),
+              _buildTextField('Email (Read Only)', _emailController, Icons.email, readOnly: true),
               
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: _passwordController,
+                obscureText: !_showPassword,
+                decoration: _inputDecoration('Change Password', Icons.lock).copyWith(
+                  suffixIcon: IconButton(
+                    icon: Icon(_showPassword ? Icons.visibility : Icons.visibility_off),
+                    onPressed: () => setState(() => _showPassword = !_showPassword),
+                  ),
+                  hintText: 'Leave empty to keep current',
+                ),
+              ),
+
               const SizedBox(height: 24),
-              _sectionLabel('Academic Information'),
+              _sectionLabel('Academic Information (Locked)'),
               const SizedBox(height: 12),
               Row(children: [
-                Expanded(child: _buildTextField('University ID', _universityIdController, Icons.badge)),
+                Expanded(child: _buildTextField('University ID', _universityIdController, Icons.badge, readOnly: true)),
                 const SizedBox(width: 16),
-                Expanded(child: _buildTextField('Class Roll', _classRollController, Icons.numbers)),
+                Expanded(child: _buildTextField('Class Roll', _classRollController, Icons.numbers, readOnly: true)),
               ]),
               const SizedBox(height: 16),
               
-              DropdownButtonFormField<String>(
-                value: _selectedSession,
-                decoration: _inputDecoration('Session', Icons.date_range),
-                isExpanded: true,
-                items: _sessions.map((s) {
-                  return DropdownMenuItem<String>(
-                    value: s['session'] as String,
-                    child: Text(s['session'] as String),
-                  );
-                }).toList(),
-                onChanged: (value) => setState(() => _selectedSession = value),
-                validator: (v) => v == null ? 'Select session' : null,
-              ),
+              _buildTextField('Session', TextEditingController(text: _selectedSession), Icons.date_range, readOnly: true),
               const SizedBox(height: 16),
               
-              DropdownButtonFormField<String>(
-                value: _selectedBatch,
-                decoration: _inputDecoration('Batch', Icons.group),
-                isExpanded: true,
-                items: _batches.map((b) {
-                  return DropdownMenuItem<String>(
-                    value: b,
-                    child: Text('Batch $b'),
-                  );
-                }).toList(),
-                onChanged: (value) => setState(() => _selectedBatch = value),
-                validator: (v) => v == null ? 'Select batch' : null,
-              ),
+              _buildTextField('Batch', TextEditingController(text: _selectedBatch != null ? 'Batch $_selectedBatch' : ''), Icons.group, readOnly: true),
               const SizedBox(height: 16),
               
-              _buildTextField('Phone', _phoneController, Icons.phone, keyboardType: TextInputType.phone),
+              _buildTextField('Phone', _phoneController, Icons.phone, readOnly: true),
               const SizedBox(height: 16),
-              _buildTextField('DU Registration No.', _duRegController, Icons.app_registration),
+              _buildTextField('DU Registration No.', _duRegController, Icons.app_registration, readOnly: true),
+              
+              const Padding(
+                padding: EdgeInsets.only(top: 8.0),
+                child: Text(
+                  'Contact admin to update academic details.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(fontSize: 12, color: Colors.grey, fontStyle: FontStyle.italic),
+                ),
+              ),
+
               const SizedBox(height: 40),
 
               ElevatedButton(

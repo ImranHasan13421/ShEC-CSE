@@ -22,6 +22,7 @@ class JobItem {
   final List<String> requirements;
   final List<String> responsibilities;
   final String applyUrl;
+  final String category; // Added category field
 
   JobItem({
     required this.id,
@@ -42,6 +43,7 @@ class JobItem {
     this.requirements = const [],
     this.responsibilities = const [],
     this.applyUrl = '',
+    this.category = 'recent',
   });
 
   factory JobItem.fromJson(Map<String, dynamic> json) {
@@ -64,12 +66,12 @@ class JobItem {
       requirements: (json['requirements'] as List?)?.map((e) => e.toString()).toList() ?? [],
       responsibilities: (json['responsibilities'] as List?)?.map((e) => e.toString()).toList() ?? [],
       applyUrl: json['apply_url'] as String? ?? '',
+      category: json['category'] as String? ?? 'recent',
     );
   }
 
-  Map<String, dynamic> toJson(String category) {
+  Map<String, dynamic> toJson() {
     return {
-      'category': category,
       'company': company,
       'role': role,
       'location': location,
@@ -87,6 +89,7 @@ class JobItem {
       'requirements': requirements,
       'responsibilities': responsibilities,
       'apply_url': applyUrl,
+      'category': category,
     };
   }
 
@@ -109,6 +112,7 @@ class JobItem {
     List<String>? requirements,
     List<String>? responsibilities,
     String? applyUrl,
+    String? category,
   }) {
     return JobItem(
       id: id ?? this.id,
@@ -129,6 +133,7 @@ class JobItem {
       requirements: requirements ?? this.requirements,
       responsibilities: responsibilities ?? this.responsibilities,
       applyUrl: applyUrl ?? this.applyUrl,
+      category: category ?? this.category,
     );
   }
 }

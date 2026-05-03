@@ -21,7 +21,6 @@ class TeacherDetailScreen extends StatelessWidget {
       backgroundColor: colors.surface,
       body: CustomScrollView(
         slivers: [
-          // ── Header with photo ──
           SliverAppBar(
             expandedHeight: 260,
             pinned: true,
@@ -38,7 +37,6 @@ class TeacherDetailScreen extends StatelessWidget {
               background: Stack(
                 fit: StackFit.expand,
                 children: [
-                  // Background gradient
                   Container(
                     decoration: BoxDecoration(
                       gradient: LinearGradient(
@@ -48,7 +46,6 @@ class TeacherDetailScreen extends StatelessWidget {
                       ),
                     ),
                   ),
-                  // Profile photo
                   Center(
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
@@ -57,34 +54,15 @@ class TeacherDetailScreen extends StatelessWidget {
                         CircleAvatar(
                           radius: 60,
                           backgroundColor: Colors.white,
-                          backgroundImage: teacher.imagePath.isNotEmpty
-                              ? NetworkImage(teacher.imagePath)
-                              : null,
+                          backgroundImage: teacher.imagePath.isNotEmpty ? NetworkImage(teacher.imagePath) : null,
                           child: teacher.imagePath.isEmpty
-                              ? Text(
-                                  teacher.name[0].toUpperCase(),
-                                  style: TextStyle(
-                                    fontSize: 48,
-                                    fontWeight: FontWeight.bold,
-                                    color: colors.primary,
-                                  ),
-                                )
+                              ? Text(teacher.name[0].toUpperCase(), style: TextStyle(fontSize: 48, fontWeight: FontWeight.bold, color: colors.primary))
                               : null,
                         ),
                         const SizedBox(height: 12),
-                        Text(
-                          teacher.name,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 22,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
+                        Text(teacher.name, style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold)),
                         const SizedBox(height: 4),
-                        Text(
-                          teacher.designation,
-                          style: const TextStyle(color: Colors.white70, fontSize: 15),
-                        ),
+                        Text(teacher.designation, style: const TextStyle(color: Colors.white70, fontSize: 15)),
                       ],
                     ),
                   ),
@@ -93,34 +71,12 @@ class TeacherDetailScreen extends StatelessWidget {
             ),
           ),
 
-          // ── Role badge ──
-          if (teacher.role.isNotEmpty)
-            SliverToBoxAdapter(
-              child: Center(
-                child: Padding(
-                  padding: const EdgeInsets.only(top: 20),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-                    decoration: BoxDecoration(
-                      color: colors.primaryContainer,
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Text(
-                      teacher.role,
-                      style: TextStyle(color: colors.onPrimaryContainer, fontWeight: FontWeight.bold),
-                    ),
-                  ),
-                ),
-              ),
-            ),
-
           SliverToBoxAdapter(
             child: Padding(
               padding: const EdgeInsets.all(20),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // ── Contact Buttons ──
                   if (teacher.phone.isNotEmpty || teacher.email.isNotEmpty) ...[
                     Row(
                       children: [
@@ -133,8 +89,7 @@ class TeacherDetailScreen extends StatelessWidget {
                               onTap: () => _launch('tel:${teacher.phone}'),
                             ),
                           ),
-                        if (teacher.phone.isNotEmpty && teacher.email.isNotEmpty)
-                          const SizedBox(width: 12),
+                        if (teacher.phone.isNotEmpty && teacher.email.isNotEmpty) const SizedBox(width: 12),
                         if (teacher.email.isNotEmpty)
                           Expanded(
                             child: _ActionButton(
@@ -149,33 +104,19 @@ class TeacherDetailScreen extends StatelessWidget {
                     const SizedBox(height: 24),
                   ],
 
-                  // ── Info Cards ──
                   _SectionCard(
                     children: [
-                      if (teacher.department.isNotEmpty)
-                        _InfoRow(Icons.apartment, 'Department', teacher.department, colors),
-                      if (teacher.officeRoom.isNotEmpty)
-                        _InfoRow(Icons.room, 'Office', teacher.officeRoom, colors),
-                      if (teacher.joinYear.isNotEmpty)
-                        _InfoRow(Icons.calendar_today, 'Joined', teacher.joinYear, colors),
-                      if (teacher.phone.isNotEmpty)
-                        _InfoRow(Icons.phone, 'Phone', teacher.phone, colors),
-                      if (teacher.email.isNotEmpty)
-                        _InfoRow(Icons.email, 'Email', teacher.email, colors),
+                      if (teacher.department.isNotEmpty) _InfoRow(Icons.apartment, 'Department', teacher.department, colors),
+                      if (teacher.officeRoom.isNotEmpty) _InfoRow(Icons.room, 'Office', teacher.officeRoom, colors),
+                      if (teacher.joinYear.isNotEmpty) _InfoRow(Icons.calendar_today, 'Joined', teacher.joinYear, colors),
+                      if (teacher.phone.isNotEmpty) _InfoRow(Icons.phone, 'Phone', teacher.phone, colors),
+                      if (teacher.email.isNotEmpty) _InfoRow(Icons.email, 'Email', teacher.email, colors),
                     ],
                   ),
 
-                  // ── Areas of Expertise ──
                   if (teacher.areasOfExpertise.isNotEmpty) ...[
-                    const SizedBox(height: 16),
-                    Text(
-                      'Areas of Expertise',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16,
-                        color: colors.onSurface,
-                      ),
-                    ),
+                    const SizedBox(height: 24),
+                    const Text('Areas of Expertise', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
                     const SizedBox(height: 12),
                     Wrap(
                       spacing: 8,
@@ -202,7 +143,6 @@ class _ActionButton extends StatelessWidget {
   final String label;
   final Color color;
   final VoidCallback onTap;
-
   const _ActionButton({required this.icon, required this.label, required this.color, required this.onTap});
 
   @override
@@ -247,7 +187,6 @@ class _InfoRow extends StatelessWidget {
   final String label;
   final String value;
   final ColorScheme colors;
-
   const _InfoRow(this.icon, this.label, this.value, this.colors);
 
   @override

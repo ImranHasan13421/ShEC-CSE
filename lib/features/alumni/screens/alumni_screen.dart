@@ -1,8 +1,8 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:url_launcher/url_launcher.dart';
 import '../../../backend/services/alumni_service.dart';
+import '../../../backend/services/auth_service.dart';
 import '../../profile/models/profile_state.dart';
 import '../models/alumni_state.dart';
 import 'alumni_detail_screen.dart';
@@ -15,10 +15,22 @@ class AlumniScreen extends StatefulWidget {
 }
 
 class _AlumniScreenState extends State<AlumniScreen> {
+  List<String> _sessions = [];
+  final List<String> _batches = List.generate(20, (index) => (index + 1).toString());
+  final List<String> _years = List.generate(30, (index) => (DateTime.now().year - index).toString());
+
   @override
   void initState() {
     super.initState();
     AlumniService.fetchAlumni();
+    _loadSessions();
+  }
+
+  Future<void> _loadSessions() async {
+    final sessionsData = await AuthService.fetchSessions();
+    setState(() {
+      _sessions = sessionsData.map((e) => e['session'] as String).toList();
+    });
   }
 
   bool get _isSuperUser {
@@ -28,16 +40,15 @@ class _AlumniScreenState extends State<AlumniScreen> {
 
   void _showAlumniForm({AlumniItem? existing}) {
     final nameCtrl = TextEditingController(text: existing?.name ?? '');
-    final roleCtrl = TextEditingController(text: existing?.role ?? '');
-    final designCtrl = TextEditingController(text: existing?.designation ?? '');
     final emailCtrl = TextEditingController(text: existing?.email ?? '');
     final phoneCtrl = TextEditingController(text: existing?.phone ?? '');
-    final batchCtrl = TextEditingController(text: existing?.batch ?? '');
-    final sessionCtrl = TextEditingController(text: existing?.session ?? '');
-    final passingYearCtrl = TextEditingController(text: existing?.passingYear ?? '');
     final positionCtrl = TextEditingController(text: existing?.currentPosition ?? '');
     final companyCtrl = TextEditingController(text: existing?.company ?? '');
     final expertiseCtrl = TextEditingController();
+
+    String? selectedBatch = existing?.batch.isNotEmpty == true ? existing?.batch : null;
+    String? selectedSession = existing?.session.isNotEmpty == true ? existing?.session : null;
+    String? selectedYear = existing?.passingYear.isNotEmpty == true ? existing?.passingYear : null;
 
     List<String> expertiseList = List.from(existing?.areasOfExpertise ?? []);
     bool isVisible = existing?.isVisible ?? true;
@@ -91,20 +102,36 @@ class _AlumniScreenState extends State<AlumniScreen> {
                   const SizedBox(height: 16),
                   _f(nameCtrl, 'Full Name *'),
                   const SizedBox(height: 12),
+                  
                   Row(children: [
-                    Expanded(child: _f(designCtrl, 'Designation')),
+                    Expanded(
+                      child: DropdownButtonFormField<String>(
+                        value: selectedBatch,
+                        decoration: const InputDecoration(labelText: 'Batch', border: OutlineInputBorder(), isDense: true),
+                        items: _batches.map((b) => DropdownMenuItem(value: b, child: Text('Batch $b'))).toList(),
+                        onChanged: (v) => setModalState(() => selectedBatch = v),
+                      ),
+                    ),
                     const SizedBox(width: 12),
-                    Expanded(child: _f(roleCtrl, 'Role')),
+                    Expanded(
+                      child: DropdownButtonFormField<String>(
+                        value: selectedSession,
+                        decoration: const InputDecoration(labelText: 'Session', border: OutlineInputBorder(), isDense: true),
+                        items: _sessions.map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
+                        onChanged: (v) => setModalState(() => selectedSession = v),
+                      ),
+                    ),
                   ]),
                   const SizedBox(height: 12),
-                  Row(children: [
-                    Expanded(child: _f(batchCtrl, 'Batch')),
-                    const SizedBox(width: 12),
-                    Expanded(child: _f(sessionCtrl, 'Session')),
-                  ]),
+                  
+                  DropdownButtonFormField<String>(
+                    value: selectedYear,
+                    decoration: const InputDecoration(labelText: 'Passing Year', border: OutlineInputBorder(), isDense: true),
+                    items: _years.map((y) => DropdownMenuItem(value: y, child: Text(y))).toList(),
+                    onChanged: (v) => setModalState(() => selectedYear = v),
+                  ),
                   const SizedBox(height: 12),
-                  _f(passingYearCtrl, 'Passing Year'),
-                  const SizedBox(height: 12),
+                  
                   _f(positionCtrl, 'Current Position'),
                   const SizedBox(height: 12),
                   _f(companyCtrl, 'Company / Organization'),
@@ -113,6 +140,7 @@ class _AlumniScreenState extends State<AlumniScreen> {
                   const SizedBox(height: 12),
                   _f(phoneCtrl, 'Phone', keyboardType: TextInputType.phone),
                   const SizedBox(height: 16),
+                  
                   const Text('Areas of Expertise', style: TextStyle(fontWeight: FontWeight.bold)),
                   const SizedBox(height: 8),
                   Wrap(
@@ -161,14 +189,14 @@ class _AlumniScreenState extends State<AlumniScreen> {
                           id: existing?.id ?? '',
                           userId: existing?.userId,
                           name: nameCtrl.text.trim(),
-                          role: roleCtrl.text.trim(),
-                          designation: designCtrl.text.trim(),
+                          role: '', // Removed
+                          designation: '', // Removed
                           email: emailCtrl.text.trim(),
                           phone: phoneCtrl.text.trim(),
                           imagePath: finalImageUrl ?? '',
-                          batch: batchCtrl.text.trim(),
-                          session: sessionCtrl.text.trim(),
-                          passingYear: passingYearCtrl.text.trim(),
+                          batch: selectedBatch ?? '',
+                          session: selectedSession ?? '',
+                          passingYear: selectedYear ?? '',
                           currentPosition: positionCtrl.text.trim(),
                           company: companyCtrl.text.trim(),
                           areasOfExpertise: expertiseList,
@@ -330,17 +358,6 @@ class _AlumniScreenState extends State<AlumniScreen> {
                         '${alumni.passingYear.isNotEmpty ? ' • Passed: ${alumni.passingYear}' : ''}',
                         style: TextStyle(color: colors.onSurface.withValues(alpha: 0.5), fontSize: 12),
                       ),
-                    if (alumni.areasOfExpertise.isNotEmpty) ...[
-                      const SizedBox(height: 6),
-                      Wrap(
-                        spacing: 4,
-                        children: alumni.areasOfExpertise.take(2).map((a) => Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                          decoration: BoxDecoration(color: colors.secondaryContainer, borderRadius: BorderRadius.circular(6)),
-                          child: Text(a, style: TextStyle(color: colors.onSecondaryContainer, fontSize: 10)),
-                        )).toList(),
-                      ),
-                    ],
                   ],
                 ),
               ),

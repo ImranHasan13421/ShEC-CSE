@@ -23,10 +23,9 @@ class JobService {
 
     for (var row in response) {
       final job = JobItem.fromJson(row);
-      if (row['category'] == 'recommended') {
+      if (job.category == 'recommended') {
         recommended.add(job);
       } else {
-        // Everything else is treated as recent for now
         recent.add(job);
       }
     }
@@ -40,7 +39,7 @@ class JobService {
     final profile = currentProfile.value;
     final isSuperUser = profile.designation == 'President' || profile.designation == 'Vice President';
     
-    final data = job.toJson(category);
+    final data = job.copyWith(category: category).toJson();
     data['is_approved'] = isSuperUser;
     data['is_visible'] = true;
     data['created_by_name'] = profile.name;
@@ -52,7 +51,7 @@ class JobService {
         .single();
 
     final newJob = JobItem.fromJson(response);
-    if (category == 'recommended') {
+    if (newJob.category == 'recommended') {
       recommendedJobsState.value = List.from(recommendedJobsState.value)..insert(0, newJob);
     } else {
       recentJobsState.value = List.from(recentJobsState.value)..insert(0, newJob);
@@ -61,7 +60,7 @@ class JobService {
   }
 
   static Future<void> updateJobInDB(JobItem job, String category) async {
-    final data = job.toJson(category);
+    final data = job.copyWith(category: category).toJson();
     data.remove('is_approved'); // Don't overwrite existing status on normal edit
     
     await _client
@@ -99,5 +98,18 @@ class JobService {
         ..removeWhere((job) => job.id == id);
     }
     CacheService.invalidate(CacheKeys.jobsRecommended);
+  }
+
+  // Real-time subscription
+  static void subscribeToJobs() {
+    _client
+      .channel('public:jobs')
+      .onPostgresChanges(
+        event: PostgresChangeEvent.all,
+        schema: 'public',
+        table: 'jobs',
+        callback: (payload) => fetchJobs(forceRefresh: true),
+      )
+      .subscribe();
   }
 }

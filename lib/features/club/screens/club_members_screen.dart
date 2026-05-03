@@ -101,7 +101,7 @@ class _ClubMembersScreenState extends State<ClubMembersScreen> with SingleTicker
                     ),
                     const SizedBox(height: 8),
                     ElevatedButton.icon(
-                      style: ElevatedButton.styleFrom(backgroundColor: colors.secondary, foregroundColor: Colors.white),
+                      style: ElevatedButton.styleFrom(backgroundColor: colors.secondary, foregroundColor: Colors.black),
                       icon: const Icon(Icons.school),
                       label: const Text('Move to Alumni'),
                       onPressed: () async {

@@ -4,6 +4,7 @@ import 'package:ShEC_CSE/features/profile/models/profile_state.dart';
 import '../models/job_state.dart';
 import 'job_detail_screen.dart';
 import '../../../backend/services/job_service.dart';
+import 'package:intl/intl.dart';
 
 class JobsScreen extends StatefulWidget {
   const JobsScreen({super.key});
@@ -47,14 +48,15 @@ class _JobsScreenState extends State<JobsScreen> {
     final locationController = TextEditingController(text: existingJob?.location ?? '');
     final salaryController = TextEditingController(text: existingJob?.salary ?? '');
     final deadlineController = TextEditingController(text: existingJob?.deadline ?? '');
-    final jobTypeController = TextEditingController(text: existingJob?.jobType ?? '');
     final descriptionController = TextEditingController(text: existingJob?.description ?? '');
     final applyUrlController = TextEditingController(text: existingJob?.applyUrl ?? '');
     
-    bool isVisible = existingJob?.isVisible ?? true;
+    String? selectedJobType = existingJob?.jobType;
+    if (selectedJobType != null && !['Full Time', 'Part Time', 'Internship'].contains(selectedJobType)) {
+      selectedJobType = 'Full Time';
+    }
 
-    // No longer needing category selection as per user request. 
-    // We will default to 'recent' for new jobs, or use the existing one if editing.
+    bool isVisible = existingJob?.isVisible ?? true;
     ValueNotifier<List<JobItem>> targetNotifier = defaultStateNotifier ?? recentJobsState;
 
     showModalBottomSheet(
@@ -64,12 +66,25 @@ class _JobsScreenState extends State<JobsScreen> {
       builder: (modalContext) {
         return StatefulBuilder(
           builder: (BuildContext context, StateSetter setModalState) {
+            
+            Future<void> _selectDate() async {
+              final DateTime? picked = await showDatePicker(
+                context: context,
+                initialDate: DateTime.now(),
+                firstDate: DateTime.now(),
+                lastDate: DateTime(2101),
+              );
+              if (picked != null) {
+                setModalState(() {
+                  deadlineController.text = DateFormat('dd/MM/yyyy').format(picked);
+                });
+              }
+            }
+
             return Padding(
               padding: EdgeInsets.only(
                 bottom: MediaQuery.of(modalContext).viewInsets.bottom,
-                left: 24,
-                right: 24,
-                top: 24,
+                left: 24, right: 24, top: 24,
               ),
               child: SingleChildScrollView(
                 child: Column(
@@ -99,16 +114,29 @@ class _JobsScreenState extends State<JobsScreen> {
                       decoration: const InputDecoration(labelText: 'Salary/Stipend', border: OutlineInputBorder()),
                     ),
                     const SizedBox(height: 12),
+                    
                     TextField(
                       controller: deadlineController,
-                      decoration: const InputDecoration(labelText: 'Deadline', border: OutlineInputBorder()),
+                      readOnly: true,
+                      onTap: _selectDate,
+                      decoration: const InputDecoration(
+                        labelText: 'Deadline *', 
+                        border: OutlineInputBorder(),
+                        suffixIcon: Icon(Icons.calendar_today),
+                      ),
                     ),
                     const SizedBox(height: 12),
-                    TextField(
-                      controller: jobTypeController,
-                      decoration: const InputDecoration(labelText: 'Job Type (e.g., Internship)', border: OutlineInputBorder()),
+                    
+                    DropdownButtonFormField<String>(
+                      value: selectedJobType,
+                      decoration: const InputDecoration(labelText: 'Job Type *', border: OutlineInputBorder()),
+                      items: ['Full Time', 'Part Time', 'Internship'].map((String type) {
+                        return DropdownMenuItem<String>(value: type, child: Text(type));
+                      }).toList(),
+                      onChanged: (value) => setModalState(() => selectedJobType = value),
                     ),
                     const SizedBox(height: 12),
+                    
                     TextField(
                       controller: descriptionController,
                       decoration: const InputDecoration(labelText: 'Job Description', border: OutlineInputBorder()),
@@ -130,7 +158,7 @@ class _JobsScreenState extends State<JobsScreen> {
                       width: double.infinity,
                       child: ElevatedButton(
                         onPressed: () async {
-                          if (roleController.text.isNotEmpty && companyController.text.isNotEmpty) {
+                          if (roleController.text.isNotEmpty && companyController.text.isNotEmpty && selectedJobType != null) {
                             final messenger = ScaffoldMessenger.of(context);
                             Navigator.pop(modalContext);
                             try {
@@ -142,7 +170,7 @@ class _JobsScreenState extends State<JobsScreen> {
                                   location: locationController.text.trim(),
                                   salary: salaryController.text.trim(),
                                   deadline: deadlineController.text.trim(),
-                                  jobType: jobTypeController.text.trim(),
+                                  jobType: selectedJobType!,
                                   description: descriptionController.text.trim(),
                                   applyUrl: applyUrlController.text.trim(),
                                   typeColor: Colors.teal,
@@ -151,7 +179,6 @@ class _JobsScreenState extends State<JobsScreen> {
                                   isVisible: isVisible,
                                   createdByName: currentProfile.value.name,
                                 );
-                                // Default to 'recent' for new jobs
                                 await JobService.addJobToDB(newJob, 'recent');
                                 if (mounted) messenger.showSnackBar(const SnackBar(content: Text('Job created successfully')));
                               } else {
@@ -161,7 +188,7 @@ class _JobsScreenState extends State<JobsScreen> {
                                   location: locationController.text.trim(),
                                   salary: salaryController.text.trim(),
                                   deadline: deadlineController.text.trim(),
-                                  jobType: jobTypeController.text.trim(),
+                                  jobType: selectedJobType!,
                                   description: descriptionController.text.trim(),
                                   applyUrl: applyUrlController.text.trim(),
                                   isVisible: isVisible,
