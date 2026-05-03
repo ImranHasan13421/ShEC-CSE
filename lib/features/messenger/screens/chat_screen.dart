@@ -49,7 +49,10 @@ class _ChatScreenState extends State<ChatScreen> {
     _subscription = ChatService.subscribeToRoom(widget.roomId, (newMessage) {
       if (mounted) {
         setState(() {
-          _messages.add(newMessage);
+          // Only add if not already present (prevents duplicates from local echo)
+          if (!_messages.any((m) => m.id == newMessage.id)) {
+            _messages.add(newMessage);
+          }
         });
         _scrollToBottom();
       }
@@ -83,7 +86,35 @@ class _ChatScreenState extends State<ChatScreen> {
     if (text.isEmpty) return;
 
     _messageController.clear();
-    await ChatService.sendMessage(widget.roomId, text);
+    
+    // 1. Local Echo: Add to UI immediately
+    final tempMsg = ChatMessage(
+      id: 'temp_${DateTime.now().millisecondsSinceEpoch}',
+      roomId: widget.roomId,
+      senderId: Supabase.instance.client.auth.currentUser?.id ?? '',
+      senderName: 'Me',
+      text: text,
+      createdAt: DateTime.now(),
+      isMe: true,
+    );
+
+    setState(() {
+      _messages.add(tempMsg);
+    });
+    _scrollToBottom();
+
+    // 2. Send to server
+    final realMsg = await ChatService.sendMessage(widget.roomId, text);
+    
+    // 3. Replace temp message with real one to sync ID
+    if (mounted && realMsg != null) {
+      setState(() {
+        final index = _messages.indexWhere((m) => m.id == tempMsg.id);
+        if (index != -1) {
+          _messages[index] = realMsg;
+        }
+      });
+    }
   }
 
   @override

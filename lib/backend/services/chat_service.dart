@@ -20,19 +20,21 @@ class ChatService {
     }
   }
 
-  // Send a message
-  static Future<void> sendMessage(String roomId, String text) async {
+  // Send a message and return the created object
+  static Future<ChatMessage?> sendMessage(String roomId, String text) async {
     final user = _client.auth.currentUser;
-    if (user == null) return;
+    if (user == null) return null;
 
     final profile = currentProfile.value;
 
-    await _client.from('messages').insert({
+    final response = await _client.from('messages').insert({
       'room_id': roomId,
       'sender_id': user.id,
       'sender_name': profile.name.isEmpty ? 'Member' : profile.name,
       'text': text,
-    });
+    }).select().single();
+
+    return ChatMessage.fromJson(response, user.id);
   }
 
   // Subscribe to real-time messages for a room
