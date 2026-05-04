@@ -269,7 +269,6 @@ class _PdfsScreenState extends State<PdfsScreen> {
   void _showForm(BuildContext context, {ResourceItem? existingItem}) {
     final nameController = TextEditingController(text: existingItem?.name ?? '');
     final urlController = TextEditingController(text: existingItem?.fileUrl ?? '');
-    final sizeController = TextEditingController(text: existingItem?.size ?? '');
 
     showModalBottomSheet(
       context: context,
@@ -311,11 +310,6 @@ class _PdfsScreenState extends State<PdfsScreen> {
                 controller: urlController,
                 decoration: const InputDecoration(labelText: 'File URL (Google Drive/Dropbox)', border: OutlineInputBorder()),
               ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: sizeController,
-                decoration: const InputDecoration(labelText: 'File Size (Optional, e.g. 2 MB)', border: OutlineInputBorder()),
-              ),
               const SizedBox(height: 24),
               SizedBox(
                 width: double.infinity,
@@ -334,7 +328,6 @@ class _PdfsScreenState extends State<PdfsScreen> {
                         final newItem = ResourceItem(
                           id: existingItem?.id ?? '',
                           name: nameController.text.trim(),
-                          size: sizeController.text.isEmpty ? 'Unknown' : sizeController.text.trim(),
                           date: DateTime.now().toString().split(' ')[0],
                           session: widget.session,
                           semester: widget.semester,
@@ -457,7 +450,7 @@ class _PdfsScreenState extends State<PdfsScreen> {
                   title: Text(res.name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
                   subtitle: Padding(
                     padding: const EdgeInsets.only(top: 4.0),
-                    child: Text('${res.size} • ${res.date}', style: TextStyle(color: colors.onSurfaceVariant, fontSize: 12)),
+                    child: Text('Uploaded on ${res.date}', style: TextStyle(color: colors.onSurfaceVariant, fontSize: 12)),
                   ),
                   trailing: Row(
                     mainAxisSize: MainAxisSize.min,

@@ -189,8 +189,6 @@ class _AlumniScreenState extends State<AlumniScreen> {
                           id: existing?.id ?? '',
                           userId: existing?.userId,
                           name: nameCtrl.text.trim(),
-                          role: '', // Removed
-                          designation: '', // Removed
                           email: emailCtrl.text.trim(),
                           phone: phoneCtrl.text.trim(),
                           imagePath: finalImageUrl ?? '',

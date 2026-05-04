@@ -103,7 +103,7 @@ class AlumniDetailScreen extends StatelessWidget {
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          '${alumni.designation} at ${alumni.company}'.toUpperCase(),
+                          '${alumni.currentPosition} at ${alumni.company}'.toUpperCase(),
                           style: TextStyle(
                             color: Colors.white.withOpacity(0.9),
                             fontSize: 13,
@@ -138,7 +138,7 @@ class AlumniDetailScreen extends StatelessWidget {
                   children: [
                     _sectionTitle(colors, 'Professional Info'),
                     const SizedBox(height: 16),
-                    _infoTile(colors, Icons.work_outline, 'Current Role', alumni.designation),
+                    _infoTile(colors, Icons.badge_outlined, 'Current Position', alumni.currentPosition),
                     _infoTile(colors, Icons.business_outlined, 'Company', alumni.company),
                     _infoTile(colors, Icons.psychology_outlined, 'Expertise', alumni.areasOfExpertise.join(', ')),
 

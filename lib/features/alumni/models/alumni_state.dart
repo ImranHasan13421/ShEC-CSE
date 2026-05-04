@@ -4,8 +4,6 @@ class AlumniItem {
   final String id;
   final String? userId;
   final String name;
-  final String role;
-  final String designation;
   final String email;
   final String phone;
   final String imagePath;
@@ -23,8 +21,6 @@ class AlumniItem {
     required this.id,
     this.userId,
     required this.name,
-    this.role = '',
-    this.designation = '',
     this.email = '',
     this.phone = '',
     this.imagePath = '',
@@ -52,8 +48,6 @@ class AlumniItem {
       id: json['id'] as String,
       userId: json['user_id'] as String?,
       name: json['name'] as String,
-      role: json['role'] as String? ?? '',
-      designation: json['designation'] as String? ?? '',
       email: json['email'] as String? ?? '',
       phone: json['phone'] as String? ?? '',
       imagePath: json['image_path'] as String? ?? '',
@@ -73,8 +67,6 @@ class AlumniItem {
     return {
       'user_id': userId,
       'name': name,
-      'role': role,
-      'designation': designation,
       'email': email,
       'phone': phone,
       'image_path': imagePath,

@@ -166,38 +166,6 @@ class TeacherDetailScreen extends StatelessWidget {
                     if (teacher.joinYear.isNotEmpty)
                       _infoTile(colors, Icons.calendar_today_outlined, 'Joined', teacher.joinYear),
                     
-                    const SizedBox(height: 40),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: ElevatedButton.icon(
-                            onPressed: () => _launch('tel:${teacher.phone}'),
-                            icon: const Icon(Icons.call),
-                            label: const Text('Call'),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.green,
-                              foregroundColor: Colors.white,
-                              padding: const EdgeInsets.symmetric(vertical: 16),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 16),
-                        Expanded(
-                          child: ElevatedButton.icon(
-                            onPressed: () => _launch('mailto:${teacher.email}'),
-                            icon: const Icon(Icons.email),
-                            label: const Text('Email'),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: colors.primary,
-                              foregroundColor: Colors.white,
-                              padding: const EdgeInsets.symmetric(vertical: 16),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
                   ],
                 ),
               ),
@@ -280,7 +248,7 @@ class TeacherDetailScreen extends StatelessWidget {
           Icon(icon, size: 20, color: colors.onSurfaceVariant),
           const SizedBox(width: 12),
           Text('$label: ', style: TextStyle(color: colors.onSurfaceVariant)),
-          Text(value, style: const TextStyle(fontWeight: FontWeight.w600)),
+          Expanded(child: Text(value, style: const TextStyle(fontWeight: FontWeight.w600))),
         ],
       ),
     );

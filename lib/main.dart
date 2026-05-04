@@ -1,10 +1,13 @@
 //lib/main.dart/
 import 'package:flutter/material.dart';
 import 'package:ShEC_CSE/features/auth/screens/splash_screen.dart';
+import 'package:ShEC_CSE/features/auth/screens/set_new_password_screen.dart';
 
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:ShEC_CSE/backend/services/auth_service.dart';
+
+final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -15,9 +18,18 @@ Future<void> main() async {
     anonKey: dotenv.env['SUPABASE_ANON_KEY']!,
   );
   
+  // Initialize listener with navigation capability
+  Supabase.instance.client.auth.onAuthStateChange.listen((data) {
+    final AuthChangeEvent event = data.event;
+    if (event == AuthChangeEvent.passwordRecovery) {
+      navigatorKey.currentState?.push(
+        MaterialPageRoute(builder: (_) => const SetNewPasswordScreen()),
+      );
+    }
+  });
+
   AuthService.initializeAuthListener();
 
-  // Determine initial login state
   final session = Supabase.instance.client.auth.currentSession;
   final isLoggedIn = session != null;
 
@@ -32,6 +44,7 @@ class ShEcCseApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      navigatorKey: navigatorKey,
       title: 'ShEC CSE',
       debugShowCheckedModeBanner: false,
       themeMode: ThemeMode.system,
