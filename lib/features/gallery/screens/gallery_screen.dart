@@ -2,6 +2,8 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:ShEC_CSE/features/profile/models/profile_state.dart';
+import 'package:ShEC_CSE/core/services/image_processing_service.dart';
+import 'package:image_cropper/image_cropper.dart';
 import '../models/gallery_state.dart';
 import '../../../backend/services/gallery_service.dart';
 import 'gallery_detail_screen.dart';
@@ -39,9 +41,23 @@ class _GalleryScreenState extends State<GalleryScreen> {
 
             Future<void> pickImage() async {
               final picker = ImagePicker();
-              final pickedFile = await picker.pickImage(source: ImageSource.gallery, imageQuality: 85);
+              final pickedFile = await picker.pickImage(source: ImageSource.gallery);
               if (pickedFile != null) {
-                setModalState(() => selectedImage = File(pickedFile.path));
+                if (!context.mounted) return;
+                
+                // 1. Crop Image (Flexible for gallery)
+                final cropped = await ImageProcessingService.cropImage(
+                  context, 
+                  File(pickedFile.path),
+                );
+                
+                if (cropped != null) {
+                  // 2. Compress and Convert to WebP
+                  final processed = await ImageProcessingService.processAndConvert(cropped);
+                  if (processed != null) {
+                    setModalState(() => selectedImage = processed);
+                  }
+                }
               }
             }
 

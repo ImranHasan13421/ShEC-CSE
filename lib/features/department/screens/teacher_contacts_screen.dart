@@ -1,6 +1,8 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:ShEC_CSE/core/services/image_processing_service.dart';
+import 'package:image_cropper/image_cropper.dart';
 import '../../../backend/services/teacher_service.dart';
 import '../../profile/models/profile_state.dart';
 import '../models/teacher_state.dart';
@@ -38,8 +40,25 @@ class _TeacherContactsScreenState extends State<TeacherContactsScreen> {
 
     Future<void> pickImage(StateSetter setModalState) async {
       final picker = ImagePicker();
-      final picked = await picker.pickImage(source: ImageSource.gallery, imageQuality: 80);
-      if (picked != null) setModalState(() => selectedImage = File(picked.path));
+      final picked = await picker.pickImage(source: ImageSource.gallery);
+      if (picked != null) {
+        if (!context.mounted) return;
+        
+        // 1. Crop Image (Square for teachers)
+        final cropped = await ImageProcessingService.cropImage(
+          context, 
+          File(picked.path),
+          aspectRatio: const CropAspectRatio(ratioX: 1, ratioY: 1),
+        );
+        
+        if (cropped != null) {
+          // 2. Compress and Convert to WebP
+          final processed = await ImageProcessingService.processAndConvert(cropped);
+          if (processed != null) {
+            setModalState(() => selectedImage = processed);
+          }
+        }
+      }
     }
 
     showModalBottomSheet(

@@ -1,6 +1,8 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:ShEC_CSE/core/services/image_processing_service.dart';
+import 'package:image_cropper/image_cropper.dart';
 import '../../../backend/services/alumni_service.dart';
 import '../../../backend/services/auth_service.dart';
 import '../../profile/models/profile_state.dart';
@@ -65,8 +67,25 @@ class _AlumniScreenState extends State<AlumniScreen> {
 
           Future<void> pickImage() async {
             final picker = ImagePicker();
-            final picked = await picker.pickImage(source: ImageSource.gallery, imageQuality: 80);
-            if (picked != null) setModalState(() => selectedImage = File(picked.path));
+            final picked = await picker.pickImage(source: ImageSource.gallery);
+            if (picked != null) {
+              if (!context.mounted) return;
+              
+              // 1. Crop Image (Square for alumni)
+              final cropped = await ImageProcessingService.cropImage(
+                context, 
+                File(picked.path),
+                aspectRatio: const CropAspectRatio(ratioX: 1, ratioY: 1),
+              );
+              
+              if (cropped != null) {
+                // 2. Compress and Convert to WebP
+                final processed = await ImageProcessingService.processAndConvert(cropped);
+                if (processed != null) {
+                  setModalState(() => selectedImage = processed);
+                }
+              }
+            }
           }
 
           return Padding(

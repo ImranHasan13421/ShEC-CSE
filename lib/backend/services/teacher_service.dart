@@ -67,7 +67,7 @@ class TeacherService {
 
   static Future<String?> uploadImage(File file) async {
     try {
-      final fileName = '${DateTime.now().millisecondsSinceEpoch}_${file.path.split('/').last}';
+      final fileName = 'teacher_${DateTime.now().millisecondsSinceEpoch}.webp';
       await _client.storage.from('teacher_images').upload(fileName, file);
       return _client.storage.from('teacher_images').getPublicUrl(fileName);
     } catch (e) {

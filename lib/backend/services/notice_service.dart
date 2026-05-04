@@ -42,7 +42,7 @@ class NoticeService {
 
   static Future<String?> uploadImage(File file) async {
     try {
-      final fileName = 'notice_${DateTime.now().millisecondsSinceEpoch}.jpg';
+      final fileName = 'notice_${DateTime.now().millisecondsSinceEpoch}.webp';
       await _client.storage.from('notice_images').upload(fileName, file);
       return _client.storage.from('notice_images').getPublicUrl(fileName);
     } catch (e) {

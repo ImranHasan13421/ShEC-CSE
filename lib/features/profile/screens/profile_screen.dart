@@ -5,6 +5,8 @@ import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:ShEC_CSE/features/profile/models/profile_state.dart';
 import 'package:ShEC_CSE/backend/services/auth_service.dart';
+import 'package:ShEC_CSE/core/services/image_processing_service.dart';
+import 'package:image_cropper/image_cropper.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -78,9 +80,24 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Future<void> _pickImage() async {
     try {
       final picker = ImagePicker();
-      final picked = await picker.pickImage(source: ImageSource.gallery, imageQuality: 70);
+      final picked = await picker.pickImage(source: ImageSource.gallery);
       if (picked != null) {
-        setState(() => _newImageFile = File(picked.path));
+        if (!mounted) return;
+        
+        // 1. Crop Image
+        final cropped = await ImageProcessingService.cropImage(
+          context, 
+          File(picked.path),
+          aspectRatio: const CropAspectRatio(ratioX: 1, ratioY: 1), // Square for profiles
+        );
+        
+        if (cropped != null) {
+          // 2. Compress and Convert to WebP
+          final processed = await ImageProcessingService.processAndConvert(cropped);
+          if (processed != null) {
+            setState(() => _newImageFile = processed);
+          }
+        }
       }
     } catch (e) {
       debugPrint('Error picking image: $e');
@@ -90,7 +107,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Future<String?> _uploadProfilePic(File file) async {
     try {
       final userId = currentProfile.value.id;
-      final fileName = 'profile_${userId}_${DateTime.now().millisecondsSinceEpoch}.jpg';
+      final fileName = 'profile_${userId}_${DateTime.now().millisecondsSinceEpoch}.webp';
       final client = Supabase.instance.client;
       await client.storage.from('profile_pictures').upload(fileName, file);
       return client.storage.from('profile_pictures').getPublicUrl(fileName);

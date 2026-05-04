@@ -2,6 +2,8 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:ShEC_CSE/core/services/image_processing_service.dart';
+import 'package:image_cropper/image_cropper.dart';
 import '../../../backend/services/auth_service.dart';
 import '../../../features/auth/screens/pending_approval_screen.dart';
 
@@ -81,16 +83,35 @@ class _SignupScreenState extends State<SignupScreen> {
   }
 
   Future<void> _pickProfileImage() async {
-    final picker = ImagePicker();
-    final picked = await picker.pickImage(source: ImageSource.gallery, imageQuality: 80);
-    if (picked != null) {
-      setState(() => _profileImageFile = File(picked.path));
+    try {
+      final picker = ImagePicker();
+      final picked = await picker.pickImage(source: ImageSource.gallery);
+      if (picked != null) {
+        if (!mounted) return;
+        
+        // 1. Crop Image (Square for profile)
+        final cropped = await ImageProcessingService.cropImage(
+          context, 
+          File(picked.path),
+          aspectRatio: const CropAspectRatio(ratioX: 1, ratioY: 1),
+        );
+        
+        if (cropped != null) {
+          // 2. Compress and Convert to WebP
+          final processed = await ImageProcessingService.processAndConvert(cropped);
+          if (processed != null) {
+            setState(() => _profileImageFile = processed);
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint('Error picking image: $e');
     }
   }
 
   Future<String?> _uploadProfilePic(File file) async {
     try {
-      final fileName = 'profile_${DateTime.now().millisecondsSinceEpoch}.jpg';
+      final fileName = 'profile_${DateTime.now().millisecondsSinceEpoch}.webp';
       final client = Supabase.instance.client;
       await client.storage.from('profile_pictures').upload(fileName, file);
       return client.storage.from('profile_pictures').getPublicUrl(fileName);

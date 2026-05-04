@@ -80,7 +80,7 @@ class GalleryService {
 
   static Future<String?> uploadImage(File file) async {
     try {
-      final fileName = 'gallery_${DateTime.now().millisecondsSinceEpoch}_${file.path.split('/').last}';
+      final fileName = 'gallery_${DateTime.now().millisecondsSinceEpoch}.webp';
       await _client.storage.from('gallery_images').upload(fileName, file);
       return _client.storage.from('gallery_images').getPublicUrl(fileName);
     } catch (e) {
