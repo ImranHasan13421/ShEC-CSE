@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:ShEC_CSE/features/dashboard/screens/main_screen.dart';
 import '../../../backend/services/auth_service.dart';
+import 'forgot_password_screen.dart';
 import 'signup_screen.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -143,7 +144,12 @@ class _LoginScreenState extends State<LoginScreen> {
                 Align(
                   alignment: Alignment.centerRight,
                   child: TextButton(
-                    onPressed: () {},
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => const ForgotPasswordScreen()),
+                      );
+                    },
                     child: Text('Forgot Password?', style: TextStyle(color: colors.primary)),
                   ),
                 ),

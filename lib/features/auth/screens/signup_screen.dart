@@ -119,14 +119,11 @@ class _SignupScreenState extends State<SignupScreen> {
         profilePicUrl = await _uploadProfilePic(_profileImageFile!);
       }
 
-      final classId = '${_universityIdController.text.trim()} / ${_classRollController.text.trim()}';
-
       await AuthService.signUp(
         email: _emailController.text.trim(),
         password: _passwordController.text.trim(),
         firstName: _firstNameController.text.trim(),
         lastName: _lastNameController.text.trim(),
-        classId: classId,
         batch: _selectedBatch!,
         session: _selectedSession!,
         duReg: _duRegController.text.trim(),

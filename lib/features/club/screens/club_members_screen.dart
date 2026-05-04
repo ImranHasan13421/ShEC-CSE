@@ -72,7 +72,7 @@ class _ClubMembersScreenState extends State<ClubMembersScreen> with SingleTicker
                 Text(member.designation, style: TextStyle(color: colors.primary, fontWeight: FontWeight.bold, fontSize: 16)),
                 const Divider(height: 32),
                 
-                _buildInfoRow(Icons.badge, 'Class ID', member.studentId),
+                _buildInfoRow(Icons.badge, 'Student ID', member.studentFullId),
                 _buildInfoRow(Icons.school, 'Session', member.session),
                 _buildInfoRow(Icons.numbers, 'DU Reg', member.duRegNo),
                 _buildInfoRow(Icons.phone, 'Phone', member.phone),
@@ -272,7 +272,6 @@ class _ClubMembersScreenState extends State<ClubMembersScreen> with SingleTicker
   void _showEditMemberSheet(ProfileData member) {
     final firstNameController = TextEditingController(text: member.firstName);
     final lastNameController = TextEditingController(text: member.lastName);
-    final classIdController = TextEditingController(text: member.studentId);
     final universityIdController = TextEditingController(text: member.universityId);
     final classRollController = TextEditingController(text: member.classRoll);
     final duRegController = TextEditingController(text: member.duRegNo);
@@ -307,7 +306,7 @@ class _ClubMembersScreenState extends State<ClubMembersScreen> with SingleTicker
                       ],
                     ),
                     const SizedBox(height: 12),
-                    TextField(controller: classIdController, decoration: const InputDecoration(labelText: 'University ID (e.g. 2021-3-1-20)', border: OutlineInputBorder())),
+                    TextField(controller: universityIdController, decoration: const InputDecoration(labelText: 'University ID', border: OutlineInputBorder())),
                     const SizedBox(height: 12),
                     Row(
                       children: [
@@ -370,8 +369,6 @@ class _ClubMembersScreenState extends State<ClubMembersScreen> with SingleTicker
                             lastName: lastNameController.text.trim(),
                             name: '${firstNameController.text.trim()} ${lastNameController.text.trim()}',
                             email: member.email,
-                            roll: classIdController.text.trim(),
-                            studentId: classIdController.text.trim(),
                             universityId: universityIdController.text.trim(),
                             classRoll: classRollController.text.trim(),
                             duRegNo: duRegController.text.trim(),
@@ -414,7 +411,7 @@ class _ClubMembersScreenState extends State<ClubMembersScreen> with SingleTicker
   Widget build(BuildContext context) {
     final filteredAll = _allMembers.where((m) => 
       m.name.toLowerCase().contains(_searchQuery.toLowerCase()) || 
-      m.studentId.contains(_searchQuery)
+      m.studentFullId.contains(_searchQuery)
     ).toList();
 
     final members = filteredAll.where((m) => m.role == UserRole.student && m.isApproved && m.designation == 'Student').toList();
@@ -511,7 +508,7 @@ class _ClubMembersScreenState extends State<ClubMembersScreen> with SingleTicker
                 : null,
             ),
             title: Text(member.name, style: const TextStyle(fontWeight: FontWeight.bold)),
-            subtitle: Text('${member.designation} • ID: ${member.studentId}'),
+            subtitle: Text('${member.designation} • ID: ${member.studentFullId}'),
             trailing: const Icon(Icons.chevron_right),
           ),
         );

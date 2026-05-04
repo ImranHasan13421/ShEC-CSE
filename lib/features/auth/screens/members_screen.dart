@@ -121,7 +121,7 @@ class _MembersScreenState extends State<MembersScreen> {
                     subtitle: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('Class ID: ${member.studentId} | Session: ${member.session}'),
+                        Text('Student ID: ${member.studentFullId} | Session: ${member.session}'),
                         const SizedBox(height: 4),
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),

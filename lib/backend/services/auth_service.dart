@@ -19,7 +19,6 @@ class AuthService {
     required String password,
     required String firstName,
     required String lastName,
-    required String classId,
     required String batch,
     required String session,
     required String duReg,
@@ -42,7 +41,6 @@ class AuthService {
       'id': user.id,
       'first_name': firstName,
       'last_name': lastName,
-      'class_id': classId,
       'university_id': universityId,
       'class_roll': classRoll,
       'batch': batch,
@@ -89,8 +87,6 @@ class AuthService {
           lastName: data['last_name'] ?? '',
           name: '${data['first_name']} ${data['last_name']}',
           email: user.email ?? '',
-          roll: data['class_id'] ?? '',
-          studentId: data['class_id'] ?? '',
           universityId: data['university_id'] ?? '',
           classRoll: data['class_roll'] ?? '',
           duRegNo: data['du_reg'] ?? '',
@@ -110,7 +106,6 @@ class AuthService {
   }
 
   static Future<List<ProfileData>> fetchAllMembers() async {
-    // Only fetch active members (non-alumni) for the member list
     final response = await _client
         .from('profiles')
         .select()
@@ -132,8 +127,6 @@ class AuthService {
         lastName: data['last_name'] ?? '',
         name: '${data['first_name']} ${data['last_name']}',
         email: '', 
-        roll: data['class_id'] ?? '',
-        studentId: data['class_id'] ?? '',
         universityId: data['university_id'] ?? '',
         classRoll: data['class_roll'] ?? '',
         duRegNo: data['du_reg'] ?? '',
@@ -173,7 +166,6 @@ class AuthService {
     await _client.from('profiles').update({
       'first_name': profile.firstName,
       'last_name': profile.lastName,
-      'class_id': profile.studentId,
       'university_id': profile.universityId,
       'class_roll': profile.classRoll,
       'batch': profile.batch,
@@ -203,15 +195,12 @@ class AuthService {
   }
 
   static Future<void> moveToAlumni(ProfileData member) async {
-    // 1. Update profiles table to set is_alumni = true
-    // This allows them to still login.
     await _client.from('profiles').update({
       'is_alumni': true,
       'role': 'member',
       'designation': 'Alumnus',
     }).eq('id', member.id);
 
-    // 2. Also insert into public alumni table for the gallery/directory
     await _client.from('alumni').insert({
       'user_id': member.id,
       'name': member.name,

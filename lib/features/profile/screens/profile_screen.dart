@@ -124,7 +124,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
         name: '${_firstNameController.text.trim()} ${_lastNameController.text.trim()}',
         imagePath: finalImageUrl,
         // Allow superusers to save these fields too
-        studentId: isSuperuser ? _universityIdController.text.trim() : profile.studentId,
         universityId: isSuperuser ? _universityIdController.text.trim() : profile.universityId,
         classRoll: isSuperuser ? _classRollController.text.trim() : profile.classRoll,
         session: isSuperuser ? (_selectedSession ?? profile.session) : profile.session,

@@ -12,8 +12,6 @@ class ProfileData {
   final String lastName;
   final String name;
   final String email;
-  final String roll; // Class ID (Backwards compatibility)
-  final String studentId; // Class ID
   final String universityId;
   final String classRoll;
   final String duRegNo;
@@ -24,7 +22,7 @@ class ProfileData {
   final UserRole role;
   final String designation;
   final bool isApproved;
-  final bool isAlumni; // New field for alumni login support
+  final bool isAlumni;
 
   ProfileData({
     this.id = '',
@@ -32,8 +30,6 @@ class ProfileData {
     this.lastName = '',
     required this.name,
     required this.email,
-    required this.roll,
-    required this.studentId,
     this.universityId = '',
     this.classRoll = '',
     required this.duRegNo,
@@ -47,14 +43,17 @@ class ProfileData {
     this.isAlumni = false,
   });
 
+  // Combined Identifier replacing the old class_id
+  String get studentFullId => universityId.isNotEmpty && classRoll.isNotEmpty 
+    ? '$universityId | $classRoll' 
+    : (universityId.isNotEmpty ? universityId : classRoll);
+
   ProfileData copyWith({
     String? id,
     String? firstName,
     String? lastName,
     String? name,
     String? email,
-    String? roll,
-    String? studentId,
     String? universityId,
     String? classRoll,
     String? duRegNo,
@@ -73,8 +72,6 @@ class ProfileData {
       lastName: lastName ?? this.lastName,
       name: name ?? this.name,
       email: email ?? this.email,
-      roll: roll ?? this.roll,
-      studentId: studentId ?? this.studentId,
       universityId: universityId ?? this.universityId,
       classRoll: classRoll ?? this.classRoll,
       duRegNo: duRegNo ?? this.duRegNo,
@@ -95,8 +92,6 @@ final ValueNotifier<ProfileData> currentProfile = ValueNotifier(
     id: '',
     name: 'Guest',
     email: '',
-    roll: '',
-    studentId: '',
     universityId: '',
     classRoll: '',
     duRegNo: '',
