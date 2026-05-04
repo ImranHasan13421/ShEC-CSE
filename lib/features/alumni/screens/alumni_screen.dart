@@ -350,7 +350,7 @@ class _AlumniScreenState extends State<AlumniScreen> {
                             icon: const Icon(Icons.more_vert, size: 18),
                             onSelected: (val) {
                               if (val == 'edit') _showAlumniForm(existing: alumni);
-                              if (val == 'delete') AlumniService.deleteAlumni(alumni.id);
+                              if (val == 'delete') AlumniService.deleteAlumni(alumni);
                               if (val == 'approve') AlumniService.approveAlumni(alumni.id);
                               if (val == 'visibility') AlumniService.toggleAlumniVisibility(alumni.id, !alumni.isVisible);
                             },

@@ -181,7 +181,24 @@ class AuthService {
   }
 
   static Future<void> deleteUser(String userId) async {
-    await _client.from('profiles').delete().eq('id', userId);
+    try {
+      // 1. Fetch profile to get image path
+      final data = await _client.from('profiles').select('profile_pic').eq('id', userId).single();
+      final String? profilePic = data['profile_pic'];
+
+      // 2. Delete image from storage
+      if (profilePic != null && profilePic.isNotEmpty) {
+        final uri = Uri.parse(profilePic);
+        final fileName = uri.pathSegments.last;
+        await _client.storage.from('profile_pictures').remove([fileName]);
+      }
+
+      // 3. Delete from DB
+      await _client.from('profiles').delete().eq('id', userId);
+    } catch (e) {
+      debugPrint('Error deleting user and profile pic: $e');
+      rethrow;
+    }
   }
 
   static Future<List<Map<String, dynamic>>> fetchSessions() async {

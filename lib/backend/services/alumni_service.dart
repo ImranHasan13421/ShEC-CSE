@@ -58,10 +58,24 @@ class AlumniService {
     await fetchAlumni(forceRefresh: true);
   }
 
-  static Future<void> deleteAlumni(String id) async {
-    await _client.from('alumni').delete().eq('id', id);
-    alumniState.value = alumniState.value.where((a) => a.id != id).toList();
-    CacheService.invalidate(CacheKeys.alumni);
+  static Future<void> deleteAlumni(AlumniItem alumni) async {
+    try {
+      // 1. Delete image from storage
+      if (alumni.imagePath.isNotEmpty) {
+        final uri = Uri.parse(alumni.imagePath);
+        final fileName = uri.pathSegments.last;
+        await _client.storage.from('alumni_images').remove([fileName]);
+      }
+
+      // 2. Delete from DB
+      await _client.from('alumni').delete().eq('id', alumni.id);
+
+      alumniState.value = alumniState.value.where((a) => a.id != alumni.id).toList();
+      CacheService.invalidate(CacheKeys.alumni);
+    } catch (e) {
+      debugPrint('Error deleting alumni: $e');
+      rethrow;
+    }
   }
 
   /// Promote a club member to alumni (superuser only)

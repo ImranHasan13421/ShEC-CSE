@@ -294,7 +294,7 @@ class _TeacherContactsScreenState extends State<TeacherContactsScreen> {
                             icon: const Icon(Icons.more_vert, size: 18),
                             onSelected: (val) {
                               if (val == 'edit') _showTeacherForm(existingTeacher: teacher);
-                              if (val == 'delete') TeacherService.deleteTeacher(teacher.id);
+                              if (val == 'delete') TeacherService.deleteTeacher(teacher);
                               if (val == 'approve') TeacherService.approveTeacher(teacher.id);
                               if (val == 'visibility') TeacherService.toggleTeacherVisibility(teacher.id, !teacher.isVisible);
                             },

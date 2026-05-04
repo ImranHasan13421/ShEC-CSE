@@ -120,15 +120,28 @@ class NoticeService {
     fetchNotices(forceRefresh: true);
   }
 
-  static Future<void> deleteNoticeFromDB(String id, String category) async {
-    await _client.from('notices').delete().eq('id', id);
-    
-    if (category == 'club') {
-      clubNoticesState.value = List.from(clubNoticesState.value)..removeWhere((n) => n.id == id);
-    } else {
-      deptNoticesState.value = List.from(deptNoticesState.value)..removeWhere((n) => n.id == id);
+  static Future<void> deleteNoticeFromDB(NoticeItem notice, String category) async {
+    try {
+      // 1. Delete Image from Storage if exists
+      if (notice.imagePath != null && notice.imagePath!.isNotEmpty) {
+        final uri = Uri.parse(notice.imagePath!);
+        final fileName = uri.pathSegments.last;
+        await _client.storage.from('notice_images').remove([fileName]);
+      }
+      
+      // 2. Delete from DB
+      await _client.from('notices').delete().eq('id', notice.id);
+      
+      if (category == 'club') {
+        clubNoticesState.value = List.from(clubNoticesState.value)..removeWhere((n) => n.id == notice.id);
+      } else {
+        deptNoticesState.value = List.from(deptNoticesState.value)..removeWhere((n) => n.id == notice.id);
+      }
+      CacheService.invalidate(CacheKeys.notices);
+    } catch (e) {
+      debugPrint('Error deleting notice and image: $e');
+      rethrow;
     }
-    CacheService.invalidate(CacheKeys.notices);
   }
 
   static Future<void> approveNotice(String id) async {

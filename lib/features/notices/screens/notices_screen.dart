@@ -27,7 +27,7 @@ class _NoticesScreenState extends State<NoticesScreen> {
   void _deleteNotice(NoticeItem notice, ValueNotifier<List<NoticeItem>> stateNotifier) async {
     try {
       String category = stateNotifier == clubNoticesState ? 'club' : 'department';
-      await NoticeService.deleteNoticeFromDB(notice.id, category);
+      await NoticeService.deleteNoticeFromDB(notice, category);
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Notice deleted')));
     } catch (e) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error deleting notice: $e')));

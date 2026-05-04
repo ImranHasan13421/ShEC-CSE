@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:ShEC_CSE/core/services/image_processing_service.dart';
+import '../../../core/services/image_processing_service.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../profile/models/profile_state.dart';
 import '../models/result_state.dart';
@@ -78,11 +78,13 @@ class _ResultsScreenState extends State<ResultsScreen> {
                         if (val == 'session') _showAdminIdDialog('Session');
                         if (val == 'exam') _showAdminIdDialog('Exam');
                         if (val == 'migrate') _runImageMigration();
+                        if (val == 'cleanup') _runStorageCleanup();
                       },
                       itemBuilder: (context) => [
                         const PopupMenuItem(value: 'session', child: Text('Manage Session IDs')),
                         const PopupMenuItem(value: 'exam', child: Text('Manage Exam IDs')),
                         const PopupMenuItem(value: 'migrate', child: Text('Migrate Images to WebP', style: TextStyle(color: Colors.blue))),
+                        const PopupMenuItem(value: 'cleanup', child: Text('Clean Up Orphaned Images', style: TextStyle(color: Colors.red))),
                       ],
                     ),
                 ],
@@ -293,6 +295,90 @@ class _ResultsScreenState extends State<ResultsScreen> {
         Navigator.pop(context);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Migration error: $e'), backgroundColor: Colors.red),
+        );
+      }
+    }
+  }
+
+  Future<void> _runStorageCleanup() async {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const AlertDialog(
+        title: Text('Cleaning Up Storage...'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            LinearProgressIndicator(),
+            SizedBox(height: 16),
+            Text('Scanning for orphaned images. This may take a moment...'),
+          ],
+        ),
+      ),
+    );
+
+    int totalDeleted = 0;
+    try {
+      final client = Supabase.instance.client;
+      final tasks = [
+        {'table': 'profiles', 'column': 'profile_pic', 'bucket': 'profile_pictures'},
+        {'table': 'notices', 'column': 'image_path', 'bucket': 'notice_images'},
+        {'table': 'gallery', 'column': 'image_path', 'bucket': 'gallery_images'},
+        {'table': 'teachers', 'column': 'image_path', 'bucket': 'teacher_images'},
+        {'table': 'alumni', 'column': 'image_path', 'bucket': 'alumni_images'},
+      ];
+
+      for (var task in tasks) {
+        final table = task['table']!;
+        final column = task['column']!;
+        final bucket = task['bucket']!;
+
+        // 1. Get all files in storage
+        final List<FileObject> storageFiles = await client.storage.from(bucket).list();
+        if (storageFiles.isEmpty) continue;
+
+        // 2. Get all referenced filenames in DB
+        final dbData = await client.from(table).select(column);
+        final Set<String> referencedFiles = {};
+        for (var row in dbData) {
+          final String? url = row[column];
+          if (url != null && url.isNotEmpty) {
+            try {
+              final uri = Uri.parse(url);
+              referencedFiles.add(uri.pathSegments.last);
+            } catch (_) {}
+          }
+        }
+
+        // 3. Find orphaned files
+        final List<String> orphanedFiles = [];
+        for (var file in storageFiles) {
+          // Skip if it's a "folder" or empty
+          if (file.name == '.emptyFolderPlaceholder') continue;
+          if (!referencedFiles.contains(file.name)) {
+            orphanedFiles.add(file.name);
+          }
+        }
+
+        // 4. Delete orphaned files
+        if (orphanedFiles.isNotEmpty) {
+          await client.storage.from(bucket).remove(orphanedFiles);
+          totalDeleted += orphanedFiles.length;
+        }
+      }
+
+      if (mounted) {
+        Navigator.pop(context);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Cleanup complete! $totalDeleted orphaned images removed.')),
+        );
+      }
+    } catch (e) {
+      debugPrint('Cleanup error: $e');
+      if (mounted) {
+        Navigator.pop(context);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Cleanup error: $e'), backgroundColor: Colors.red),
         );
       }
     }

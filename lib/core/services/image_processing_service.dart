@@ -64,7 +64,7 @@ class ImageProcessingService {
       if (response.statusCode != 200) return null;
 
       final tempDir = await getTemporaryDirectory();
-      final tempFile = File(p.join(tempDir.path, "temp_migration_${DateTime.now().millisecondsSinceEpoch}.jpg"));
+      final tempFile = File(p.join(tempDir.path, "temp_mig_${DateTime.now().millisecondsSinceEpoch}.jpg"));
       await tempFile.writeAsBytes(response.bodyBytes);
 
       final targetPath = p.join(tempDir.path, "migrated_${DateTime.now().millisecondsSinceEpoch}.webp");

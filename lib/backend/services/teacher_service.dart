@@ -59,10 +59,24 @@ class TeacherService {
     await fetchTeachers(forceRefresh: true);
   }
 
-  static Future<void> deleteTeacher(String id) async {
-    await _client.from('teachers').delete().eq('id', id);
-    teachersState.value = teachersState.value.where((t) => t.id != id).toList();
-    CacheService.invalidate(CacheKeys.teachers);
+  static Future<void> deleteTeacher(TeacherContact teacher) async {
+    try {
+      // 1. Delete image from storage
+      if (teacher.imagePath.isNotEmpty) {
+        final uri = Uri.parse(teacher.imagePath);
+        final fileName = uri.pathSegments.last;
+        await _client.storage.from('teacher_images').remove([fileName]);
+      }
+
+      // 2. Delete from DB
+      await _client.from('teachers').delete().eq('id', teacher.id);
+      
+      teachersState.value = teachersState.value.where((t) => t.id != teacher.id).toList();
+      CacheService.invalidate(CacheKeys.teachers);
+    } catch (e) {
+      debugPrint('Error deleting teacher: $e');
+      rethrow;
+    }
   }
 
   static Future<String?> uploadImage(File file) async {

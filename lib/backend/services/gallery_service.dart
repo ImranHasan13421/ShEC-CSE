@@ -69,13 +69,23 @@ class GalleryService {
   }
 
   static Future<void> deleteGalleryItemFromDB(GalleryItem item) async {
-    await _client
-        .from('gallery')
-        .delete()
-        .eq('id', item.id);
+    try {
+      // 1. Delete image from storage
+      if (item.imagePath.isNotEmpty) {
+        final uri = Uri.parse(item.imagePath);
+        final fileName = uri.pathSegments.last;
+        await _client.storage.from('gallery_images').remove([fileName]);
+      }
 
-    galleryState.value = List.from(galleryState.value)..removeWhere((i) => i.id == item.id);
-    CacheService.invalidate(CacheKeys.gallery);
+      // 2. Delete from DB
+      await _client.from('gallery').delete().eq('id', item.id);
+
+      galleryState.value = List.from(galleryState.value)..removeWhere((i) => i.id == item.id);
+      CacheService.invalidate(CacheKeys.gallery);
+    } catch (e) {
+      debugPrint('Error deleting gallery item: $e');
+      rethrow;
+    }
   }
 
   static Future<String?> uploadImage(File file) async {
