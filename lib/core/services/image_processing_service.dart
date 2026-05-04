@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_cropper/image_cropper.dart';
 import 'package:flutter_image_compress/flutter_image_compress.dart';
+import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as p;
 
@@ -40,7 +41,6 @@ class ImageProcessingService {
       final tempDir = await getTemporaryDirectory();
       final targetPath = p.join(tempDir.path, "${DateTime.now().millisecondsSinceEpoch}.webp");
 
-      // We use compressAndGetFile to convert to WebP
       final result = await FlutterImageCompress.compressAndGetFile(
         file.absolute.path,
         targetPath,
@@ -54,6 +54,32 @@ class ImageProcessingService {
     } catch (e) {
       debugPrint('Error processing image: $e');
     }
-    return file; // Fallback to original if compression fails
+    return file;
+  }
+
+  /// Specialized method for migrating existing network images to WebP
+  static Future<File?> downloadAndConvertToWebP(String url) async {
+    try {
+      final response = await http.get(Uri.parse(url));
+      if (response.statusCode != 200) return null;
+
+      final tempDir = await getTemporaryDirectory();
+      final tempFile = File(p.join(tempDir.path, "temp_migration_${DateTime.now().millisecondsSinceEpoch}.jpg"));
+      await tempFile.writeAsBytes(response.bodyBytes);
+
+      final targetPath = p.join(tempDir.path, "migrated_${DateTime.now().millisecondsSinceEpoch}.webp");
+      
+      final result = await FlutterImageCompress.compressAndGetFile(
+        tempFile.path,
+        targetPath,
+        format: CompressFormat.webp,
+        quality: 80,
+      );
+
+      if (result != null) return File(result.path);
+    } catch (e) {
+      debugPrint('Migration error for $url: $e');
+    }
+    return null;
   }
 }

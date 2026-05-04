@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:ShEC_CSE/core/services/image_processing_service.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../profile/models/profile_state.dart';
 import '../models/result_state.dart';
 import '../../../backend/services/result_service.dart';
@@ -75,10 +77,12 @@ class _ResultsScreenState extends State<ResultsScreen> {
                       onSelected: (val) {
                         if (val == 'session') _showAdminIdDialog('Session');
                         if (val == 'exam') _showAdminIdDialog('Exam');
+                        if (val == 'migrate') _runImageMigration();
                       },
                       itemBuilder: (context) => [
                         const PopupMenuItem(value: 'session', child: Text('Manage Session IDs')),
                         const PopupMenuItem(value: 'exam', child: Text('Manage Exam IDs')),
+                        const PopupMenuItem(value: 'migrate', child: Text('Migrate Images to WebP', style: TextStyle(color: Colors.blue))),
                       ],
                     ),
                 ],
@@ -222,6 +226,76 @@ class _ResultsScreenState extends State<ResultsScreen> {
         ],
       ),
     );
+  }
+
+  Future<void> _runImageMigration() async {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const AlertDialog(
+        title: Text('Migrating Images...'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            LinearProgressIndicator(),
+            SizedBox(height: 16),
+            Text('Processing database tables. This may take a while...'),
+          ],
+        ),
+      ),
+    );
+
+    int totalMigrated = 0;
+    try {
+      final client = Supabase.instance.client;
+      final tasks = [
+        {'table': 'profiles', 'column': 'profile_pic', 'bucket': 'profile_pictures'},
+        {'table': 'notices', 'column': 'image_path', 'bucket': 'notice_images'},
+        {'table': 'gallery', 'column': 'image_path', 'bucket': 'gallery_images'},
+        {'table': 'teachers', 'column': 'image_path', 'bucket': 'teacher_images'},
+        {'table': 'alumni', 'column': 'image_path', 'bucket': 'alumni_images'},
+      ];
+
+      for (var task in tasks) {
+        final table = task['table']!;
+        final column = task['column']!;
+        final bucket = task['bucket']!;
+
+        final data = await client.from(table).select('id, $column');
+        
+        for (var row in data) {
+          final String? url = row[column];
+          if (url == null || url.isEmpty || url.contains('.webp')) continue;
+
+          debugPrint('Migrating $url...');
+          final migratedFile = await ImageProcessingService.downloadAndConvertToWebP(url);
+          
+          if (migratedFile != null) {
+            final fileName = 'migrated_${DateTime.now().millisecondsSinceEpoch}.webp';
+            await client.storage.from(bucket).upload(fileName, migratedFile);
+            final newUrl = client.storage.from(bucket).getPublicUrl(fileName);
+
+            await client.from(table).update({column: newUrl}).eq('id', row['id']);
+            totalMigrated++;
+          }
+        }
+      }
+
+      if (mounted) {
+        Navigator.pop(context); // Close loading dialog
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Migration complete! $totalMigrated images converted to WebP.')),
+        );
+      }
+    } catch (e) {
+      debugPrint('Migration error: $e');
+      if (mounted) {
+        Navigator.pop(context);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Migration error: $e'), backgroundColor: Colors.red),
+        );
+      }
+    }
   }
 
   Widget _buildResultCard(BuildContext context, ExamResult result) {
