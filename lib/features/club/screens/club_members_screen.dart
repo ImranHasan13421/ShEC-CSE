@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../../../backend/services/auth_service.dart';
 import '../../profile/models/profile_state.dart';
 
@@ -14,13 +15,13 @@ class _ClubMembersScreenState extends State<ClubMembersScreen> with SingleTicker
   List<ProfileData> _allMembers = [];
   String _searchQuery = '';
   bool _isLoading = true;
+  String? _copiedValue;
 
   bool get isAdmin => currentProfile.value.role != UserRole.student;
 
   @override
   void initState() {
     super.initState();
-    // 3 Tabs: Members, Committees, Pending (if admin)
     int tabCount = currentProfile.value.role != UserRole.student ? 3 : 2;
     _tabController = TabController(length: tabCount, vsync: this);
     _fetchMembers();
@@ -48,121 +49,166 @@ class _ClubMembersScreenState extends State<ClubMembersScreen> with SingleTicker
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      backgroundColor: Colors.transparent,
       builder: (context) {
-        return Padding(
-          padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
-          child: Container(
-            padding: const EdgeInsets.all(24),
+        return Container(
+          decoration: BoxDecoration(
+            color: colors.surface,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
+          ),
+          padding: const EdgeInsets.fromLTRB(24, 12, 24, 24),
+          constraints: BoxConstraints(
+            maxHeight: MediaQuery.of(context).size.height * 0.9,
+          ),
+          child: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
+                Container(
+                  width: 40,
+                  height: 4,
+                  margin: const EdgeInsets.only(bottom: 24),
+                  decoration: BoxDecoration(
+                    color: colors.onSurfaceVariant.withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
                 CircleAvatar(
-                  radius: 50,
-                  backgroundImage: member.imagePath != null && member.imagePath!.isNotEmpty 
-                      ? NetworkImage(member.imagePath!) 
-                      : null,
-                  child: member.imagePath == null || member.imagePath!.isEmpty
-                      ? Text(member.name[0].toUpperCase(), style: const TextStyle(fontSize: 40))
-                      : null,
+                  radius: 54,
+                  backgroundColor: colors.primary.withOpacity(0.1),
+                  child: CircleAvatar(
+                    radius: 50,
+                    backgroundImage: member.imagePath != null && member.imagePath!.isNotEmpty 
+                        ? NetworkImage(member.imagePath!) 
+                        : null,
+                    child: member.imagePath == null || member.imagePath!.isEmpty
+                        ? Text(member.name[0].toUpperCase(), style: const TextStyle(fontSize: 40))
+                        : null,
+                  ),
                 ),
                 const SizedBox(height: 16),
                 Text(member.name, style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
-                Text(member.designation, style: TextStyle(color: colors.primary, fontWeight: FontWeight.bold, fontSize: 16)),
-                const Divider(height: 32),
+                const SizedBox(height: 4),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: colors.primary.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Text(
+                    member.designation, 
+                    style: TextStyle(color: colors.primary, fontWeight: FontWeight.bold, fontSize: 13),
+                  ),
+                ),
+                const SizedBox(height: 32),
                 
-                _buildInfoRow(Icons.badge, 'Student ID', member.studentFullId),
-                _buildInfoRow(Icons.school, 'Session', member.session),
-                _buildInfoRow(Icons.numbers, 'DU Reg', member.duRegNo),
-                _buildInfoRow(Icons.phone, 'Phone', member.phone),
+                _buildModernInfoRow(Icons.badge_outlined, 'Student ID', member.studentFullId),
+                _buildModernInfoRow(Icons.school_outlined, 'Session', member.session),
+                _buildModernInfoRow(Icons.numbers_outlined, 'DU Reg', member.duRegNo),
+                _buildModernInfoRow(Icons.phone_outlined, 'Phone', member.phone, isCopyable: true),
                 
                 if (canManage && member.id != currentProfile.value.id) ...[
-                  const Divider(height: 32),
-                  const Text('Manage Actions', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey)),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 32),
+                  Row(
+                    children: [
+                      Expanded(child: Divider(color: colors.outlineVariant)),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        child: Text('ADMIN ACTIONS', style: TextStyle(
+                          fontSize: 11, 
+                          fontWeight: FontWeight.w800, 
+                          color: colors.onSurfaceVariant,
+                          letterSpacing: 1.5,
+                        )),
+                      ),
+                      Expanded(child: Divider(color: colors.outlineVariant)),
+                    ],
+                  ),
+                  const SizedBox(height: 20),
                   
-                  if (!member.isApproved)
-                    ElevatedButton.icon(
-                      style: ElevatedButton.styleFrom(backgroundColor: Colors.green, foregroundColor: Colors.white),
-                      icon: const Icon(Icons.check),
-                      label: const Text('Approve Registration'),
-                      onPressed: () async {
-                        Navigator.pop(context);
-                        await AuthService.approveUser(member.id);
-                        _fetchMembers();
-                      },
-                    ),
-                  
-                  if (isSuperuser) ...[
-                    ElevatedButton(
-                      onPressed: () => _showDesignationPicker(member),
-                      child: const Text('Change Designation / Promote'),
-                    ),
-                    const SizedBox(height: 8),
-                    ElevatedButton.icon(
-                      style: ElevatedButton.styleFrom(backgroundColor: colors.secondary, foregroundColor: Colors.black),
-                      icon: const Icon(Icons.school),
-                      label: const Text('Move to Alumni'),
-                      onPressed: () async {
-                        final confirm = await showDialog<bool>(
-                          context: context,
-                          builder: (context) => AlertDialog(
-                            title: const Text('Move to Alumni'),
-                            content: Text('Are you sure you want to move ${member.name} to the Alumni list? This will remove them from current members.'),
-                            actions: [
-                              TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
-                              TextButton(onPressed: () => Navigator.pop(context, true), child: const Text('Move')),
-                            ],
-                          ),
-                        );
-                        if (confirm == true) {
-                          if (!context.mounted) return;
-                          Navigator.pop(context); // Close details
-                          try {
-                            await AuthService.moveToAlumni(member);
+                  Wrap(
+                    spacing: 12,
+                    runSpacing: 12,
+                    children: [
+                      if (!member.isApproved)
+                        _actionButton(
+                          colors, 
+                          Icons.check_circle_outline, 
+                          'Approve User', 
+                          Colors.green,
+                          () async {
+                            Navigator.pop(context);
+                            await AuthService.approveUser(member.id);
                             _fetchMembers();
-                            if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Moved to Alumni')));
-                          } catch (e) {
-                            if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
                           }
-                        }
-                      },
-                    ),
-                  ],
-                  
-                  if (isSuperuser && member.designation != 'Student')
-                    TextButton(
-                      onPressed: () => _changeRole(member, UserRole.student, designation: 'Student'),
-                      child: const Text('Remove from Committee', style: TextStyle(color: Colors.orange)),
-                    ),
-                    
-                  if (isSuperuser)
-                    TextButton.icon(
-                      style: TextButton.styleFrom(foregroundColor: Colors.red),
-                      icon: const Icon(Icons.delete),
-                      label: const Text('Delete Account'),
-                      onPressed: () {
-                        Navigator.pop(context);
-                        _deleteMember(member);
-                      },
-                    ),
-
-                  if (isSuperuser) ...[
-                    const Divider(height: 16),
-                    SizedBox(
-                      width: double.infinity,
-                      child: OutlinedButton.icon(
-                        icon: const Icon(Icons.edit_note),
-                        label: const Text('Update Member Info'),
-                        onPressed: () {
+                        ),
+                      
+                      _actionButton(
+                        colors, 
+                        Icons.edit_outlined, 
+                        'Update Info', 
+                        colors.primary,
+                        () {
                           Navigator.pop(context);
                           _showEditMemberSheet(member);
-                        },
+                        }
                       ),
-                    ),
-                  ],
-                ]
+
+                      if (isSuperuser) ...[
+                        _actionButton(
+                          colors, 
+                          Icons.star_outline, 
+                          'Change Rank', 
+                          Colors.orange,
+                          () => _showDesignationPicker(member)
+                        ),
+                        _actionButton(
+                          colors, 
+                          Icons.history_edu_outlined, 
+                          'Move To Alumni',
+                          Colors.blueGrey,
+                          () async {
+                            final confirm = await _showConfirmDialog(
+                              'Move to Alumni',
+                              'Move ${member.name} to the Alumni list?'
+                            );
+                            if (confirm == true) {
+                              if (!context.mounted) return;
+                              Navigator.pop(context);
+                              try {
+                                await AuthService.moveToAlumni(member);
+                                _fetchMembers();
+                              } catch (e) {
+                                if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+                              }
+                            }
+                          }
+                        ),
+                      ],
+                      
+                      if (isSuperuser && (member.role == UserRole.committeeMember || member.role == UserRole.superUser))
+                        _actionButton(
+                          colors, 
+                          Icons.person_remove_outlined, 
+                          'Demote', 
+                          Colors.deepOrange,
+                          () => _changeRole(member, UserRole.student, designation: 'Member')
+                        ),
+                        
+                      if (isSuperuser)
+                        _actionButton(
+                          colors, 
+                          Icons.delete_outline, 
+                          'Delete', 
+                          Colors.red,
+                          () {
+                            Navigator.pop(context);
+                            _deleteMember(member);
+                          }
+                        ),
+                    ],
+                  ),
+                ],
               ],
             ),
           ),
@@ -171,19 +217,136 @@ class _ClubMembersScreenState extends State<ClubMembersScreen> with SingleTicker
     );
   }
 
-  Widget _buildInfoRow(IconData icon, String label, String value) {
-    if (value.isEmpty) return const SizedBox.shrink();
+  Widget _actionButton(ColorScheme colors, IconData icon, String label, Color color, VoidCallback onTap) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        width: (MediaQuery.of(context).size.width - 60) / 2,
+        padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
+        decoration: BoxDecoration(
+          color: color.withOpacity(0.08),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: color.withOpacity(0.2)),
+        ),
+        child: Column(
+          children: [
+            Icon(icon, color: color, size: 24),
+            const SizedBox(height: 8),
+            Text(
+              label,
+              style: TextStyle(color: color, fontSize: 13, fontWeight: FontWeight.bold),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildModernInfoRow(IconData icon, String label, String value, {bool isCopyable = false}) {
+    final colors = Theme.of(context).colorScheme;
+    final isCopied = _copiedValue == value;
+
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
-      child: Row(
-        children: [
-          Icon(icon, size: 20, color: Colors.grey),
-          const SizedBox(width: 12),
-          Text('$label: ', style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.grey)),
-          Expanded(child: Text(value, style: const TextStyle(fontWeight: FontWeight.bold))),
+      padding: const EdgeInsets.only(bottom: 16),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: colors.surfaceContainerHighest.withOpacity(0.3),
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Row(
+          children: [
+            Icon(icon, size: 22, color: colors.primary.withOpacity(0.7)),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(label, style: TextStyle(fontSize: 11, color: colors.onSurfaceVariant, fontWeight: FontWeight.w600)),
+                  const SizedBox(height: 2),
+                  Text(value, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
+                ],
+              ),
+            ),
+            if (isCopyable && value.isNotEmpty)
+              GestureDetector(
+                onTap: () {
+                  Clipboard.setData(ClipboardData(text: value));
+                  setState(() => _copiedValue = value);
+                  Future.delayed(const Duration(seconds: 2), () {
+                    if (mounted) setState(() => _copiedValue = null);
+                  });
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('$label copied!'), 
+                      behavior: SnackBarBehavior.floating,
+                      duration: const Duration(seconds: 1),
+                      width: 150,
+                    ),
+                  );
+                },
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 300),
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: isCopied ? Colors.green.withOpacity(0.1) : colors.primary.withOpacity(0.05),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    isCopied ? Icons.check : Icons.copy_rounded, 
+                    size: 18, 
+                    color: isCopied ? Colors.green : colors.primary
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<bool?> _showConfirmDialog(String title, String content) {
+    return showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(title),
+        content: Text(content),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
+          TextButton(onPressed: () => Navigator.pop(context, true), child: const Text('Confirm')),
         ],
       ),
     );
+  }
+
+  // --- REST OF THE CODE REMAINS THE SAME ---
+  // (Assuming _showEditMemberSheet, _deleteMember, _showDesignationPicker, _changeRole, _fetchMembers, _buildList exist)
+  
+  void _changeRole(ProfileData member, UserRole newRole, {String? designation}) async {
+    try {
+      await AuthService.updateUserRole(member.id, newRole, designation: designation);
+      if (mounted) {
+        Navigator.pop(context);
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Updated successfully')));
+        _fetchMembers();
+      }
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+    }
+  }
+
+  void _deleteMember(ProfileData member) async {
+    final confirm = await _showConfirmDialog('Delete Member', 'Are you sure you want to delete ${member.name}?');
+    if (confirm == true) {
+      try {
+        await AuthService.deleteUser(member.id);
+        _fetchMembers();
+      } catch (e) {
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+      }
+    }
   }
 
   void _showDesignationPicker(ProfileData member) {
@@ -191,219 +354,162 @@ class _ClubMembersScreenState extends State<ClubMembersScreen> with SingleTicker
       'President', 'Vice President', 'General Secretary', 'Joint Secretary', 
       'Treasurer', 'Press Secretary', 'Executive Member', 'Member'
     ];
-    String? selected = standardDesignations.contains(member.designation) ? member.designation : null;
 
-    showDialog(
+    showModalBottomSheet(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Select Designation'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            DropdownButtonFormField<String>(
-              value: selected,
-              items: standardDesignations.map((d) => DropdownMenuItem(value: d, child: Text(d))).toList(),
-              onChanged: (val) => setState(() => selected = val),
-              decoration: const InputDecoration(labelText: 'Designation List', border: OutlineInputBorder()),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
-          ElevatedButton(
-            onPressed: () {
-              final finalDesignation = selected ?? 'Student';
-              Navigator.pop(context);
-              UserRole role = UserRole.student;
-              if (finalDesignation != 'Student') {
-                role = (finalDesignation == 'President' || finalDesignation == 'Vice President') 
-                    ? UserRole.superUser 
-                    : UserRole.committeeMember;
-              }
-              _changeRole(member, role, designation: finalDesignation);
-            },
-            child: const Text('Update'),
-          ),
-        ],
+      builder: (context) => ListView(
+        shrinkWrap: true,
+        children: standardDesignations.map((d) => ListTile(
+          title: Text(d),
+          onTap: () {
+            Navigator.pop(context);
+            _changeRole(member, d == 'Member' ? UserRole.student : UserRole.committeeMember, designation: d);
+          },
+        )).toList(),
       ),
     );
-  }
-
-  Future<void> _changeRole(ProfileData member, UserRole newRole, {String? designation}) async {
-    try {
-      await AuthService.updateUserRole(member.id, newRole, designation: designation);
-      if (mounted) {
-        Navigator.pop(context); // Close details sheet if open
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Profile updated successfully')));
-      }
-      _fetchMembers();
-    } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error updating: $e')));
-    }
-  }
-
-  Future<void> _deleteMember(ProfileData member) async {
-    final confirm = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Delete Member'),
-        content: Text('Are you sure you want to delete ${member.name}? This cannot be undone.'),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true), 
-            child: const Text('Delete', style: TextStyle(color: Colors.red)),
-          ),
-        ],
-      ),
-    );
-
-    if (confirm == true) {
-      try {
-        await AuthService.deleteUser(member.id);
-        if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Member deleted successfully')));
-        _fetchMembers();
-      } catch (e) {
-        if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error deleting member: $e')));
-      }
-    }
   }
 
   void _showEditMemberSheet(ProfileData member) {
+    final colors = Theme.of(context).colorScheme;
     final firstNameController = TextEditingController(text: member.firstName);
     final lastNameController = TextEditingController(text: member.lastName);
     final universityIdController = TextEditingController(text: member.universityId);
     final classRollController = TextEditingController(text: member.classRoll);
     final duRegController = TextEditingController(text: member.duRegNo);
     final phoneController = TextEditingController(text: member.phone);
-    String selectedSession = member.session;
-    String selectedBatch = member.batch;
+    String? selectedSession = member.session;
+    String? selectedBatch = member.batch;
+
+    final List<String> sessions = List.generate(10, (i) => '${2018 + i}-${2019 + i}');
+    final List<String> batches = List.generate(15, (i) => '${10 + i}');
+
+    // Ensure current values are in the lists to prevent crash
+    if (selectedSession != null && !sessions.contains(selectedSession)) {
+      sessions.add(selectedSession!);
+      sessions.sort((a, b) => b.compareTo(a));
+    }
+    if (selectedBatch != null && !batches.contains(selectedBatch)) {
+      batches.add(selectedBatch!);
+      batches.sort((a, b) => (int.tryParse(a) ?? 0).compareTo(int.tryParse(b) ?? 0));
+    }
 
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(25))),
-      builder: (modalContext) {
-        return StatefulBuilder(
-          builder: (context, setModalState) {
-            return Padding(
-              padding: EdgeInsets.only(
-                bottom: MediaQuery.of(modalContext).viewInsets.bottom,
-                left: 24, right: 24, top: 24,
-              ),
-              child: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
+      backgroundColor: Colors.transparent,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setSheetState) => Container(
+          decoration: BoxDecoration(
+            color: colors.surface,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
+          ),
+          padding: EdgeInsets.only(
+            bottom: MediaQuery.of(context).viewInsets.bottom + 24,
+            left: 24,
+            right: 24,
+            top: 12,
+          ),
+          constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.85),
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 40,
+                  height: 4,
+                  margin: const EdgeInsets.only(bottom: 24),
+                  decoration: BoxDecoration(
+                    color: colors.onSurfaceVariant.withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+                const Text('Update Member Info', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+                const SizedBox(height: 24),
+                
+                Row(
                   children: [
-                    const Text('Edit Member Info', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
-                    const SizedBox(height: 20),
-                    Row(
-                      children: [
-                        Expanded(child: TextField(controller: firstNameController, decoration: const InputDecoration(labelText: 'First Name', border: OutlineInputBorder()))),
-                        const SizedBox(width: 12),
-                        Expanded(child: TextField(controller: lastNameController, decoration: const InputDecoration(labelText: 'Last Name', border: OutlineInputBorder()))),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
-                    TextField(controller: universityIdController, decoration: const InputDecoration(labelText: 'University ID', border: OutlineInputBorder())),
-                    const SizedBox(height: 12),
-                    Row(
-                      children: [
-                        Expanded(child: TextField(controller: classRollController, decoration: const InputDecoration(labelText: 'Class Roll', border: OutlineInputBorder()))),
-                        const SizedBox(width: 12),
-                        Expanded(child: TextField(controller: duRegController, decoration: const InputDecoration(labelText: 'DU Reg No', border: OutlineInputBorder()))),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Builder(
-                            builder: (context) {
-                              final generatedSessions = [for (var i = 2015; i <= 2026; i++) '${i}-${i + 1}'];
-                              if (selectedSession.isNotEmpty && !generatedSessions.contains(selectedSession)) {
-                                generatedSessions.add(selectedSession);
-                                generatedSessions.sort((a, b) => b.compareTo(a)); // Sort descending for sessions
-                              }
-                              return DropdownButtonFormField<String>(
-                                value: selectedSession.isNotEmpty ? selectedSession : null,
-                                decoration: const InputDecoration(labelText: 'Session', border: OutlineInputBorder()),
-                                items: generatedSessions.map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
-                                onChanged: (val) => setModalState(() => selectedSession = val!),
-                              );
-                            }
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Builder(
-                            builder: (context) {
-                              final generatedBatches = [for (var i = 1; i <= 10; i++) '$i'];
-                              if (selectedBatch.isNotEmpty && !generatedBatches.contains(selectedBatch)) {
-                                generatedBatches.add(selectedBatch);
-                              }
-                              generatedBatches.sort((a, b) => int.parse(a).compareTo(int.parse(b)));
-                              return DropdownButtonFormField<String>(
-                                value: selectedBatch.isNotEmpty ? selectedBatch : null,
-                                decoration: const InputDecoration(labelText: 'Batch', border: OutlineInputBorder()),
-                                items: generatedBatches.map((s) => DropdownMenuItem(value: s, child: Text('Batch $s'))).toList(),
-                                onChanged: (val) => setModalState(() => selectedBatch = val!),
-                              );
-                            }
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
-                    TextField(controller: phoneController, decoration: const InputDecoration(labelText: 'Phone Number', border: OutlineInputBorder())),
-                    const SizedBox(height: 32),
-                    SizedBox(
-                      width: double.infinity,
-                      height: 56,
-                      child: ElevatedButton(
-                        onPressed: () async {
-                          final updated = ProfileData(
-                            id: member.id,
-                            firstName: firstNameController.text.trim(),
-                            lastName: lastNameController.text.trim(),
-                            name: '${firstNameController.text.trim()} ${lastNameController.text.trim()}',
-                            email: member.email,
-                            universityId: universityIdController.text.trim(),
-                            classRoll: classRollController.text.trim(),
-                            duRegNo: duRegController.text.trim(),
-                            session: selectedSession,
-                            batch: selectedBatch,
-                            phone: phoneController.text.trim(),
-                            imagePath: member.imagePath,
-                            role: member.role,
-                            designation: member.designation,
-                            isApproved: member.isApproved,
-                            isAlumni: member.isAlumni,
-                          );
-
-                          try {
-                            await AuthService.updateAnyProfile(updated);
-                            if (mounted) {
-                              Navigator.pop(modalContext);
-                              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Member information updated')));
-                              _fetchMembers();
-                            }
-                          } catch (e) {
-                            if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
-                          }
-                        },
-                        child: const Text('Save Changes', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                      ),
-                    ),
-                    const SizedBox(height: 32),
+                    Expanded(child: TextField(controller: firstNameController, decoration: const InputDecoration(labelText: 'First Name', border: OutlineInputBorder()))),
+                    const SizedBox(width: 12),
+                    Expanded(child: TextField(controller: lastNameController, decoration: const InputDecoration(labelText: 'Last Name', border: OutlineInputBorder()))),
                   ],
                 ),
-              ),
-            );
-          },
-        );
-      },
+                const SizedBox(height: 12),
+                TextField(controller: universityIdController, decoration: const InputDecoration(labelText: 'University ID', border: OutlineInputBorder())),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(child: TextField(controller: classRollController, decoration: const InputDecoration(labelText: 'Class Roll', border: OutlineInputBorder()))),
+                    const SizedBox(width: 12),
+                    Expanded(child: TextField(controller: duRegController, decoration: const InputDecoration(labelText: 'DU Reg No', border: OutlineInputBorder()))),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                TextField(controller: phoneController, decoration: const InputDecoration(labelText: 'Phone Number', border: OutlineInputBorder())),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(
+                      child: DropdownButtonFormField<String>(
+                        value: selectedSession,
+                        decoration: const InputDecoration(labelText: 'Session', border: OutlineInputBorder()),
+                        items: sessions.map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
+                        onChanged: (val) => setSheetState(() => selectedSession = val),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: DropdownButtonFormField<String>(
+                        value: selectedBatch,
+                        decoration: const InputDecoration(labelText: 'Batch', border: OutlineInputBorder()),
+                        items: batches.map((b) => DropdownMenuItem(value: b, child: Text(b))).toList(),
+                        onChanged: (val) => setSheetState(() => selectedBatch = val),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 32),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: colors.primary,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                    ),
+                    onPressed: () async {
+                      try {
+                        final updatedMember = member.copyWith(
+                          firstName: firstNameController.text.trim(),
+                          lastName: lastNameController.text.trim(),
+                          name: '${firstNameController.text.trim()} ${lastNameController.text.trim()}',
+                          universityId: universityIdController.text.trim(),
+                          classRoll: classRollController.text.trim(),
+                          duRegNo: duRegController.text.trim(),
+                          phone: phoneController.text.trim(),
+                          session: selectedSession,
+                          batch: selectedBatch,
+                        );
+                        
+                        await AuthService.updateAnyProfile(updatedMember);
+                        if (context.mounted) {
+                          Navigator.pop(context);
+                          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Info updated successfully')));
+                          _fetchMembers();
+                        }
+                      } catch (e) {
+                        if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+                      }
+                    },
+                    child: const Text('Save Changes', style: TextStyle(fontWeight: FontWeight.bold)),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
     );
   }
 
@@ -414,7 +520,7 @@ class _ClubMembersScreenState extends State<ClubMembersScreen> with SingleTicker
       m.studentFullId.contains(_searchQuery)
     ).toList();
 
-    final members = filteredAll.where((m) => m.role == UserRole.student && m.isApproved && m.designation == 'Student').toList();
+    final members = filteredAll.where((m) => m.role == UserRole.student && m.isApproved).toList();
     final committees = filteredAll.where((m) => (m.role == UserRole.committeeMember || m.role == UserRole.superUser) && m.isApproved).toList();
     final pending = filteredAll.where((m) => !m.isApproved).toList();
 
@@ -508,7 +614,7 @@ class _ClubMembersScreenState extends State<ClubMembersScreen> with SingleTicker
                 : null,
             ),
             title: Text(member.name, style: const TextStyle(fontWeight: FontWeight.bold)),
-            subtitle: Text('${member.designation} • ID: ${member.studentFullId}'),
+            subtitle: Text('${member.designation} • Batch: ${member.batch} • ${member.session}'),
             trailing: const Icon(Icons.chevron_right),
           ),
         );

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../models/teacher_state.dart';
 
@@ -24,182 +25,262 @@ class TeacherDetailScreen extends StatelessWidget {
           SliverAppBar(
             expandedHeight: 260,
             pinned: true,
+            automaticallyImplyLeading: false,
             backgroundColor: colors.primary,
-            leading: Container(
-              margin: const EdgeInsets.all(8),
-              decoration: const BoxDecoration(color: Colors.black26, shape: BoxShape.circle),
-              child: IconButton(
-                icon: const Icon(Icons.arrow_back, color: Colors.white),
-                onPressed: () => Navigator.pop(context),
-              ),
-            ),
             flexibleSpace: FlexibleSpaceBar(
               background: Stack(
                 fit: StackFit.expand,
                 children: [
+                  // 1. Full Image Background
+                  teacher.imagePath.isNotEmpty
+                      ? Image.network(
+                          teacher.imagePath,
+                          width: double.infinity,
+                          height: double.infinity,
+                          fit: BoxFit.cover,
+                          errorBuilder: (context, error, stackTrace) => Container(
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                                colors: [colors.primary, colors.secondary],
+                              ),
+                            ),
+                            child: Center(
+                              child: Text(
+                                teacher.name[0].toUpperCase(),
+                                style: const TextStyle(fontSize: 80, fontWeight: FontWeight.bold, color: Colors.white),
+                              ),
+                            ),
+                          ),
+                        )
+                      : Container(
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                              colors: [colors.primary, colors.secondary],
+                            ),
+                          ),
+                          child: Center(
+                            child: Text(
+                              teacher.name[0].toUpperCase(),
+                              style: const TextStyle(fontSize: 80, fontWeight: FontWeight.bold, color: Colors.white),
+                            ),
+                          ),
+                        ),
+
+                  // 2. Gradient Overlay for Text Readability
                   Container(
                     decoration: BoxDecoration(
                       gradient: LinearGradient(
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                        colors: [colors.primary, colors.secondary],
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [
+                          Colors.black.withOpacity(0.1),
+                          Colors.black.withOpacity(0.7),
+                        ],
                       ),
                     ),
                   ),
-                  Center(
+
+                  // 3. Name and Designation at the Bottom
+                  Positioned(
+                    bottom: 20,
+                    left: 20,
+                    right: 20,
                     child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const SizedBox(height: 40),
-                        CircleAvatar(
-                          radius: 60,
-                          backgroundColor: Colors.white,
-                          backgroundImage: teacher.imagePath.isNotEmpty ? NetworkImage(teacher.imagePath) : null,
-                          child: teacher.imagePath.isEmpty
-                              ? Text(teacher.name[0].toUpperCase(), style: TextStyle(fontSize: 48, fontWeight: FontWeight.bold, color: colors.primary))
-                              : null,
+                        Text(
+                          teacher.name,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 28,
+                            fontWeight: FontWeight.bold,
+                            shadows: [Shadow(color: Colors.black45, blurRadius: 10)],
+                          ),
                         ),
-                        const SizedBox(height: 12),
-                        Text(teacher.name, style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold)),
                         const SizedBox(height: 4),
-                        Text(teacher.designation, style: const TextStyle(color: Colors.white70, fontSize: 15)),
+                        Text(
+                          teacher.designation.toUpperCase(),
+                          style: TextStyle(
+                            color: Colors.white.withOpacity(0.9),
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            letterSpacing: 1.2,
+                          ),
+                        ),
                       ],
+                    ),
+                  ),
+
+                  // 4. Back Button
+                  Positioned(
+                    top: MediaQuery.of(context).padding.top + 10,
+                    left: 10,
+                    child: IconButton(
+                      icon: const Icon(Icons.arrow_back, color: Colors.white),
+                      onPressed: () => Navigator.pop(context),
+                      style: IconButton.styleFrom(backgroundColor: Colors.black26),
                     ),
                   ),
                 ],
               ),
             ),
           ),
-
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.all(20),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  if (teacher.phone.isNotEmpty || teacher.email.isNotEmpty) ...[
+          SliverList(
+            delegate: SliverChildListDelegate([
+              Padding(
+                padding: const EdgeInsets.all(24.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _sectionTitle(colors, 'Contact Details'),
+                    const SizedBox(height: 16),
+                    _contactCard(
+                      context,
+                      colors,
+                      Icons.email_outlined,
+                      'Email Address',
+                      teacher.email,
+                      () => _launch('mailto:${teacher.email}'),
+                    ),
+                    const SizedBox(height: 12),
+                    _contactCard(
+                      context,
+                      colors,
+                      Icons.phone_outlined,
+                      'Phone Number',
+                      teacher.phone,
+                      () => _launch('tel:${teacher.phone}'),
+                    ),
+                    
+                    const SizedBox(height: 32),
+                    _sectionTitle(colors, 'Academic Info'),
+                    const SizedBox(height: 16),
+                    _infoTile(colors, Icons.school_outlined, 'Department', 'Computer Science & Engineering'),
+                    _infoTile(colors, Icons.work_outline, 'Designation', teacher.designation),
+                    if (teacher.officeRoom.isNotEmpty)
+                      _infoTile(colors, Icons.location_on_outlined, 'Office', teacher.officeRoom),
+                    if (teacher.joinYear.isNotEmpty)
+                      _infoTile(colors, Icons.calendar_today_outlined, 'Joined', teacher.joinYear),
+                    
+                    const SizedBox(height: 40),
                     Row(
                       children: [
-                        if (teacher.phone.isNotEmpty)
-                          Expanded(
-                            child: _ActionButton(
-                              icon: Icons.phone,
-                              label: 'Call',
-                              color: Colors.green,
-                              onTap: () => _launch('tel:${teacher.phone}'),
+                        Expanded(
+                          child: ElevatedButton.icon(
+                            onPressed: () => _launch('tel:${teacher.phone}'),
+                            icon: const Icon(Icons.call),
+                            label: const Text('Call'),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.green,
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(vertical: 16),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                             ),
                           ),
-                        if (teacher.phone.isNotEmpty && teacher.email.isNotEmpty) const SizedBox(width: 12),
-                        if (teacher.email.isNotEmpty)
-                          Expanded(
-                            child: _ActionButton(
-                              icon: Icons.email,
-                              label: 'Email',
-                              color: colors.primary,
-                              onTap: () => _launch('mailto:${teacher.email}'),
+                        ),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: ElevatedButton.icon(
+                            onPressed: () => _launch('mailto:${teacher.email}'),
+                            icon: const Icon(Icons.email),
+                            label: const Text('Email'),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: colors.primary,
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(vertical: 16),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                             ),
                           ),
+                        ),
                       ],
                     ),
-                    const SizedBox(height: 24),
                   ],
-
-                  _SectionCard(
-                    children: [
-                      if (teacher.department.isNotEmpty) _InfoRow(Icons.apartment, 'Department', teacher.department, colors),
-                      if (teacher.officeRoom.isNotEmpty) _InfoRow(Icons.room, 'Office', teacher.officeRoom, colors),
-                      if (teacher.joinYear.isNotEmpty) _InfoRow(Icons.calendar_today, 'Joined', teacher.joinYear, colors),
-                      if (teacher.phone.isNotEmpty) _InfoRow(Icons.phone, 'Phone', teacher.phone, colors),
-                      if (teacher.email.isNotEmpty) _InfoRow(Icons.email, 'Email', teacher.email, colors),
-                    ],
-                  ),
-
-                  if (teacher.areasOfExpertise.isNotEmpty) ...[
-                    const SizedBox(height: 24),
-                    const Text('Areas of Expertise', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                    const SizedBox(height: 12),
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      children: teacher.areasOfExpertise.map((area) => Chip(
-                        label: Text(area, style: TextStyle(color: colors.onPrimaryContainer, fontSize: 13)),
-                        backgroundColor: colors.primaryContainer,
-                        side: BorderSide.none,
-                      )).toList(),
-                    ),
-                  ],
-                ],
+                ),
               ),
-            ),
+            ]),
           ),
         ],
       ),
     );
   }
-}
 
-class _ActionButton extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final Color color;
-  final VoidCallback onTap;
-  const _ActionButton({required this.icon, required this.label, required this.color, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return ElevatedButton.icon(
-      onPressed: onTap,
-      icon: Icon(icon),
-      label: Text(label),
-      style: ElevatedButton.styleFrom(
-        backgroundColor: color,
-        foregroundColor: Colors.white,
-        padding: const EdgeInsets.symmetric(vertical: 14),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+  Widget _sectionTitle(ColorScheme colors, String title) {
+    return Text(
+      title,
+      style: TextStyle(
+        fontSize: 18,
+        fontWeight: FontWeight.bold,
+        color: colors.primary,
+        letterSpacing: 0.5,
       ),
     );
   }
-}
 
-class _SectionCard extends StatelessWidget {
-  final List<Widget> children;
-  const _SectionCard({required this.children});
-
-  @override
-  Widget build(BuildContext context) {
-    final validChildren = children.where((c) => c is _InfoRow).toList();
-    if (validChildren.isEmpty) return const SizedBox.shrink();
-    final colors = Theme.of(context).colorScheme;
-    return Card(
-      elevation: 0,
-      color: colors.surfaceContainerLow,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(children: validChildren),
+  Widget _contactCard(BuildContext context, ColorScheme colors, IconData icon, String label, String value, VoidCallback onTap) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      decoration: BoxDecoration(
+        color: colors.surfaceContainerHighest.withOpacity(0.3),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: colors.outlineVariant.withOpacity(0.5)),
+      ),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(16),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: colors.primary.withOpacity(0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(icon, color: colors.primary, size: 24),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(label, style: TextStyle(fontSize: 12, color: colors.onSurfaceVariant)),
+                    const SizedBox(height: 2),
+                    Text(value, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+                  ],
+                ),
+              ),
+              IconButton(
+                icon: Icon(Icons.copy_rounded, size: 20, color: colors.primary.withOpacity(0.7)),
+                onPressed: () {
+                  Clipboard.setData(ClipboardData(text: value));
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('$label copied to clipboard'), duration: const Duration(seconds: 1)),
+                  );
+                },
+                tooltip: 'Copy',
+              ),
+              Icon(Icons.open_in_new, size: 18, color: colors.onSurfaceVariant.withOpacity(0.5)),
+            ],
+          ),
+        ),
       ),
     );
   }
-}
 
-class _InfoRow extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final String value;
-  final ColorScheme colors;
-  const _InfoRow(this.icon, this.label, this.value, this.colors);
-
-  @override
-  Widget build(BuildContext context) {
-    if (value.isEmpty) return const SizedBox.shrink();
+  Widget _infoTile(ColorScheme colors, IconData icon, String label, String value) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8),
       child: Row(
         children: [
-          Icon(icon, size: 20, color: colors.primary),
+          Icon(icon, size: 20, color: colors.onSurfaceVariant),
           const SizedBox(width: 12),
-          Text('$label: ', style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.grey)),
-          Expanded(child: Text(value, style: const TextStyle(fontWeight: FontWeight.w500))),
+          Text('$label: ', style: TextStyle(color: colors.onSurfaceVariant)),
+          Text(value, style: const TextStyle(fontWeight: FontWeight.w600)),
         ],
       ),
     );

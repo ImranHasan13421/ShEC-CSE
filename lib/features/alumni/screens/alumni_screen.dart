@@ -349,7 +349,7 @@ class _AlumniScreenState extends State<AlumniScreen> {
                     ),
                     if (alumni.currentPosition.isNotEmpty || alumni.company.isNotEmpty)
                       Text(
-                        '${alumni.currentPosition}${alumni.company.isNotEmpty ? ' @ ${alumni.company}' : ''}',
+                        '${alumni.currentPosition}${alumni.company.isNotEmpty ? ' at ${alumni.company}' : ''}',
                         style: TextStyle(color: colors.primary, fontSize: 13, fontWeight: FontWeight.w500),
                       ),
                     if (alumni.session.isNotEmpty || alumni.passingYear.isNotEmpty)
