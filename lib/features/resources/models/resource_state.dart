@@ -6,6 +6,9 @@ class ResourceItem {
   final String size;
   final String date;
   final String session;
+  final String semester;
+  final String fileUrl;
+  final String? uploadedBy;
 
   ResourceItem({
     required this.id,
@@ -13,6 +16,9 @@ class ResourceItem {
     required this.size,
     required this.date,
     required this.session,
+    required this.semester,
+    required this.fileUrl,
+    this.uploadedBy,
   });
 
   factory ResourceItem.fromJson(Map<String, dynamic> json) {
@@ -22,6 +28,9 @@ class ResourceItem {
       size: json['size'] as String,
       date: json['date'] as String,
       session: json['session'] as String,
+      semester: json['semester'] ?? '1st Semester',
+      fileUrl: json['file_url'] ?? '',
+      uploadedBy: json['uploaded_by'],
     );
   }
 
@@ -31,10 +40,12 @@ class ResourceItem {
       'size': size,
       'date': date,
       'session': session,
+      'semester': semester,
+      'file_url': fileUrl,
+      'uploaded_by': uploadedBy,
     };
   }
 }
 
 // Global Notifier for Resources
 final ValueNotifier<List<ResourceItem>> resourceState = ValueNotifier([]);
-

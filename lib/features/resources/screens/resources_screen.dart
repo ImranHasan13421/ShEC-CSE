@@ -12,51 +12,79 @@ class YearsScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Previous Resources')),
+      appBar: AppBar(title: const Text('Academic Resources')),
       body: ListView(
         padding: const EdgeInsets.all(16.0),
         children: [
           const Padding(
-            padding: EdgeInsets.only(bottom: 16.0, left: 4.0),
-            child: Text(
-              'Select Academic Year',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            padding: EdgeInsets.only(bottom: 20.0, left: 4.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Select Academic Year',
+                  style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+                ),
+                Text(
+                  'Find question papers, notes and more',
+                  style: TextStyle(fontSize: 14, color: Colors.grey),
+                ),
+              ],
             ),
           ),
-          _buildYearCard(context, 1, '1st Year', Colors.blue),
-          _buildYearCard(context, 2, '2nd Year', Colors.teal),
-          _buildYearCard(context, 3, '3rd Year', Colors.indigo),
-          _buildYearCard(context, 4, '4th Year', Colors.orange),
+          _buildYearCard(context, 1, '1st Year', Colors.blue, 'Semesters 1 & 2'),
+          _buildYearCard(context, 2, '2nd Year', Colors.teal, 'Semesters 3 & 4'),
+          _buildYearCard(context, 3, '3rd Year', Colors.indigo, 'Semesters 5 & 6'),
+          _buildYearCard(context, 4, '4th Year', Colors.orange, 'Semesters 7 & 8'),
         ],
       ),
     );
   }
 
-  Widget _buildYearCard(BuildContext context, int yearIndex, String title, Color color) {
+  Widget _buildYearCard(BuildContext context, int yearIndex, String title, Color color, String subtitle) {
     final colors = Theme.of(context).colorScheme;
     return Card(
-      margin: const EdgeInsets.only(bottom: 12),
+      margin: const EdgeInsets.only(bottom: 16),
       elevation: 0,
       color: colors.surface,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-        side: BorderSide(color: colors.outline.withValues(alpha: 0.1)),
+        borderRadius: BorderRadius.circular(16),
+        side: BorderSide(color: colors.outline.withOpacity(0.1)),
       ),
-      child: ListTile(
-        contentPadding: const EdgeInsets.all(16),
-        leading: CircleAvatar(
-          backgroundColor: color.withValues(alpha: 0.1),
-          child: Icon(Icons.school, color: color),
-        ),
-        title: Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
-        subtitle: const Text('Question papers & resources'),
-        trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+      child: InkWell(
         onTap: () {
           Navigator.push(
             context,
             MaterialPageRoute(builder: (context) => SemestersScreen(yearIndex: yearIndex, yearName: title, color: color)),
           );
         },
+        borderRadius: BorderRadius.circular(16),
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: color.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(Icons.school_rounded, color: color, size: 28),
+              ),
+              const SizedBox(width: 20),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+                    Text(subtitle, style: TextStyle(color: colors.onSurfaceVariant, fontSize: 13)),
+                  ],
+                ),
+              ),
+              Icon(Icons.arrow_forward_ios_rounded, size: 16, color: colors.onSurfaceVariant.withOpacity(0.5)),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -80,9 +108,12 @@ class SemestersScreen extends StatelessWidget {
       body: ListView(
         padding: const EdgeInsets.all(16.0),
         children: [
-          const Padding(
-            padding: EdgeInsets.only(bottom: 16.0, left: 4.0),
-            child: Text('Select Semester', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+          Padding(
+            padding: const EdgeInsets.only(bottom: 20.0, left: 4.0),
+            child: Text(
+              'Select Semester',
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: colors.onSurface),
+            ),
           ),
           _buildSemesterCard(context, 1, colors),
           _buildSemesterCard(context, 2, colors),
@@ -92,28 +123,39 @@ class SemestersScreen extends StatelessWidget {
   }
 
   Widget _buildSemesterCard(BuildContext context, int semIndex, ColorScheme colors) {
+    // Determine actual semester number (1-8)
+    final int actualSem = ((yearIndex - 1) * 2) + semIndex;
+    final String semTitle = '$semIndex${semIndex == 1 ? "st" : "nd"} Semester';
+
     return Card(
-      margin: const EdgeInsets.only(bottom: 12),
+      margin: const EdgeInsets.only(bottom: 16),
       elevation: 0,
       color: colors.surface,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-        side: BorderSide(color: colors.outline.withValues(alpha: 0.1)),
+        borderRadius: BorderRadius.circular(16),
+        side: BorderSide(color: colors.outline.withOpacity(0.1)),
       ),
       child: ListTile(
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        contentPadding: const EdgeInsets.all(16),
         leading: Container(
-          padding: const EdgeInsets.all(10),
-          decoration: BoxDecoration(color: color.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(8)),
-          child: Icon(Icons.layers, color: color),
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(color: color.withOpacity(0.1), borderRadius: BorderRadius.circular(12)),
+          child: Icon(Icons.layers_rounded, color: color),
         ),
-        title: Text('Semester $semIndex', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-        trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+        title: Text(semTitle, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 17)),
+        subtitle: Text('Full resource list for semester $actualSem'),
+        trailing: const Icon(Icons.arrow_forward_ios_rounded, size: 16),
         onTap: () {
           Navigator.push(
             context,
             MaterialPageRoute(
-              builder: (context) => SessionsScreen(yearIndex: yearIndex, yearName: yearName, semIndex: semIndex, color: color),
+              builder: (context) => SessionsScreen(
+                yearIndex: yearIndex, 
+                yearName: yearName, 
+                semIndex: semIndex, 
+                semTitle: semTitle,
+                color: color
+              ),
             ),
           );
         },
@@ -129,6 +171,7 @@ class SessionsScreen extends StatelessWidget {
   final int yearIndex;
   final String yearName;
   final int semIndex;
+  final String semTitle;
   final Color color;
 
   const SessionsScreen({
@@ -136,24 +179,13 @@ class SessionsScreen extends StatelessWidget {
     required this.yearIndex,
     required this.yearName,
     required this.semIndex,
+    required this.semTitle,
     required this.color,
   });
 
   List<String> _getValidSessions() {
-    if (yearIndex == 4) {
-      if (semIndex == 1) return ['19-20', '20-21'];
-      if (semIndex == 2) return ['19-20'];
-    } else if (yearIndex == 3) {
-      if (semIndex == 1) return ['19-20', '20-21', '21-22'];
-      if (semIndex == 2) return ['19-20', '20-21'];
-    } else if (yearIndex == 2) {
-      if (semIndex == 1) return ['19-20', '20-21', '21-22', '22-23'];
-      if (semIndex == 2) return ['19-20', '20-21', '21-22'];
-    } else if (yearIndex == 1) {
-      if (semIndex == 1) return ['19-20', '20-21', '21-22', '22-23', '23-24', '24-25'];
-      if (semIndex == 2) return ['19-20', '20-21', '21-22', '22-23', '23-24'];
-    }
-    return [];
+    // Dynamic session list based on recent years
+    return ['24-25', '23-24', '22-23', '21-22', '20-21', '19-20'];
   }
 
   @override
@@ -162,39 +194,28 @@ class SessionsScreen extends StatelessWidget {
     final sessions = _getValidSessions();
 
     return Scaffold(
-      appBar: AppBar(title: Text('$yearName - Sem $semIndex')),
+      appBar: AppBar(title: Text(semTitle)),
       body: ListView(
         padding: const EdgeInsets.all(16.0),
         children: [
-          const Padding(
-            padding: EdgeInsets.only(bottom: 16.0, left: 4.0),
+          Padding(
+            padding: const EdgeInsets.only(bottom: 20.0, left: 4.0),
             child: Text(
-              'Available Sessions',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              'Select Session',
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: colors.onSurface),
             ),
           ),
-          if (sessions.isEmpty)
-            const Center(
-              child: Padding(
-                padding: EdgeInsets.all(32.0),
-                child: Text('No sessions available.'),
-              ),
-            ),
           ...sessions.map((session) => Card(
             margin: const EdgeInsets.only(bottom: 12),
             elevation: 0,
-            color: colors.surface,
             shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-              side: BorderSide(color: colors.outline.withValues(alpha: 0.1)),
+              borderRadius: BorderRadius.circular(16),
+              side: BorderSide(color: colors.outline.withOpacity(0.1)),
             ),
             child: ListTile(
-              leading: Icon(Icons.calendar_month, color: color),
-              title: Text(
-                'Session $session',
-                style: const TextStyle(fontWeight: FontWeight.bold),
-              ),
-              trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+              leading: Icon(Icons.calendar_today_rounded, color: color),
+              title: Text('Session $session', style: const TextStyle(fontWeight: FontWeight.bold)),
+              trailing: const Icon(Icons.arrow_forward_ios_rounded, size: 16),
               onTap: () {
                 Navigator.push(
                   context,
@@ -202,6 +223,7 @@ class SessionsScreen extends StatelessWidget {
                     builder: (context) => PdfsScreen(
                       title: 'Session $session Resources',
                       session: session,
+                      semester: semTitle,
                       color: color,
                     ),
                   ),
@@ -222,9 +244,16 @@ class SessionsScreen extends StatelessWidget {
 class PdfsScreen extends StatefulWidget {
   final String title;
   final String session;
+  final String semester;
   final Color color;
 
-  const PdfsScreen({super.key, required this.title, required this.session, required this.color});
+  const PdfsScreen({
+    super.key, 
+    required this.title, 
+    required this.session, 
+    required this.semester,
+    required this.color
+  });
 
   @override
   State<PdfsScreen> createState() => _PdfsScreenState();
@@ -239,74 +268,96 @@ class _PdfsScreenState extends State<PdfsScreen> {
 
   void _showForm(BuildContext context, {ResourceItem? existingItem}) {
     final nameController = TextEditingController(text: existingItem?.name ?? '');
-    final sizeController = TextEditingController(text: existingItem?.size ?? '1.5 MB');
+    final urlController = TextEditingController(text: existingItem?.fileUrl ?? '');
+    final sizeController = TextEditingController(text: existingItem?.size ?? '');
 
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      backgroundColor: Colors.transparent,
       builder: (modalContext) {
-        return Padding(
+        final colors = Theme.of(context).colorScheme;
+        return Container(
+          decoration: BoxDecoration(
+            color: colors.surface,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
+          ),
           padding: EdgeInsets.only(
-            bottom: MediaQuery.of(modalContext).viewInsets.bottom,
+            bottom: MediaQuery.of(modalContext).viewInsets.bottom + 24,
             left: 24,
             right: 24,
-            top: 24,
+            top: 12,
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(existingItem == null ? 'Add Resource' : 'Edit Resource', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-              const SizedBox(height: 16),
+              Container(
+                width: 40, height: 4,
+                margin: const EdgeInsets.only(bottom: 24),
+                decoration: BoxDecoration(color: colors.outlineVariant, borderRadius: BorderRadius.circular(2)),
+              ),
+              Text(existingItem == null ? 'Upload Resource' : 'Update Resource', 
+                style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 8),
+              Text('${widget.semester} • Session ${widget.session}', 
+                style: TextStyle(color: colors.onSurfaceVariant, fontSize: 13)),
+              const SizedBox(height: 24),
               TextField(
                 controller: nameController,
-                decoration: const InputDecoration(labelText: 'File Name', border: OutlineInputBorder()),
+                decoration: const InputDecoration(labelText: 'Resource Title (e.g. Midterm Q 2023)', border: OutlineInputBorder()),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: urlController,
+                decoration: const InputDecoration(labelText: 'File URL (Google Drive/Dropbox)', border: OutlineInputBorder()),
               ),
               const SizedBox(height: 12),
               TextField(
                 controller: sizeController,
-                decoration: const InputDecoration(labelText: 'File Size', border: OutlineInputBorder()),
+                decoration: const InputDecoration(labelText: 'File Size (Optional, e.g. 2 MB)', border: OutlineInputBorder()),
               ),
               const SizedBox(height: 24),
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: widget.color,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                  ),
                   onPressed: () async {
-                    if (nameController.text.isNotEmpty) {
+                    if (nameController.text.isNotEmpty && urlController.text.isNotEmpty) {
                       final messenger = ScaffoldMessenger.of(context);
                       Navigator.pop(modalContext);
                       try {
                         final newItem = ResourceItem(
                           id: existingItem?.id ?? '',
-                          name: nameController.text,
-                          size: sizeController.text,
-                          date: 'Just now',
+                          name: nameController.text.trim(),
+                          size: sizeController.text.isEmpty ? 'Unknown' : sizeController.text.trim(),
+                          date: DateTime.now().toString().split(' ')[0],
                           session: widget.session,
+                          semester: widget.semester,
+                          fileUrl: urlController.text.trim(),
+                          uploadedBy: currentProfile.value.id,
                         );
 
                         if (existingItem == null) {
                           await ResourceService.addResourceToDB(newItem);
-                          if (mounted) messenger.showSnackBar(const SnackBar(content: Text('Resource uploaded successfully')));
+                          if (mounted) messenger.showSnackBar(const SnackBar(content: Text('Resource uploaded!')));
                         } else {
-                          final index = resourceState.value.indexOf(existingItem);
-                          if (index != -1) {
-                            final updatedList = List<ResourceItem>.from(resourceState.value);
-                            updatedList[index] = newItem;
-                            resourceState.value = updatedList;
-                          }
                           await ResourceService.updateResourceInDB(newItem);
-                          if (mounted) messenger.showSnackBar(const SnackBar(content: Text('Resource updated successfully')));
+                          ResourceService.fetchResources(); // Refresh
+                          if (mounted) messenger.showSnackBar(const SnackBar(content: Text('Resource updated!')));
                         }
                       } catch (e) {
                         if (mounted) messenger.showSnackBar(SnackBar(content: Text('Error: $e')));
                       }
                     }
                   },
-                  child: Text(existingItem == null ? 'Upload' : 'Update'),
+                  child: Text(existingItem == null ? 'Upload Now' : 'Save Changes'),
                 ),
               ),
-              const SizedBox(height: 24),
             ],
           ),
         );
@@ -315,11 +366,25 @@ class _PdfsScreenState extends State<PdfsScreen> {
   }
 
   void _deleteItem(ResourceItem item) async {
-    try {
-      await ResourceService.deleteResourceFromDB(item);
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Resource deleted successfully')));
-    } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error deleting resource: $e')));
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete Resource'),
+        content: const Text('Are you sure you want to delete this resource?'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
+          TextButton(onPressed: () => Navigator.pop(context, true), child: const Text('Delete', style: TextStyle(color: Colors.red))),
+        ],
+      ),
+    );
+
+    if (confirm == true) {
+      try {
+        await ResourceService.deleteResourceFromDB(item);
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Resource deleted')));
+      } catch (e) {
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+      }
     }
   }
 
@@ -328,12 +393,12 @@ class _PdfsScreenState extends State<PdfsScreen> {
     final colors = Theme.of(context).colorScheme;
 
     return Scaffold(
-      appBar: AppBar(title: Text(widget.title)),
+      appBar: AppBar(title: Text(widget.session)),
       body: ValueListenableBuilder<List<ResourceItem>>(
         valueListenable: resourceState,
         builder: (context, items, _) {
-          // Filter resources for this specific session
-          final sessionItems = items.where((i) => i.session == widget.session).toList();
+          // Filter resources for this specific session AND semester
+          final sessionItems = items.where((i) => i.session == widget.session && i.semester == widget.semester).toList();
 
           return ListView(
             padding: const EdgeInsets.all(16.0),
@@ -341,18 +406,21 @@ class _PdfsScreenState extends State<PdfsScreen> {
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: widget.color.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: widget.color.withValues(alpha: 0.3)),
+                  color: widget.color.withOpacity(0.05),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: widget.color.withOpacity(0.1)),
                 ),
                 child: Row(
                   children: [
-                    Icon(Icons.info_outline, color: widget.color),
-                    const SizedBox(width: 12),
+                    Icon(Icons.folder_open_rounded, color: widget.color),
+                    const SizedBox(width: 16),
                     Expanded(
-                      child: Text(
-                        'These are placeholder files. You can add or edit resources if you are a Committee Member.',
-                        style: TextStyle(color: widget.color, fontSize: 13, fontWeight: FontWeight.w500),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('${widget.semester} Resources', style: const TextStyle(fontWeight: FontWeight.bold)),
+                          Text('Academic Session ${widget.session}', style: TextStyle(color: colors.onSurfaceVariant, fontSize: 12)),
+                        ],
                       ),
                     ),
                   ],
@@ -360,42 +428,45 @@ class _PdfsScreenState extends State<PdfsScreen> {
               ),
               const SizedBox(height: 24),
               if (sessionItems.isEmpty)
-                const Center(child: Padding(padding: EdgeInsets.all(32), child: Text('No resources uploaded yet.'))),
-              ...sessionItems.map((pdf) => Card(
-                margin: const EdgeInsets.only(bottom: 12),
-                elevation: 0,
-                color: colors.surface,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  side: BorderSide(color: colors.outline.withValues(alpha: 0.1)),
-                ),
-                child: ListTile(
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  leading: Container(
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(color: Colors.redAccent.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(8)),
-                    child: const Icon(Icons.picture_as_pdf, color: Colors.redAccent),
-                  ),
-                  title: Text(pdf.name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-                  subtitle: Padding(
-                    padding: const EdgeInsets.only(top: 4.0),
-                    child: Row(
+                Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(64),
+                    child: Column(
                       children: [
-                        Text(pdf.size, style: TextStyle(color: colors.onSurface.withValues(alpha: 0.6), fontSize: 12)),
-                        const SizedBox(width: 8),
-                        Text('• ${pdf.date}', style: TextStyle(color: colors.onSurface.withValues(alpha: 0.4), fontSize: 12)),
+                        Icon(Icons.cloud_off_rounded, size: 64, color: colors.onSurfaceVariant.withOpacity(0.2)),
+                        const SizedBox(height: 16),
+                        Text('No resources found', style: TextStyle(color: colors.onSurfaceVariant)),
                       ],
                     ),
+                  ),
+                ),
+              ...sessionItems.map((res) => Card(
+                margin: const EdgeInsets.only(bottom: 16),
+                elevation: 0,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  side: BorderSide(color: colors.outline.withOpacity(0.1)),
+                ),
+                child: ListTile(
+                  contentPadding: const EdgeInsets.all(16),
+                  leading: Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(color: Colors.redAccent.withOpacity(0.1), borderRadius: BorderRadius.circular(12)),
+                    child: const Icon(Icons.insert_drive_file_rounded, color: Colors.redAccent),
+                  ),
+                  title: Text(res.name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+                  subtitle: Padding(
+                    padding: const EdgeInsets.only(top: 4.0),
+                    child: Text('${res.size} • ${res.date}', style: TextStyle(color: colors.onSurfaceVariant, fontSize: 12)),
                   ),
                   trailing: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       IconButton(
-                        icon: Icon(Icons.download, color: widget.color),
+                        icon: Icon(Icons.open_in_new_rounded, color: widget.color),
                         onPressed: () {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('Downloading file...')),
-                          );
+                          // Launch URL (requires url_launcher)
+                          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Opening resource link...')));
                         },
                       ),
                       ValueListenableBuilder<ProfileData>(
@@ -403,17 +474,14 @@ class _PdfsScreenState extends State<PdfsScreen> {
                         builder: (context, profile, _) {
                           if (profile.role == UserRole.committeeMember || profile.role == UserRole.superUser) {
                             return PopupMenuButton<String>(
-                              icon: const Icon(Icons.more_vert, size: 20),
+                              icon: const Icon(Icons.more_vert_rounded),
                               onSelected: (value) {
-                                if (value == 'edit') {
-                                  _showForm(context, existingItem: pdf);
-                                } else if (value == 'delete') {
-                                  _deleteItem(pdf);
-                                }
+                                if (value == 'edit') _showForm(context, existingItem: res);
+                                if (value == 'delete') _deleteItem(res);
                               },
                               itemBuilder: (context) => [
-                                const PopupMenuItem(value: 'edit', child: Text('Edit')),
-                                const PopupMenuItem(value: 'delete', child: Text('Delete', style: TextStyle(color: Colors.red))),
+                                const PopupMenuItem(value: 'edit', child: Text('Update Details')),
+                                const PopupMenuItem(value: 'delete', child: Text('Delete File', style: TextStyle(color: Colors.red))),
                               ],
                             );
                           }
@@ -432,9 +500,12 @@ class _PdfsScreenState extends State<PdfsScreen> {
         valueListenable: currentProfile,
         builder: (context, profile, _) {
           if (profile.role == UserRole.committeeMember || profile.role == UserRole.superUser) {
-            return FloatingActionButton(
+            return FloatingActionButton.extended(
+              backgroundColor: widget.color,
+              foregroundColor: Colors.white,
               onPressed: () => _showForm(context),
-              child: const Icon(Icons.upload_file),
+              icon: const Icon(Icons.add_rounded),
+              label: const Text('Add File'),
             );
           }
           return const SizedBox.shrink();
