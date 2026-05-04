@@ -213,11 +213,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
               _sectionLabel('Personal Information'),
               const SizedBox(height: 12),
-              Row(children: [
-                Expanded(child: _buildTextField('First Name', _firstNameController, Icons.person)),
-                const SizedBox(width: 16),
-                Expanded(child: _buildTextField('Last Name', _lastNameController, Icons.person_outline)),
-              ]),
+              _buildTextField('First Name', _firstNameController, Icons.person),
+              const SizedBox(height: 16),
+              _buildTextField('Last Name', _lastNameController, Icons.person_outline),
               const SizedBox(height: 16),
               _buildTextField('Email (Read Only)', _emailController, Icons.email, readOnly: true),
               
@@ -237,50 +235,41 @@ class _ProfileScreenState extends State<ProfileScreen> {
               const SizedBox(height: 24),
               _sectionLabel(isSuperuser ? 'Academic Information' : 'Academic Information (Locked)'),
               const SizedBox(height: 12),
-              Row(children: [
-                Expanded(child: _buildTextField('University ID', _universityIdController, Icons.badge, readOnly: !isSuperuser)),
-                const SizedBox(width: 16),
-                Expanded(child: _buildTextField('Class Roll', _classRollController, Icons.numbers, readOnly: !isSuperuser)),
-              ]),
+              _buildTextField('University ID', _universityIdController, Icons.badge, readOnly: !isSuperuser),
+              const SizedBox(height: 16),
+              _buildTextField('Class Roll', _classRollController, Icons.numbers, readOnly: !isSuperuser),
               const SizedBox(height: 16),
               
               if (isSuperuser) ...[
-                Row(
-                  children: [
-                    Expanded(
-                      child: Builder(builder: (context) {
-                        final generatedSessions = [for (var i = 2015; i <= 2026; i++) '${i}-${i + 1}'];
-                        if (_selectedSession != null && _selectedSession!.isNotEmpty && !generatedSessions.contains(_selectedSession)) {
-                          generatedSessions.add(_selectedSession!);
-                          generatedSessions.sort((a, b) => b.compareTo(a));
-                        }
-                        return DropdownButtonFormField<String>(
-                          value: _selectedSession,
-                          decoration: _inputDecoration('Session', Icons.date_range),
-                          items: generatedSessions.map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
-                          onChanged: (val) => setState(() => _selectedSession = val),
-                        );
-                      }),
-                    ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: Builder(builder: (context) {
-                        final generatedBatches = [for (var i = 1; i <= 10; i++) '$i'];
-                        if (_selectedBatch != null && _selectedBatch!.isNotEmpty && !generatedBatches.contains(_selectedBatch)) {
-                          generatedBatches.add(_selectedBatch!);
-                        }
-                        generatedBatches.sort((a, b) => int.parse(a).compareTo(int.parse(b)));
-                        return DropdownButtonFormField<String>(
-                          value: _selectedBatch,
-                          decoration: _inputDecoration('Batch', Icons.group),
-                          items: generatedBatches.map((s) => DropdownMenuItem(value: s, child: Text('Batch $s'))).toList(),
-                          onChanged: (val) => setState(() => _selectedBatch = val),
-                        );
-                      }),
-                    ),
-                  ],
-                ),
-              ] else ...[
+                Builder(builder: (context) {
+                  final generatedSessions = [for (var i = 2015; i <= 2026; i++) '${i}-${i + 1}'];
+                  if (_selectedSession != null && _selectedSession!.isNotEmpty && !generatedSessions.contains(_selectedSession)) {
+                    generatedSessions.add(_selectedSession!);
+                    generatedSessions.sort((a, b) => b.compareTo(a));
+                  }
+                  return DropdownButtonFormField<String>(
+                    value: _selectedSession,
+                    decoration: _inputDecoration('Session', Icons.date_range),
+                    items: generatedSessions.map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
+                    onChanged: (val) => setState(() => _selectedSession = val),
+                  );
+                }),
+                const SizedBox(height: 16),
+                Builder(builder: (context) {
+                  final generatedBatches = [for (var i = 1; i <= 10; i++) '$i'];
+                  if (_selectedBatch != null && _selectedBatch!.isNotEmpty && !generatedBatches.contains(_selectedBatch)) {
+                    generatedBatches.add(_selectedBatch!);
+                  }
+                  generatedBatches.sort((a, b) => int.parse(a).compareTo(int.parse(b)));
+                  return DropdownButtonFormField<String>(
+                    value: _selectedBatch,
+                    decoration: _inputDecoration('Batch', Icons.group),
+                    items: generatedBatches.map((s) => DropdownMenuItem(value: s, child: Text('Batch $s'))).toList(),
+                    onChanged: (val) => setState(() => _selectedBatch = val),
+                  );
+                }),
+              ]
+ else ...[
                 _buildTextField('Session', TextEditingController(text: _selectedSession), Icons.date_range, readOnly: true),
                 const SizedBox(height: 16),
                 _buildTextField('Batch', TextEditingController(text: _selectedBatch != null ? 'Batch $_selectedBatch' : ''), Icons.group, readOnly: true),

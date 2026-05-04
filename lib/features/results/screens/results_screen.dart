@@ -56,54 +56,89 @@ class _ResultsScreenState extends State<ResultsScreen> {
               return IconButton(
                 icon: const Icon(Icons.sync),
                 tooltip: 'Sync Results',
-                onPressed: () {
-                  ResultService.syncResults();
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Syncing results... this may take a moment.')),
-                  );
+                onPressed: () async {
+                  await ResultService.syncResults();
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Sync complete!')),
+                    );
+                  }
                 },
               );
             },
           ),
         ],
       ),
-      body: ValueListenableBuilder<List<ExamResult>>(
-        valueListenable: studentResultsState,
-        builder: (context, results, _) {
-          if (results.isEmpty) {
-            return Center(
-              child: Padding(
-                padding: const EdgeInsets.all(32.0),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
+      body: Column(
+        children: [
+          // 1. Progress Bar at the Top
+          ValueListenableBuilder<bool>(
+            valueListenable: isSyncingResults,
+            builder: (context, isSyncing, _) {
+              if (isSyncing) {
+                return Column(
                   children: [
-                    Icon(Icons.assignment_late, size: 64, color: colors.onSurface.withValues(alpha: 0.3)),
-                    const SizedBox(height: 16),
-                    Text(
-                      'No results found.',
-                      style: TextStyle(fontSize: 18, color: colors.onSurface.withValues(alpha: 0.6)),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'Click the Sync icon in the top right to fetch your latest results.',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(fontSize: 14, color: colors.onSurface.withValues(alpha: 0.5)),
+                    const LinearProgressIndicator(),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 8.0),
+                      child: Text(
+                        'Syncing academic results... please wait',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: colors.primary,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
                     ),
                   ],
-                ),
-              ),
-            );
-          }
-
-          return ListView.builder(
-            padding: const EdgeInsets.all(16.0),
-            itemCount: results.length,
-            itemBuilder: (context, index) {
-              final result = results[index];
-              return _buildResultCard(context, result);
+                );
+              }
+              return const SizedBox(height: 4); // Spacer when not syncing
             },
-          );
-        },
+          ),
+          
+          // 2. Main Content
+          Expanded(
+            child: ValueListenableBuilder<List<ExamResult>>(
+              valueListenable: studentResultsState,
+              builder: (context, results, _) {
+                if (results.isEmpty) {
+                  return Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(32.0),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.assignment_late, size: 64, color: colors.onSurface.withValues(alpha: 0.3)),
+                          const SizedBox(height: 16),
+                          Text(
+                            'No results found.',
+                            style: TextStyle(fontSize: 18, color: colors.onSurface.withValues(alpha: 0.6)),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            'Click the Sync icon in the top right to fetch your latest results.',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(fontSize: 14, color: colors.onSurface.withValues(alpha: 0.5)),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                }
+
+                return ListView.builder(
+                  padding: const EdgeInsets.all(16.0),
+                  itemCount: results.length,
+                  itemBuilder: (context, index) {
+                    final result = results[index];
+                    return _buildResultCard(context, result);
+                  },
+                );
+              },
+            ),
+          ),
+        ],
       ),
     );
   }
