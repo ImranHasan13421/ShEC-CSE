@@ -53,17 +53,35 @@ class _ResultsScreenState extends State<ResultsScreen> {
                   ),
                 );
               }
-              return IconButton(
-                icon: const Icon(Icons.sync),
-                tooltip: 'Sync Results',
-                onPressed: () async {
-                  await ResultService.syncResults();
-                  if (context.mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Sync complete!')),
-                    );
-                  }
-                },
+              return Row(
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.sync),
+                    tooltip: 'Sync Results',
+                    onPressed: () async {
+                      await ResultService.syncResults();
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Sync complete!')),
+                        );
+                      }
+                    },
+                  ),
+                  if (currentProfile.value.role == UserRole.superUser || 
+                      currentProfile.value.designation == 'President' || 
+                      currentProfile.value.designation == 'Vice President')
+                    PopupMenuButton<String>(
+                      icon: const Icon(Icons.admin_panel_settings),
+                      onSelected: (val) {
+                        if (val == 'session') _showAdminIdDialog('Session');
+                        if (val == 'exam') _showAdminIdDialog('Exam');
+                      },
+                      itemBuilder: (context) => [
+                        const PopupMenuItem(value: 'session', child: Text('Manage Session IDs')),
+                        const PopupMenuItem(value: 'exam', child: Text('Manage Exam IDs')),
+                      ],
+                    ),
+                ],
               );
             },
           ),
@@ -137,6 +155,69 @@ class _ResultsScreenState extends State<ResultsScreen> {
                 );
               },
             ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showAdminIdDialog(String type) {
+    final nameController = TextEditingController();
+    final idController = TextEditingController();
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Add $type ID'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: nameController,
+              decoration: InputDecoration(
+                labelText: type == 'Session' ? 'Session Name (e.g., 2020-21)' : 'Exam Name (e.g., 1st Year)',
+                border: const OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: idController,
+              decoration: InputDecoration(
+                labelText: '$type ID (from DUCMC)',
+                border: const OutlineInputBorder(),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+          ElevatedButton(
+            onPressed: () async {
+              final name = nameController.text.trim();
+              final id = idController.text.trim();
+              if (name.isEmpty || id.isEmpty) return;
+
+              try {
+                if (type == 'Session') {
+                  await ResultService.addSessionId(name, id);
+                } else {
+                  await ResultService.addExamId(name, id);
+                }
+                if (mounted) {
+                  Navigator.pop(context);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('$type ID saved successfully')),
+                  );
+                }
+              } catch (e) {
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+                  );
+                }
+              }
+            },
+            child: const Text('Save'),
           ),
         ],
       ),

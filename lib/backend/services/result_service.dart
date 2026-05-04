@@ -77,14 +77,19 @@ class ResultService {
     }
   }
 
-  // 3. (Optional) Fetch available exam IDs for metadata
-  static Future<List<DucmcExam>> fetchExams() async {
-    try {
-      final response = await _client.from('DUCMC_exams_id').select();
-      return (response as List).map((e) => DucmcExam.fromJson(e)).toList();
-    } catch (e) {
-      debugPrint('Error fetching exams: $e');
-      return [];
-    }
+  // 4. Add new session ID (Admin only)
+  static Future<void> addSessionId(String session, String sessId) async {
+    await _client.from('DUCMC_sessions_id').upsert({
+      'session': session,
+      'sess_id': sessId,
+    });
+  }
+
+  // 5. Add new exam ID (Admin only)
+  static Future<void> addExamId(String examName, String examId) async {
+    await _client.from('DUCMC_exams_id').upsert({
+      'exam_name': examName,
+      'exam_id': examId,
+    });
   }
 }
