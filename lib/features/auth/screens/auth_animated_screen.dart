@@ -55,18 +55,9 @@ class _AuthAnimatedScreenState extends State<AuthAnimatedScreen> with TickerProv
   @override
   void initState() {
     super.initState();
-    _controller = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 800),
-    );
-    _backgroundController = AnimationController(
-      vsync: this,
-      duration: const Duration(seconds: 20),
-    )..repeat();
-    _signupFieldsController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 1500),
-    );
+    _controller = AnimationController(vsync: this, duration: const Duration(milliseconds: 800));
+    _backgroundController = AnimationController(vsync: this, duration: const Duration(seconds: 20))..repeat();
+    _signupFieldsController = AnimationController(vsync: this, duration: const Duration(milliseconds: 1500));
     _fetchSessions();
   }
 
@@ -78,25 +69,12 @@ class _AuthAnimatedScreenState extends State<AuthAnimatedScreen> with TickerProv
           _sessions = data;
           _isSessionsLoading = false;
           if (_sessions.isEmpty) {
-            _sessions = [
-              {'session': '2025-2026'},
-              {'session': '2024-2025'},
-              {'session': '2023-2024'},
-              {'session': '2022-2023'},
-              {'session': '2021-2022'},
-              {'session': '2020-2021'},
-              {'session': '2019-2020'},
-            ];
+            _sessions = [{'session': '2024-2025'}, {'session': '2023-2024'}];
           }
         });
       }
     } catch (e) {
-      if (mounted) {
-        setState(() {
-          _isSessionsLoading = false;
-          _sessions = [{'session': '2023-2024'}, {'session': '2022-2023'}];
-        });
-      }
+      if (mounted) setState(() => _isSessionsLoading = false);
     }
   }
 
@@ -114,37 +92,15 @@ class _AuthAnimatedScreenState extends State<AuthAnimatedScreen> with TickerProv
   }
 
   // --- Auth Logic ---
-
   Future<void> _login() async {
     if (_loginEmailController.text.isEmpty || _loginPasswordController.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please enter email and password')));
       return;
     }
-
     setState(() => _isLoading = true);
     try {
-      await AuthService.signIn(
-        email: _loginEmailController.text.trim(),
-        password: _loginPasswordController.text.trim(),
-      );
-      if (mounted) {
-        _backgroundController.duration = const Duration(milliseconds: 500);
-        _backgroundController.repeat(period: const Duration(milliseconds: 500));
-        await Future.delayed(const Duration(milliseconds: 500));
-        if (mounted) {
-          Navigator.pushReplacement(
-            context, 
-            PageRouteBuilder(
-              pageBuilder: (_, __, ___) => const HomeLayout(),
-              transitionsBuilder: (_, anim, __, child) => FadeTransition(
-                opacity: anim,
-                child: ScaleTransition(scale: Tween<double>(begin: 0.5, end: 1.0).animate(anim), child: child),
-              ),
-              transitionDuration: const Duration(milliseconds: 800),
-            )
-          );
-        }
-      }
+      await AuthService.signIn(email: _loginEmailController.text.trim(), password: _loginPasswordController.text.trim());
+      if (mounted) Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const HomeLayout()));
     } catch (e) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
     } finally {
@@ -154,45 +110,30 @@ class _AuthAnimatedScreenState extends State<AuthAnimatedScreen> with TickerProv
 
   Future<void> _signUp() async {
     if (!_signupFormKey.currentState!.validate()) return;
-    if (_selectedSession == null || _selectedBatch == null) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please select session and batch')));
-      return;
-    }
-
     setState(() => _isLoading = true);
-
     try {
       String? profilePicUrl;
       if (_profileImageFile != null) {
         final fileName = 'profile_${DateTime.now().millisecondsSinceEpoch}.webp';
-        final client = Supabase.instance.client;
-        await client.storage.from('profile_pictures').upload(fileName, _profileImageFile!);
-        profilePicUrl = client.storage.from('profile_pictures').getPublicUrl(fileName);
+        await Supabase.instance.client.storage.from('profile_pictures').upload(fileName, _profileImageFile!);
+        profilePicUrl = Supabase.instance.client.storage.from('profile_pictures').getPublicUrl(fileName);
       }
-
       await AuthService.signUp(
         email: _signupEmailController.text.trim(),
         password: _signupPasswordController.text.trim(),
         firstName: _signupFirstNameController.text.trim(),
         lastName: _signupLastNameController.text.trim(),
-        batch: _selectedBatch!,
-        session: _selectedSession!,
+        batch: _selectedBatch ?? '1',
+        session: _selectedSession ?? '2024-2025',
         duReg: _signupDuRegController.text.trim(),
         phone: _signupPhoneController.text.trim(),
         profilePic: profilePicUrl,
         universityId: _signupUniversityIdController.text.trim(),
         classRoll: _signupClassRollController.text.trim(),
       );
-
-      if (mounted) {
-        Navigator.pushAndRemoveUntil(
-          context,
-          MaterialPageRoute(builder: (_) => const PendingApprovalScreen()),
-          (route) => false,
-        );
-      }
+      if (mounted) Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const PendingApprovalScreen()));
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red));
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -202,12 +143,7 @@ class _AuthAnimatedScreenState extends State<AuthAnimatedScreen> with TickerProv
     final picker = ImagePicker();
     final picked = await picker.pickImage(source: ImageSource.gallery);
     if (picked != null) {
-      if (!mounted) return;
-      final cropped = await ImageProcessingService.cropImage(
-        context, 
-        File(picked.path),
-        aspectRatio: const CropAspectRatio(ratioX: 1, ratioY: 1),
-      );
+      final cropped = await ImageProcessingService.cropImage(context, File(picked.path), aspectRatio: const CropAspectRatio(ratioX: 1, ratioY: 1));
       if (cropped != null) {
         final processed = await ImageProcessingService.processAndConvert(cropped);
         if (processed != null) setState(() => _profileImageFile = processed);
@@ -218,29 +154,19 @@ class _AuthAnimatedScreenState extends State<AuthAnimatedScreen> with TickerProv
   @override
   Widget build(BuildContext context) {
     final size = MediaQuery.of(context).size;
-
     return Scaffold(
-      backgroundColor: const Color(0xFF0D0221), 
+      backgroundColor: const Color(0xFFF8F9FD),
       body: Stack(
         alignment: Alignment.center,
         children: [
           AnimatedBuilder(
             animation: _backgroundController,
             builder: (context, child) {
-              return CustomPaint(
-                painter: CosmicPainter(_backgroundController.value),
-                size: size,
-              );
+              return CustomPaint(painter: LightCosmicPainter(_backgroundController.value), size: size);
             },
           ),
-          Positioned(
-            top: size.height * 0.1, left: -50,
-            child: _GlowOrb(color: Colors.blue.withValues(alpha: 0.3), size: 300),
-          ),
-          Positioned(
-            bottom: size.height * 0.1, right: -100,
-            child: _GlowOrb(color: Colors.pink.withValues(alpha: 0.2), size: 400),
-          ),
+          Positioned(top: size.height * 0.1, left: -50, child: _GlowOrb(color: Colors.blue.withValues(alpha: 0.1), size: 300)),
+          Positioned(bottom: size.height * 0.1, right: -100, child: _GlowOrb(color: Colors.pink.withValues(alpha: 0.05), size: 400)),
           Positioned(
             top: size.height * 0.1,
             child: AnimatedBuilder(
@@ -249,22 +175,8 @@ class _AuthAnimatedScreenState extends State<AuthAnimatedScreen> with TickerProv
                 return Stack(
                   alignment: Alignment.center,
                   children: [
-                    _buildCard(
-                      size: size,
-                      title: 'Login',
-                      isActive: _isLoginActive,
-                      onToggle: _toggleAuth,
-                      child: _buildLoginForm(),
-                      offsetMultiplier: 1,
-                    ),
-                    _buildCard(
-                      size: size,
-                      title: 'Sign Up',
-                      isActive: !_isLoginActive,
-                      onToggle: _toggleAuth,
-                      child: _buildSignupForm(),
-                      offsetMultiplier: -1,
-                    ),
+                    _buildCard(size: size, title: 'Login', isActive: _isLoginActive, child: _buildLoginForm(), offsetMultiplier: 1),
+                    _buildCard(size: size, title: 'Sign Up', isActive: !_isLoginActive, child: _buildSignupForm(), offsetMultiplier: -1),
                   ],
                 );
               },
@@ -275,127 +187,97 @@ class _AuthAnimatedScreenState extends State<AuthAnimatedScreen> with TickerProv
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Text(
-                  _isLoginActive ? "Don't have an account? " : "Already have an account? ",
-                  style: const TextStyle(color: Colors.white54, letterSpacing: 0.5),
-                ),
+                Text(_isLoginActive ? "Don't have an account? " : "Already have an account? ", style: const TextStyle(color: Color(0xFF636E72), letterSpacing: 0.5)),
                 TextButton(
                   onPressed: _isLoading ? null : _toggleAuth,
-                  child: Text(
-                    _isLoginActive ? "JOIN NOW" : "LOGIN",
-                    style: const TextStyle(
-                      color: Colors.blueAccent, 
-                      fontWeight: FontWeight.bold,
-                      shadows: [Shadow(color: Colors.blueAccent, blurRadius: 10)],
-                    ),
-                  ),
+                  child: Text(_isLoginActive ? "JOIN NOW" : "LOGIN", style: const TextStyle(color: Color(0xFF6C63FF), fontWeight: FontWeight.bold)),
                 ),
               ],
             ),
           ),
-          if (_isLoading)
-            Container(color: Colors.black45, child: const Center(child: CircularProgressIndicator())),
+          if (_isLoading) Container(color: Colors.white70, child: const Center(child: CircularProgressIndicator())),
         ],
       ),
     );
   }
 
-  Widget _buildCard({
-    required Size size,
-    required String title,
-    required bool isActive,
-    required VoidCallback onToggle,
-    required Widget child,
-    required int offsetMultiplier,
-  }) {
+  Widget _buildCard({required Size size, required String title, required bool isActive, required Widget child, required int offsetMultiplier}) {
     final progress = _controller.value;
-    
     double rotation = 0;
     double translateY = 0;
     double scale = 1.0;
     double opacity = 1.0;
 
-    // improved transition logic to prevent overlap
+    // Sophisticated 3D Rotational Transition
     if (offsetMultiplier == 1) { // LOGIN CARD
       if (_isLoginActive) {
-        // Active state: centered
-        translateY = progress * -size.height; // Moves up when switching TO signup
-        rotation = progress * -0.2;
-        opacity = 1.0 - progress;
+        // Active -> Rotating away to the left
+        rotation = progress * -math.pi; 
+        translateY = progress * -20; // Slight lift
+        scale = 1.0 - (progress * 0.2);
+        opacity = (1.0 - progress).clamp(0.0, 1.0);
       } else {
-        // Inactive state: coming back from "below"
-        translateY = (1 - progress) * size.height * 0.5; 
+        // Inactive -> Rotating back into center
+        rotation = (1 - progress) * math.pi;
         scale = 0.8 + (progress * 0.2);
         opacity = progress;
       }
     } else { // SIGNUP CARD
       if (!_isLoginActive) {
-        // Active state: centered
-        translateY = (1 - progress) * size.height; // Moves up when switching TO login
-        rotation = (1 - progress) * 0.2;
+        // Active -> Rotating away to the right
+        rotation = (1 - progress) * math.pi;
+        translateY = (1 - progress) * -20;
+        scale = 1.0 - ((1 - progress) * 0.2);
         opacity = progress;
       } else {
-        // Inactive state: waiting "below"
-        translateY = size.height; // Push it completely off screen when login is active
+        // Inactive -> Waiting rotated
+        rotation = -math.pi;
         opacity = 0.0;
       }
     }
 
     return AnimatedOpacity(
-      duration: const Duration(milliseconds: 300),
+      duration: const Duration(milliseconds: 400),
       opacity: opacity,
       child: IgnorePointer(
         ignoring: !isActive,
         child: Transform(
           alignment: Alignment.center,
           transform: Matrix4.identity()
+            ..setEntry(3, 2, 0.001) // Perspective
             ..translate(0.0, translateY)
-            ..rotateZ(rotation)
+            ..rotateY(rotation)
             ..scale(scale),
           child: Container(
             width: size.width * 0.88,
-            height: size.height * 0.72,
+            height: size.height * 0.78, // Slightly taller for light mode layout
             decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.08),
+              color: Colors.white.withValues(alpha: 0.7),
               borderRadius: BorderRadius.circular(30),
-              border: Border.all(color: Colors.white.withValues(alpha: 0.15)),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.5)),
               boxShadow: [
-                BoxShadow(color: Colors.black54, blurRadius: 40, offset: const Offset(0, 20)),
-                BoxShadow(color: Colors.blueAccent.withValues(alpha: 0.1), blurRadius: 10, spreadRadius: -5),
+                BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 40, offset: const Offset(0, 20)),
+                BoxShadow(color: const Color(0xFF6C63FF).withValues(alpha: 0.05), blurRadius: 15, spreadRadius: -5),
               ],
             ),
             child: ClipRRect(
               borderRadius: BorderRadius.circular(30),
               child: BackdropFilter(
-                filter: ui.ImageFilter.blur(sigmaX: 15, sigmaY: 15),
+                filter: ui.ImageFilter.blur(sigmaX: 20, sigmaY: 20),
                 child: Column(
                   children: [
                     Container(
                       width: double.infinity,
                       padding: const EdgeInsets.symmetric(vertical: 30),
-                      color: Colors.white.withValues(alpha: 0.05),
+                      color: Colors.white.withValues(alpha: 0.3),
                       child: Text(
                         title.toUpperCase(),
                         textAlign: TextAlign.center,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 22,
-                          fontWeight: FontWeight.w900,
-                          letterSpacing: 4,
-                          shadows: [Shadow(color: Colors.blueAccent, blurRadius: 15)],
-                        ),
+                        style: const TextStyle(color: Color(0xFF2D3436), fontSize: 22, fontWeight: FontWeight.w900, letterSpacing: 4),
                       ),
                     ),
-                    Expanded(
-                      child: SingleChildScrollView(
-                        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
-                        child: child,
-                      ),
-                    ),
-                    _GlowButton(
-                      text: title == 'Login' ? 'LOG IN' : 'CREATE ACCOUNT',
-                      onTap: title == 'Login' ? _login : _signUp,
-                    ),
+                    Expanded(child: SingleChildScrollView(padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10), child: child)),
+                    _GlowButton(text: title == 'Login' ? 'LOG IN' : 'CREATE ACCOUNT', onTap: title == 'Login' ? _login : _signUp),
                   ],
                 ),
               ),
@@ -410,19 +292,12 @@ class _AuthAnimatedScreenState extends State<AuthAnimatedScreen> with TickerProv
     return Column(
       children: [
         const SizedBox(height: 30),
-        _buildGlowTextField(
-          controller: _loginEmailController,
-          hint: 'EMAIL / USERNAME',
-          icon: Icons.alternate_email_rounded,
-        ),
+        _buildGlowTextField(controller: _loginEmailController, hint: 'EMAIL / USERNAME', icon: Icons.alternate_email_rounded),
         const SizedBox(height: 25),
         _buildGlowTextField(
-          controller: _loginPasswordController,
-          hint: 'PASSWORD',
-          icon: Icons.lock_person_outlined,
-          obscure: !_loginPasswordVisible,
+          controller: _loginPasswordController, hint: 'PASSWORD', icon: Icons.lock_person_outlined, obscure: !_loginPasswordVisible,
           suffix: IconButton(
-            icon: Icon(_loginPasswordVisible ? Icons.visibility : Icons.visibility_off, color: Colors.blueAccent),
+            icon: Icon(_loginPasswordVisible ? Icons.visibility : Icons.visibility_off, color: const Color(0xFF6C63FF)),
             onPressed: () => setState(() => _loginPasswordVisible = !_loginPasswordVisible),
           ),
         ),
@@ -431,7 +306,7 @@ class _AuthAnimatedScreenState extends State<AuthAnimatedScreen> with TickerProv
           alignment: Alignment.centerRight,
           child: TextButton(
             onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ForgotPasswordScreen())),
-            child: const Text('FORGOT PASSWORD?', style: TextStyle(color: Colors.white38, fontSize: 10, letterSpacing: 1)),
+            child: const Text('FORGOT PASSWORD?', style: TextStyle(color: Colors.black38, fontSize: 10, letterSpacing: 1)),
           ),
         ),
         const SizedBox(height: 20),
@@ -465,23 +340,17 @@ class _AuthAnimatedScreenState extends State<AuthAnimatedScreen> with TickerProv
           _buildProgressiveItem(9, _buildGlowTextField(controller: _signupEmailController, hint: 'EMAIL', icon: Icons.email_outlined)),
           const SizedBox(height: 15),
           _buildProgressiveItem(10, _buildGlowTextField(
-            controller: _signupPasswordController, 
-            hint: 'PASSWORD', 
-            icon: Icons.lock_outline, 
-            obscure: !_signupPasswordVisible,
+            controller: _signupPasswordController, hint: 'PASSWORD', icon: Icons.lock_outline, obscure: !_signupPasswordVisible,
             suffix: IconButton(
-              icon: Icon(_signupPasswordVisible ? Icons.visibility : Icons.visibility_off, color: Colors.blueAccent),
+              icon: Icon(_signupPasswordVisible ? Icons.visibility : Icons.visibility_off, color: const Color(0xFF6C63FF)),
               onPressed: () => setState(() => _signupPasswordVisible = !_signupPasswordVisible),
             ),
           )),
           const SizedBox(height: 15),
           _buildProgressiveItem(11, _buildGlowTextField(
-            controller: _signupConfirmPasswordController, 
-            hint: 'CONFIRM PASSWORD', 
-            icon: Icons.lock_reset_rounded, 
-            obscure: !_signupConfirmPasswordVisible,
+            controller: _signupConfirmPasswordController, hint: 'CONFIRM PASSWORD', icon: Icons.lock_reset_rounded, obscure: !_signupConfirmPasswordVisible,
             suffix: IconButton(
-              icon: Icon(_signupConfirmPasswordVisible ? Icons.visibility : Icons.visibility_off, color: Colors.blueAccent),
+              icon: Icon(_signupConfirmPasswordVisible ? Icons.visibility : Icons.visibility_off, color: const Color(0xFF6C63FF)),
               onPressed: () => setState(() => _signupConfirmPasswordVisible = !_signupConfirmPasswordVisible),
             ),
           )),
@@ -495,15 +364,9 @@ class _AuthAnimatedScreenState extends State<AuthAnimatedScreen> with TickerProv
     return AnimatedBuilder(
       animation: _signupFieldsController,
       builder: (context, _) {
-        final start = index * 0.1;
-        final anim = CurvedAnimation(
-          parent: _signupFieldsController,
-          curve: Interval(start.clamp(0, 0.9), (start + 0.2).clamp(0, 1), curve: Curves.easeOutCubic),
-        );
-        return Transform.translate(
-          offset: Offset(0, 20 * (1 - anim.value)),
-          child: Opacity(opacity: anim.value, child: child),
-        );
+        final start = index * 0.08;
+        final anim = CurvedAnimation(parent: _signupFieldsController, curve: Interval(start.clamp(0, 0.9), (start + 0.2).clamp(0, 1), curve: Curves.easeOutCubic));
+        return Transform.translate(offset: Offset(0, 20 * (1 - anim.value)), child: Opacity(opacity: anim.value, child: child));
       },
     );
   }
@@ -513,41 +376,26 @@ class _AuthAnimatedScreenState extends State<AuthAnimatedScreen> with TickerProv
       onTap: _pickProfileImage,
       child: Container(
         padding: const EdgeInsets.all(4),
-        decoration: BoxDecoration(shape: BoxShape.circle, border: Border.all(color: Colors.blueAccent.withValues(alpha: 0.3))),
+        decoration: BoxDecoration(shape: BoxShape.circle, border: Border.all(color: const Color(0xFF6C63FF).withValues(alpha: 0.3))),
         child: CircleAvatar(
-          radius: 35,
-          backgroundColor: Colors.white.withValues(alpha: 0.05),
+          radius: 35, backgroundColor: Colors.black.withValues(alpha: 0.05),
           backgroundImage: _profileImageFile != null ? FileImage(_profileImageFile!) : null,
-          child: _profileImageFile == null ? const Icon(Icons.add_a_photo_outlined, color: Colors.blueAccent) : null,
+          child: _profileImageFile == null ? const Icon(Icons.add_a_photo_outlined, color: Color(0xFF6C63FF)) : null,
         ),
       ),
     );
   }
 
-  Widget _buildGlowTextField({
-    required TextEditingController controller,
-    required String hint,
-    required IconData icon,
-    bool obscure = false,
-    Widget? suffix,
-  }) {
+  Widget _buildGlowTextField({required TextEditingController controller, required String hint, required IconData icon, bool obscure = false, Widget? suffix}) {
     return Container(
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.03),
-        borderRadius: BorderRadius.circular(15),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
-      ),
+      decoration: BoxDecoration(color: Colors.black.withValues(alpha: 0.03), borderRadius: BorderRadius.circular(15), border: Border.all(color: Colors.black.withValues(alpha: 0.05))),
       child: TextFormField(
-        controller: controller,
-        obscureText: obscure,
-        style: const TextStyle(color: Colors.white, fontSize: 14),
+        controller: controller, obscureText: obscure,
+        style: const TextStyle(color: Color(0xFF2D3436), fontSize: 14),
         decoration: InputDecoration(
-          hintText: hint,
-          hintStyle: const TextStyle(color: Colors.white24, fontSize: 12, letterSpacing: 1),
-          prefixIcon: Icon(icon, color: Colors.blueAccent, size: 20),
-          suffixIcon: suffix,
-          border: InputBorder.none,
-          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+          hintText: hint, hintStyle: const TextStyle(color: Colors.black26, fontSize: 12, letterSpacing: 1),
+          prefixIcon: Icon(icon, color: const Color(0xFF6C63FF), size: 20),
+          suffixIcon: suffix, border: InputBorder.none, contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
         ),
       ),
     );
@@ -555,20 +403,14 @@ class _AuthAnimatedScreenState extends State<AuthAnimatedScreen> with TickerProv
 
   Widget _buildGlowDropdown(String hint, IconData icon, List<String> items, Function(String?) onChanged) {
     return Container(
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.03),
-        borderRadius: BorderRadius.circular(15),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
-      ),
+      decoration: BoxDecoration(color: Colors.black.withValues(alpha: 0.03), borderRadius: BorderRadius.circular(15), border: Border.all(color: Colors.black.withValues(alpha: 0.05))),
       child: DropdownButtonFormField<String>(
-        dropdownColor: const Color(0xFF1E2024),
-        style: const TextStyle(color: Colors.white, fontSize: 14),
+        dropdownColor: Colors.white, iconEnabledColor: const Color(0xFF6C63FF),
+        style: const TextStyle(color: Color(0xFF2D3436), fontSize: 14),
         decoration: InputDecoration(
-          hintText: hint,
-          hintStyle: const TextStyle(color: Colors.white24, fontSize: 12, letterSpacing: 1),
-          prefixIcon: Icon(icon, color: Colors.blueAccent, size: 20),
-          border: InputBorder.none,
-          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+          hintText: hint, hintStyle: const TextStyle(color: Colors.black26, fontSize: 12, letterSpacing: 1),
+          prefixIcon: Icon(icon, color: const Color(0xFF6C63FF), size: 20),
+          border: InputBorder.none, contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
         ),
         items: items.map((i) => DropdownMenuItem(value: i, child: Text(i))).toList(),
         onChanged: onChanged,
@@ -578,36 +420,23 @@ class _AuthAnimatedScreenState extends State<AuthAnimatedScreen> with TickerProv
 
   @override
   void dispose() {
-    _controller.dispose();
-    _backgroundController.dispose();
-    _signupFieldsController.dispose();
+    _controller.dispose(); _backgroundController.dispose(); _signupFieldsController.dispose();
     super.dispose();
   }
 }
-
-// --- Helper Components ---
 
 class _GlowButton extends StatelessWidget {
   final String text;
   final VoidCallback onTap;
   const _GlowButton({required this.text, required this.onTap});
-
   @override
   Widget build(BuildContext context) {
     return InkWell(
       onTap: onTap,
       child: Container(
-        width: double.infinity,
-        height: 70,
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(colors: [Color(0xFF00ADB5), Color(0xFF6C63FF)]),
-        ),
-        child: Center(
-          child: Text(
-            text,
-            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w900, letterSpacing: 2, fontSize: 16),
-          ),
-        ),
+        width: double.infinity, height: 70,
+        decoration: const BoxDecoration(gradient: LinearGradient(colors: [Color(0xFF00ADB5), Color(0xFF6C63FF)])),
+        child: Center(child: Text(text, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w900, letterSpacing: 2, fontSize: 16))),
       ),
     );
   }
@@ -617,48 +446,32 @@ class _GlowOrb extends StatelessWidget {
   final Color color;
   final double size;
   const _GlowOrb({required this.color, required this.size});
-
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: size, height: size,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        boxShadow: [BoxShadow(color: color, blurRadius: size * 0.5, spreadRadius: 0)],
-      ),
-    );
+    return Container(width: size, height: size, decoration: BoxDecoration(shape: BoxShape.circle, boxShadow: [BoxShadow(color: color, blurRadius: size * 0.5, spreadRadius: 0)]));
   }
 }
 
-class CosmicPainter extends CustomPainter {
+class LightCosmicPainter extends CustomPainter {
   final double progress;
-  CosmicPainter(this.progress);
-
+  LightCosmicPainter(this.progress);
   @override
   void paint(Canvas canvas, Size size) {
     final random = math.Random(42);
-    final paint = Paint()..color = Colors.white.withValues(alpha: 0.1);
-    
-    // Draw Stars
-    for (int i = 0; i < 100; i++) {
+    final paint = Paint()..color = const Color(0xFF6C63FF).withValues(alpha: 0.1);
+    for (int i = 0; i < 40; i++) {
       final x = random.nextDouble() * size.width;
-      final y = (random.nextDouble() * size.height + progress * 200) % size.height;
-      final radius = random.nextDouble() * 1.5;
-      canvas.drawCircle(Offset(x, y), radius, paint);
+      final y = (random.nextDouble() * size.height + progress * 100) % size.height;
+      canvas.drawCircle(Offset(x, y), random.nextDouble() * 2, paint);
     }
-
-    // Draw Floating shapes
-    for (int i = 0; i < 5; i++) {
-      final p = (progress + i * 0.2) % 1.0;
-      final x = math.sin(p * 2 * math.pi) * 50 + size.width * (i / 5);
+    for (int i = 0; i < 4; i++) {
+      final p = (progress + i * 0.25) % 1.0;
+      final x = math.sin(p * 2 * math.pi) * 30 + size.width * (i / 4);
       final y = size.height * (1 - p);
-      final glowPaint = Paint()
-        ..color = (i % 2 == 0 ? Colors.blueAccent : Colors.pinkAccent).withValues(alpha: 0.05)
-        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 20);
-      canvas.drawCircle(Offset(x, y), 40 + i * 10, glowPaint);
+      final glowPaint = Paint()..color = (i % 2 == 0 ? const Color(0xFF00ADB5) : const Color(0xFF6C63FF)).withValues(alpha: 0.03)..maskFilter = const MaskFilter.blur(BlurStyle.normal, 30);
+      canvas.drawCircle(Offset(x, y), 60 + i * 15, glowPaint);
     }
   }
-
   @override
-  bool shouldRepaint(CosmicPainter oldDelegate) => true;
+  bool shouldRepaint(LightCosmicPainter oldDelegate) => true;
 }
