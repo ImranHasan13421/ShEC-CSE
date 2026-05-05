@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:ShEC_CSE/features/profile/models/profile_state.dart';
 import 'package:ShEC_CSE/features/dashboard/screens/home_screen.dart';
 import 'package:ShEC_CSE/features/department/screens/department_screen.dart';
-import 'package:ShEC_CSE/features/auth/screens/login_screen.dart';
+import 'package:ShEC_CSE/features/auth/screens/auth_animated_screen.dart';
 import 'package:ShEC_CSE/backend/services/auth_service.dart';
 import 'package:ShEC_CSE/features/notices/screens/notices_screen.dart';
 import 'package:ShEC_CSE/features/jobs/screens/jobs_screen.dart';
@@ -271,7 +271,7 @@ class _HomeLayoutState extends State<HomeLayout> with WidgetsBindingObserver {
               if (context.mounted) {
                 Navigator.pushAndRemoveUntil(
                   context,
-                  MaterialPageRoute(builder: (context) => const LoginScreen()),
+                  MaterialPageRoute(builder: (context) => const AuthAnimatedScreen()),
                   (route) => false,
                 );
               }

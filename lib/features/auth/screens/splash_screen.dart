@@ -2,7 +2,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:ShEC_CSE/features/dashboard/screens/main_screen.dart';
-import 'package:ShEC_CSE/features/auth/screens/login_screen.dart';
+import 'package:ShEC_CSE/features/auth/screens/auth_animated_screen.dart';
 import 'package:ShEC_CSE/features/auth/screens/pending_approval_screen.dart';
 import 'package:ShEC_CSE/features/profile/models/profile_state.dart';
 
@@ -66,7 +66,7 @@ class _SplashScreenState extends State<SplashScreen> {
         nextScreen = const HomeLayout();
       }
     } else {
-      nextScreen = const LoginScreen();
+      nextScreen = const AuthAnimatedScreen();
     }
 
     // Premium Cross-Fade to App
