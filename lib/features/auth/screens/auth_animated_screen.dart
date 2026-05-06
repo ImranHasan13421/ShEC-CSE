@@ -4,6 +4,7 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:ShEC_CSE/core/services/storage_service.dart';
 import 'package:ShEC_CSE/core/services/image_processing_service.dart';
 import 'package:image_cropper/image_cropper.dart';
 import '../../../backend/services/auth_service.dart';
@@ -114,9 +115,7 @@ class _AuthAnimatedScreenState extends State<AuthAnimatedScreen> with TickerProv
     try {
       String? profilePicUrl;
       if (_profileImageFile != null) {
-        final fileName = 'profile_${DateTime.now().millisecondsSinceEpoch}.webp';
-        await Supabase.instance.client.storage.from('profile_pictures').upload(fileName, _profileImageFile!);
-        profilePicUrl = Supabase.instance.client.storage.from('profile_pictures').getPublicUrl(fileName);
+        profilePicUrl = await StorageService.uploadFile(_profileImageFile!, 'profile_pictures');
       }
       await AuthService.signUp(
         email: _signupEmailController.text.trim(),

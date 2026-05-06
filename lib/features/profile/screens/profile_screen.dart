@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:ShEC_CSE/core/services/storage_service.dart';
 import 'package:ShEC_CSE/features/profile/models/profile_state.dart';
 import 'package:ShEC_CSE/backend/services/auth_service.dart';
 import 'package:ShEC_CSE/core/services/image_processing_service.dart';
@@ -105,16 +106,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Future<String?> _uploadProfilePic(File file) async {
-    try {
-      final userId = currentProfile.value.id;
-      final fileName = 'profile_${userId}_${DateTime.now().millisecondsSinceEpoch}.webp';
-      final client = Supabase.instance.client;
-      await client.storage.from('profile_pictures').upload(fileName, file);
-      return client.storage.from('profile_pictures').getPublicUrl(fileName);
-    } catch (e) {
-      debugPrint('Profile pic upload error: $e');
-      return null;
-    }
+    return StorageService.uploadFile(file, 'profile_pictures');
   }
 
   Future<void> _saveProfile() async {

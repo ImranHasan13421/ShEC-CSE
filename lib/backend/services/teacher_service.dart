@@ -4,6 +4,8 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../features/department/models/teacher_state.dart';
 import '../../features/profile/models/profile_state.dart';
 import '../../core/services/cache_service.dart';
+import '../../core/services/storage_service.dart';
+
 
 class TeacherService {
   static final SupabaseClient _client = Supabase.instance.client;
@@ -63,9 +65,7 @@ class TeacherService {
     try {
       // 1. Delete image from storage
       if (teacher.imagePath.isNotEmpty) {
-        final uri = Uri.parse(teacher.imagePath);
-        final fileName = uri.pathSegments.last;
-        await _client.storage.from('teacher_images').remove([fileName]);
+        await StorageService.deleteFile(teacher.imagePath);
       }
 
       // 2. Delete from DB
@@ -80,13 +80,6 @@ class TeacherService {
   }
 
   static Future<String?> uploadImage(File file) async {
-    try {
-      final fileName = 'teacher_${DateTime.now().millisecondsSinceEpoch}.webp';
-      await _client.storage.from('teacher_images').upload(fileName, file);
-      return _client.storage.from('teacher_images').getPublicUrl(fileName);
-    } catch (e) {
-      debugPrint('Error uploading teacher image: $e');
-      return null;
-    }
+    return StorageService.uploadFile(file, 'teacher_images');
   }
 }

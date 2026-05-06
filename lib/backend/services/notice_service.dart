@@ -4,6 +4,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../features/notices/models/notice_state.dart';
 import '../../features/profile/models/profile_state.dart';
 import '../../core/services/cache_service.dart';
+import '../../core/services/storage_service.dart';
 import 'package:ShEC_CSE/backend/services/notification_service.dart';
 
 class NoticeService {
@@ -41,14 +42,7 @@ class NoticeService {
   }
 
   static Future<String?> uploadImage(File file) async {
-    try {
-      final fileName = 'notice_${DateTime.now().millisecondsSinceEpoch}.webp';
-      await _client.storage.from('notice_images').upload(fileName, file);
-      return _client.storage.from('notice_images').getPublicUrl(fileName);
-    } catch (e) {
-      debugPrint('Notice image upload error: $e');
-      return null;
-    }
+    return StorageService.uploadFile(file, 'notice_images');
   }
 
   static Future<void> addNoticeToDB(NoticeItem notice, String category) async {
@@ -124,9 +118,7 @@ class NoticeService {
     try {
       // 1. Delete Image from Storage if exists
       if (notice.imagePath != null && notice.imagePath!.isNotEmpty) {
-        final uri = Uri.parse(notice.imagePath!);
-        final fileName = uri.pathSegments.last;
-        await _client.storage.from('notice_images').remove([fileName]);
+        await StorageService.deleteFile(notice.imagePath!);
       }
       
       // 2. Delete from DB

@@ -25,6 +25,9 @@ dependencies:
   image: ^4.8.0
   supabase: ^2.10.6
   shared_preferences: ^2.5.5
+  aws_s3_api: ^2.0.0
+  hidden_drawer_menu: ^3.0.1
+  google_nav_bar: ^5.0.7
 
 dev_dependencies:
   flutter_test:

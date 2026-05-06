@@ -4,6 +4,8 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../features/gallery/models/gallery_state.dart';
 import '../../features/profile/models/profile_state.dart';
 import '../../core/services/cache_service.dart';
+import '../../core/services/storage_service.dart';
+
 
 class GalleryService {
   static final SupabaseClient _client = Supabase.instance.client;
@@ -72,9 +74,7 @@ class GalleryService {
     try {
       // 1. Delete image from storage
       if (item.imagePath.isNotEmpty) {
-        final uri = Uri.parse(item.imagePath);
-        final fileName = uri.pathSegments.last;
-        await _client.storage.from('gallery_images').remove([fileName]);
+        await StorageService.deleteFile(item.imagePath);
       }
 
       // 2. Delete from DB
@@ -89,13 +89,6 @@ class GalleryService {
   }
 
   static Future<String?> uploadImage(File file) async {
-    try {
-      final fileName = 'gallery_${DateTime.now().millisecondsSinceEpoch}.webp';
-      await _client.storage.from('gallery_images').upload(fileName, file);
-      return _client.storage.from('gallery_images').getPublicUrl(fileName);
-    } catch (e) {
-      debugPrint('Error uploading gallery image: $e');
-      return null;
-    }
+    return StorageService.uploadFile(file, 'gallery_images');
   }
 }

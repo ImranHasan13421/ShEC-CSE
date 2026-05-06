@@ -4,6 +4,8 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../features/alumni/models/alumni_state.dart';
 import '../../features/profile/models/profile_state.dart';
 import '../../core/services/cache_service.dart';
+import '../../core/services/storage_service.dart';
+
 
 class AlumniService {
   static final SupabaseClient _client = Supabase.instance.client;
@@ -62,9 +64,7 @@ class AlumniService {
     try {
       // 1. Delete image from storage
       if (alumni.imagePath.isNotEmpty) {
-        final uri = Uri.parse(alumni.imagePath);
-        final fileName = uri.pathSegments.last;
-        await _client.storage.from('alumni_images').remove([fileName]);
+        await StorageService.deleteFile(alumni.imagePath);
       }
 
       // 2. Delete from DB
@@ -87,13 +87,6 @@ class AlumniService {
   }
 
   static Future<String?> uploadImage(File file) async {
-    try {
-      final fileName = 'alumni_${DateTime.now().millisecondsSinceEpoch}.webp';
-      await _client.storage.from('alumni_images').upload(fileName, file);
-      return _client.storage.from('alumni_images').getPublicUrl(fileName);
-    } catch (e) {
-      debugPrint('Error uploading alumni image: $e');
-      return null;
-    }
+    return StorageService.uploadFile(file, 'alumni_images');
   }
 }

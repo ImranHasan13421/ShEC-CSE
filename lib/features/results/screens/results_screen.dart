@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../core/services/image_processing_service.dart';
+import '../../../core/services/storage_service.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../profile/models/profile_state.dart';
 import '../models/result_state.dart';
@@ -273,12 +274,11 @@ class _ResultsScreenState extends State<ResultsScreen> {
           final migratedFile = await ImageProcessingService.downloadAndConvertToWebP(url);
           
           if (migratedFile != null) {
-            final fileName = 'migrated_${DateTime.now().millisecondsSinceEpoch}.webp';
-            await client.storage.from(bucket).upload(fileName, migratedFile);
-            final newUrl = client.storage.from(bucket).getPublicUrl(fileName);
-
-            await client.from(table).update({column: newUrl}).eq('id', row['id']);
-            totalMigrated++;
+            final newUrl = await StorageService.uploadFile(migratedFile, bucket);
+            if (newUrl != null) {
+              await client.from(table).update({column: newUrl}).eq('id', row['id']);
+              totalMigrated++;
+            }
           }
         }
       }
@@ -334,8 +334,8 @@ class _ResultsScreenState extends State<ResultsScreen> {
         final bucket = task['bucket']!;
 
         // 1. Get all files in storage
-        final List<FileObject> storageFiles = await client.storage.from(bucket).list();
-        if (storageFiles.isEmpty) continue;
+        final List<String> storageFilesKeys = await StorageService.listFiles(bucket);
+        if (storageFilesKeys.isEmpty) continue;
 
         // 2. Get all referenced filenames in DB
         final dbData = await client.from(table).select(column);
@@ -351,19 +351,19 @@ class _ResultsScreenState extends State<ResultsScreen> {
         }
 
         // 3. Find orphaned files
-        final List<String> orphanedFiles = [];
-        for (var file in storageFiles) {
-          // Skip if it's a "folder" or empty
-          if (file.name == '.emptyFolderPlaceholder') continue;
-          if (!referencedFiles.contains(file.name)) {
-            orphanedFiles.add(file.name);
+        final List<String> orphanedKeys = [];
+        for (var key in storageFilesKeys) {
+          final filename = key.split('/').last;
+          if (filename.isEmpty || filename == '.emptyFolderPlaceholder') continue;
+          if (!referencedFiles.contains(filename)) {
+            orphanedKeys.add(key);
           }
         }
 
         // 4. Delete orphaned files
-        if (orphanedFiles.isNotEmpty) {
-          await client.storage.from(bucket).remove(orphanedFiles);
-          totalDeleted += orphanedFiles.length;
+        if (orphanedKeys.isNotEmpty) {
+          await StorageService.deleteFiles(orphanedKeys);
+          totalDeleted += orphanedKeys.length;
         }
       }
 

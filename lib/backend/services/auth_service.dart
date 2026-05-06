@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../features/profile/models/profile_state.dart';
+import '../../core/services/storage_service.dart';
+
 
 class AuthService {
   static final SupabaseClient _client = Supabase.instance.client;
@@ -188,9 +190,7 @@ class AuthService {
 
       // 2. Delete image from storage
       if (profilePic != null && profilePic.isNotEmpty) {
-        final uri = Uri.parse(profilePic);
-        final fileName = uri.pathSegments.last;
-        await _client.storage.from('profile_pictures').remove([fileName]);
+        await StorageService.deleteFile(profilePic);
       }
 
       // 3. Delete from DB
