@@ -8,6 +8,7 @@ import 'package:ShEC_CSE/features/dashboard/screens/home_screen.dart';
 import 'package:ShEC_CSE/features/department/screens/department_screen.dart';
 import 'package:ShEC_CSE/features/auth/screens/auth_animated_screen.dart';
 import 'package:ShEC_CSE/backend/services/auth_service.dart';
+import 'package:ShEC_CSE/backend/services/update_service.dart';
 import 'package:ShEC_CSE/features/notices/screens/notices_screen.dart';
 import 'package:ShEC_CSE/features/jobs/screens/jobs_screen.dart';
 import 'package:ShEC_CSE/features/contests/screens/contests_screen.dart';
@@ -62,6 +63,8 @@ class _HomeLayoutState extends State<HomeLayout> with WidgetsBindingObserver {
     JobService.subscribeToJobs();
     ContestService.subscribeToContests();
     ChatService.subscribeToAllMessages();
+    // Check for App Updates
+    UpdateService.instance.checkForUpdates();
   }
 
   @override
@@ -231,8 +234,8 @@ class _HomeLayoutState extends State<HomeLayout> with WidgetsBindingObserver {
           ),
         );
       },
-      slidePercent: 0.75,
-      verticalScalePercent: 0.85,
+      slidePercent: 60.0,
+      verticalScalePercent: 90.0,
       contentCornerRadius: 24.0,
       enableCornerAnimation: true,
     );
@@ -266,11 +269,17 @@ class _MainDrawerMenu extends StatelessWidget {
     return Scaffold(
       backgroundColor: Colors.transparent,
       body: Container(
+        width: double.infinity,
+        height: double.infinity,
         decoration: BoxDecoration(gradient: bgGradient),
         child: SafeArea(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
+          child: Align(
+            alignment: Alignment.centerLeft,
+            child: SizedBox(
+              width: MediaQuery.of(context).size.width * 0.55,
+              child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
               _buildHeader(context),
               Expanded(
                 child: SingleChildScrollView(
@@ -380,6 +389,22 @@ class _MainDrawerMenu extends StatelessWidget {
                         title: 'Contributors',
                         destination: const ContributorsScreen(),
                       ),
+                      ListenableBuilder(
+                        listenable: UpdateService.instance,
+                        builder: (context, _) {
+                          final hasUpdate = UpdateService.instance.hasUpdate;
+                          return _menuItem(
+                            context,
+                            controller,
+                            icon: Icons.system_update_outlined,
+                            title: 'App Update',
+                            badgeCount: hasUpdate ? -1 : 0,
+                            onTap: () {
+                              _showUpdateDialog(context);
+                            },
+                          );
+                        },
+                      ),
                       const Padding(
                         padding: EdgeInsets.symmetric(vertical: 8.0),
                         child: Divider(color: Colors.grey, thickness: 0.1),
@@ -431,6 +456,8 @@ class _MainDrawerMenu extends StatelessWidget {
                 ),
               ),
             ],
+          ),
+          ),
           ),
         ),
       ),
@@ -538,7 +565,7 @@ class _MainDrawerMenu extends StatelessWidget {
     SimpleHiddenDrawerController controller, {
     required IconData icon,
     required String title,
-    required Widget destination,
+    Widget? destination,
     int badgeCount = 0,
     VoidCallback? onTap,
   }) {
@@ -546,7 +573,9 @@ class _MainDrawerMenu extends StatelessWidget {
       onTap: () {
         controller.toggle();
         if (onTap != null) onTap();
-        Navigator.push(context, MaterialPageRoute(builder: (_) => destination));
+        if (destination != null) {
+          Navigator.push(context, MaterialPageRoute(builder: (_) => destination));
+        }
       },
       borderRadius: BorderRadius.circular(12),
       child: Container(
@@ -556,9 +585,9 @@ class _MainDrawerMenu extends StatelessWidget {
         ),
         child: Row(
           children: [
-            if (badgeCount > 0)
+            if (badgeCount != 0)
               Badge(
-                label: Text('$badgeCount'),
+                label: badgeCount > 0 ? Text('$badgeCount') : null,
                 child: Icon(icon, color: colors.onSurface.withValues(alpha: 0.7), size: 22),
               )
             else
@@ -600,58 +629,24 @@ class _MainDrawerMenu extends StatelessWidget {
                 style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 8),
-              Container(
-                decoration: BoxDecoration(
-                  color: colors.onSurface.withValues(alpha: 0.05),
-                  borderRadius: BorderRadius.circular(14),
-                ),
-                padding: const EdgeInsets.all(4),
-                child: Row(
-                  children: AppThemeMode.values.map((mode) {
-                    final isSelected = themeService.themeMode == mode;
-                    IconData icon;
-                    switch (mode) {
-                      case AppThemeMode.system:
-                        icon = Icons.brightness_auto_outlined;
-                        break;
-                      case AppThemeMode.light:
-                        icon = Icons.light_mode_outlined;
-                        break;
-                      case AppThemeMode.dark:
-                        icon = Icons.dark_mode_outlined;
-                        break;
-                      case AppThemeMode.night:
-                        icon = Icons.nights_stay_outlined;
-                        break;
-                    }
-                    return Expanded(
-                      child: GestureDetector(
-                        onTap: () => themeService.setThemeMode(mode),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(vertical: 8.0),
-                          decoration: BoxDecoration(
-                            color: isSelected ? colors.primary : Colors.transparent,
-                            borderRadius: BorderRadius.circular(10),
-                            boxShadow: isSelected
-                                ? [
-                                    BoxShadow(
-                                      color: colors.primary.withValues(alpha: 0.3),
-                                      blurRadius: 6,
-                                      offset: const Offset(0, 2),
-                                    )
-                                  ]
-                                : null,
-                          ),
-                          child: Icon(
-                            icon,
-                            size: 18,
-                            color: isSelected ? Colors.white : colors.onSurface.withValues(alpha: 0.6),
-                          ),
-                        ),
-                      ),
-                    );
-                  }).toList(),
-                ),
+              Column(
+                children: [
+                  Row(
+                    children: [
+                      _buildThemeModeButton(context, themeService, AppThemeMode.system, 'System', Icons.brightness_auto_outlined),
+                      const SizedBox(width: 8),
+                      _buildThemeModeButton(context, themeService, AppThemeMode.light, 'Light', Icons.light_mode_outlined),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      _buildThemeModeButton(context, themeService, AppThemeMode.dark, 'Dark', Icons.dark_mode_outlined),
+                      const SizedBox(width: 8),
+                      _buildThemeModeButton(context, themeService, AppThemeMode.night, 'Night', Icons.nights_stay_outlined),
+                    ],
+                  ),
+                ],
               ),
               const SizedBox(height: 16),
               const Text(
@@ -660,11 +655,11 @@ class _MainDrawerMenu extends StatelessWidget {
               ),
               const SizedBox(height: 8),
               SizedBox(
-                height: 38,
+                height: 34,
                 child: ListView.separated(
                   scrollDirection: Axis.horizontal,
                   itemCount: AppColorTheme.values.length,
-                  separatorBuilder: (context, index) => const SizedBox(width: 8),
+                  separatorBuilder: (context, index) => const SizedBox(width: 6),
                   itemBuilder: (context, index) {
                     final colorTheme = AppColorTheme.values[index];
                     final isSelected = themeService.colorTheme == colorTheme;
@@ -692,8 +687,8 @@ class _MainDrawerMenu extends StatelessWidget {
                     return GestureDetector(
                       onTap: () => themeService.setColorTheme(colorTheme),
                       child: Container(
-                        width: 34,
-                        height: 34,
+                        width: 30,
+                        height: 30,
                         decoration: BoxDecoration(
                           color: color,
                           shape: BoxShape.circle,
@@ -721,6 +716,443 @@ class _MainDrawerMenu extends StatelessWidget {
           ),
         );
       },
+    );
+  }
+
+  Widget _buildThemeModeButton(
+    BuildContext context,
+    ThemeService themeService,
+    AppThemeMode mode,
+    String label,
+    IconData icon,
+  ) {
+    final isSelected = themeService.themeMode == mode;
+    return Expanded(
+      child: GestureDetector(
+        onTap: () => themeService.setThemeMode(mode),
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
+          decoration: BoxDecoration(
+            color: isSelected ? colors.primary : colors.onSurface.withValues(alpha: 0.05),
+            borderRadius: BorderRadius.circular(10),
+            boxShadow: isSelected
+                ? [
+                    BoxShadow(
+                      color: colors.primary.withValues(alpha: 0.3),
+                      blurRadius: 6,
+                      offset: const Offset(0, 2),
+                    )
+                  ]
+                : null,
+          ),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                icon,
+                size: 16,
+                color: isSelected ? Colors.white : colors.onSurface.withValues(alpha: 0.6),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  color: isSelected ? Colors.white : colors.onSurface.withValues(alpha: 0.8),
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showUpdateDialog(BuildContext parentContext) {
+    final colors = Theme.of(parentContext).colorScheme;
+    final updateService = UpdateService.instance;
+
+    showDialog(
+      context: parentContext,
+      barrierDismissible: true,
+      builder: (dialogContext) {
+        final versionController = TextEditingController(text: '1.0.1');
+        final buildController = TextEditingController(text: '${UpdateService.currentBuildNumber + 1}');
+        final urlController = TextEditingController();
+        final notesController = TextEditingController();
+        bool isPublishTab = false;
+        bool isActionLoading = false;
+
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            final isSuperUser = currentProfile.value.role == UserRole.superUser;
+
+            return Dialog(
+              backgroundColor: colors.surface,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 250),
+                width: MediaQuery.of(context).size.width * 0.85,
+                padding: const EdgeInsets.all(20.0),
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Row(
+                        children: [
+                          Icon(Icons.system_update_outlined, color: colors.primary, size: 24),
+                          const SizedBox(width: 10),
+                          const Text(
+                            'App Update',
+                            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                          ),
+                          const Spacer(),
+                          IconButton(
+                            icon: const Icon(Icons.close, size: 20),
+                            onPressed: () => Navigator.pop(context),
+                          ),
+                        ],
+                      ),
+                      const Divider(thickness: 0.5),
+                      const SizedBox(height: 10),
+
+                      if (isSuperUser) ...[
+                        Row(
+                          children: [
+                            Expanded(
+                              child: InkWell(
+                                onTap: () => setDialogState(() => isPublishTab = false),
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(vertical: 8),
+                                  decoration: BoxDecoration(
+                                    border: Border(
+                                      bottom: BorderSide(
+                                        color: !isPublishTab ? colors.primary : Colors.transparent,
+                                        width: 2,
+                                      ),
+                                    ),
+                                  ),
+                                  child: Text(
+                                    'Check Update',
+                                    textAlign: TextAlign.center,
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      color: !isPublishTab ? colors.primary : colors.onSurface.withValues(alpha: 0.6),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                            Expanded(
+                              child: InkWell(
+                                onTap: () => setDialogState(() => isPublishTab = true),
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(vertical: 8),
+                                  decoration: BoxDecoration(
+                                    border: Border(
+                                      bottom: BorderSide(
+                                        color: isPublishTab ? colors.primary : Colors.transparent,
+                                        width: 2,
+                                      ),
+                                    ),
+                                  ),
+                                  child: Text(
+                                    'Publish Update',
+                                    textAlign: TextAlign.center,
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      color: isPublishTab ? colors.primary : colors.onSurface.withValues(alpha: 0.6),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 15),
+                      ],
+
+                      if (isPublishTab && isSuperUser) ...[
+                        _buildInputField(colors, 'Version Name', versionController, 'e.g. 1.0.1'),
+                        const SizedBox(height: 10),
+                        _buildInputField(colors, 'Build Number', buildController, 'e.g. 2', isNumber: true),
+                        const SizedBox(height: 10),
+                        _buildInputField(colors, 'APK Download URL', urlController, 'e.g. https://...'),
+                        const SizedBox(height: 10),
+                        _buildInputField(colors, 'Release Notes', notesController, 'What\'s new in this build...', maxLines: 3),
+                        const SizedBox(height: 20),
+                        ElevatedButton(
+                          onPressed: isActionLoading
+                              ? null
+                              : () async {
+                                  final version = versionController.text.trim();
+                                  final buildStr = buildController.text.trim();
+                                  final url = urlController.text.trim();
+                                  final notes = notesController.text.trim();
+
+                                  if (version.isEmpty || buildStr.isEmpty || url.isEmpty) {
+                                    ScaffoldMessenger.of(parentContext).showSnackBar(
+                                      const SnackBar(content: Text('Please fill out all required fields.')),
+                                    );
+                                    return;
+                                  }
+
+                                  final buildNum = int.tryParse(buildStr);
+                                  if (buildNum == null) {
+                                    ScaffoldMessenger.of(parentContext).showSnackBar(
+                                      const SnackBar(content: Text('Build number must be a valid integer.')),
+                                    );
+                                    return;
+                                  }
+
+                                  setDialogState(() => isActionLoading = true);
+                                  try {
+                                    await updateService.uploadNewVersion(
+                                      version: version,
+                                      buildNumber: buildNum,
+                                      downloadUrl: url,
+                                      releaseNotes: notes,
+                                    );
+                                    if (context.mounted) {
+                                      ScaffoldMessenger.of(parentContext).showSnackBar(
+                                        const SnackBar(content: Text('New version published successfully!')),
+                                      );
+                                      Navigator.pop(context);
+                                    }
+                                  } catch (e) {
+                                    if (context.mounted) {
+                                      ScaffoldMessenger.of(parentContext).showSnackBar(
+                                        SnackBar(content: Text('Error: $e')),
+                                      );
+                                    }
+                                  } finally {
+                                    setDialogState(() => isActionLoading = false);
+                                  }
+                                },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: colors.primary,
+                            foregroundColor: Colors.white,
+                            minimumSize: const Size(double.infinity, 45),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                          ),
+                          child: isActionLoading
+                              ? const SizedBox(
+                                  width: 20,
+                                  height: 20,
+                                  child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                                )
+                              : const Text('Publish Build', style: TextStyle(fontWeight: FontWeight.bold)),
+                        ),
+                      ] else ...[
+                        ListenableBuilder(
+                          listenable: updateService,
+                          builder: (context, _) {
+                            final hasUpdate = updateService.hasUpdate;
+                            final isLoading = updateService.isLoading;
+
+                            if (isLoading) {
+                              return const Padding(
+                                padding: EdgeInsets.symmetric(vertical: 40),
+                                child: CircularProgressIndicator(),
+                              );
+                            }
+
+                            if (hasUpdate) {
+                              return Column(
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.all(12),
+                                    decoration: BoxDecoration(
+                                      color: colors.primary.withValues(alpha: 0.1),
+                                      borderRadius: BorderRadius.circular(12),
+                                      border: Border.all(color: colors.primary.withValues(alpha: 0.2)),
+                                    ),
+                                    child: Row(
+                                      children: [
+                                        Icon(Icons.stars, color: colors.primary, size: 28),
+                                        const SizedBox(width: 12),
+                                        Expanded(
+                                          child: Column(
+                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                            children: [
+                                              Text(
+                                                'New Version Available!',
+                                                style: TextStyle(
+                                                  fontWeight: FontWeight.bold,
+                                                  color: colors.primary,
+                                                ),
+                                              ),
+                                              Text(
+                                                'Version ${updateService.latestVersion} (Build ${updateService.latestBuildNumber})',
+                                                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  const SizedBox(height: 15),
+                                  if (updateService.releaseNotes.isNotEmpty) ...[
+                                    const Align(
+                                      alignment: Alignment.centerLeft,
+                                      child: Text(
+                                        'Release Notes:',
+                                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                                      ),
+                                    ),
+                                    const SizedBox(height: 6),
+                                    Container(
+                                      width: double.infinity,
+                                      padding: const EdgeInsets.all(12),
+                                      decoration: BoxDecoration(
+                                        color: colors.onSurface.withValues(alpha: 0.03),
+                                        borderRadius: BorderRadius.circular(10),
+                                      ),
+                                      constraints: const BoxConstraints(maxHeight: 120),
+                                      child: SingleChildScrollView(
+                                        child: Text(
+                                          updateService.releaseNotes,
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            color: colors.onSurface.withValues(alpha: 0.7),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(height: 20),
+                                  ],
+                                  ElevatedButton.icon(
+                                    onPressed: () async {
+                                      try {
+                                        await updateService.triggerUpdate();
+                                      } catch (e) {
+                                        if (context.mounted) {
+                                          ScaffoldMessenger.of(parentContext).showSnackBar(
+                                            SnackBar(content: Text('Error: $e')),
+                                          );
+                                        }
+                                      }
+                                    },
+                                    icon: const Icon(Icons.download, size: 18),
+                                    label: const Text('Download & Install Now', style: TextStyle(fontWeight: FontWeight.bold)),
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: Colors.redAccent,
+                                      foregroundColor: Colors.white,
+                                      minimumSize: const Size(double.infinity, 45),
+                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                      elevation: 2,
+                                    ),
+                                  ),
+                                ],
+                              );
+                            }
+
+                            return Column(
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.symmetric(vertical: 20),
+                                  child: Column(
+                                    children: [
+                                      Container(
+                                        padding: const EdgeInsets.all(12),
+                                        decoration: BoxDecoration(
+                                          shape: BoxShape.circle,
+                                          color: Colors.green.withValues(alpha: 0.1),
+                                        ),
+                                        child: const Icon(Icons.check_circle, color: Colors.green, size: 48),
+                                      ),
+                                      const SizedBox(height: 15),
+                                      const Text(
+                                        'You are on the latest version!',
+                                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                                      ),
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        'Current Version: v${UpdateService.currentVersion} (${UpdateService.currentBuildNumber})',
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          color: colors.onSurface.withValues(alpha: 0.5),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                const SizedBox(height: 10),
+                                OutlinedButton.icon(
+                                  onPressed: () async {
+                                    await updateService.checkForUpdates();
+                                  },
+                                  icon: const Icon(Icons.refresh, size: 16),
+                                  label: const Text('Check for Updates'),
+                                  style: OutlinedButton.styleFrom(
+                                    foregroundColor: colors.primary,
+                                    side: BorderSide(color: colors.primary.withValues(alpha: 0.5)),
+                                    minimumSize: const Size(double.infinity, 40),
+                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                  ),
+                                ),
+                              ],
+                            );
+                          },
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Widget _buildInputField(
+    ColorScheme colors,
+    String label,
+    TextEditingController controller,
+    String hint, {
+    bool isNumber = false,
+    int maxLines = 1,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(height: 4),
+        TextField(
+          controller: controller,
+          keyboardType: isNumber ? TextInputType.number : TextInputType.text,
+          maxLines: maxLines,
+          style: const TextStyle(fontSize: 13),
+          decoration: InputDecoration(
+            hintText: hint,
+            hintStyle: TextStyle(fontSize: 13, color: colors.onSurface.withValues(alpha: 0.35)),
+            contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            filled: true,
+            fillColor: colors.onSurface.withValues(alpha: 0.03),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(10),
+              borderSide: BorderSide(color: colors.onSurface.withValues(alpha: 0.08)),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(10),
+              borderSide: BorderSide(color: colors.onSurface.withValues(alpha: 0.08)),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(10),
+              borderSide: BorderSide(color: colors.primary, width: 1.5),
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

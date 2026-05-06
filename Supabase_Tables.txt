@@ -173,6 +173,38 @@ CREATE POLICY "Superusers can delete profiles" ON profiles FOR DELETE USING (
 
 -- Storage Policies for 'notice_images' bucket:
 -- CREATE POLICY "Give public access to notice images" ON storage.objects FOR SELECT USING (bucket_id = 'notice_images');
--- CREATE POLICY "Allow authenticated users to upload notice images" ON storage.objects FOR INSERT WITH CHECK (bucket_id = 'notice_images' AND auth.role() = 'authenticated');
--- CREATE POLICY "Allow authenticated users to update notice images" ON storage.objects FOR UPDATE USING (bucket_id = 'notice_images' AND auth.role() = 'authenticated');
--- CREATE POLICY "Allow authenticated users to delete notice images" ON storage.objects FOR DELETE USING (bucket_id = 'notice_images' AND auth.role() = 'authenticated');
+-- CREATE POLICY "Allow authenticated users to upload notice images" ON storage.objects FOR INSERT WITH CHECK (bucket_id = 'notice_images' && auth.role() = 'authenticated');
+-- CREATE POLICY "Allow authenticated users to update notice images" ON storage.objects FOR UPDATE USING (bucket_id = 'notice_images' && auth.role() = 'authenticated');
+-- CREATE POLICY "Allow authenticated users to delete notice images" ON storage.objects FOR DELETE USING (bucket_id = 'notice_images' && auth.role() = 'authenticated');
+
+
+-- ==========================================
+-- 8. APP UPDATES SYSTEM
+-- ==========================================
+
+CREATE TABLE app_updates (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    version TEXT NOT NULL,
+    build_number INT NOT NULL,
+    download_url TEXT NOT NULL,
+    release_notes TEXT DEFAULT '',
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+ALTER TABLE app_updates ENABLE ROW LEVEL SECURITY;
+
+-- Anyone can read/check updates
+CREATE POLICY "Enable public select for app_updates" ON app_updates FOR SELECT USING (true);
+
+-- Only Superusers can publish/insert, update, or delete updates
+CREATE POLICY "Enable superuser insert for app_updates" ON app_updates FOR INSERT WITH CHECK (
+    (SELECT role FROM profiles WHERE id = auth.uid()) = 'superuser'::user_role
+);
+
+CREATE POLICY "Enable superuser update for app_updates" ON app_updates FOR UPDATE USING (
+    (SELECT role FROM profiles WHERE id = auth.uid()) = 'superuser'::user_role
+);
+
+CREATE POLICY "Enable superuser delete for app_updates" ON app_updates FOR DELETE USING (
+    (SELECT role FROM profiles WHERE id = auth.uid()) = 'superuser'::user_role
+);
