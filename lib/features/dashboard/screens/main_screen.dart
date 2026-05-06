@@ -9,6 +9,7 @@ import 'package:ShEC_CSE/features/department/screens/department_screen.dart';
 import 'package:ShEC_CSE/features/auth/screens/auth_animated_screen.dart';
 import 'package:ShEC_CSE/backend/services/auth_service.dart';
 import 'package:ShEC_CSE/backend/services/update_service.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:ShEC_CSE/features/notices/screens/notices_screen.dart';
 import 'package:ShEC_CSE/features/jobs/screens/jobs_screen.dart';
 import 'package:ShEC_CSE/features/contests/screens/contests_screen.dart';
@@ -257,12 +258,12 @@ class _MainDrawerMenu extends StatelessWidget {
       begin: Alignment.topLeft,
       end: Alignment.bottomRight,
       colors: isNight
-          ? [const Color(0xFF0D0E10), const Color(0xFF15161A)]
+          ? [const Color(0xFF0A0B0D), const Color(0xFF121316)]
           : themeService.themeMode == AppThemeMode.dark
-              ? [const Color(0xFF1F2128), const Color(0xFF181A20)]
+              ? [const Color(0xFF16181F), const Color(0xFF0E1014)]
               : [
-                  colors.primary.withValues(alpha: 0.08),
-                  colors.surface,
+                  colors.primary.withValues(alpha: 0.22),
+                  const Color(0xFF101216),
                 ],
     );
 
@@ -507,10 +508,10 @@ class _MainDrawerMenu extends StatelessWidget {
                     children: [
                       Text(
                         profile.name,
-                        style: TextStyle(
+                        style: const TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
-                          color: colors.onSurface,
+                          color: Colors.white,
                         ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
@@ -520,7 +521,7 @@ class _MainDrawerMenu extends StatelessWidget {
                         profile.designation,
                         style: TextStyle(
                           fontSize: 12,
-                          color: colors.onSurface.withValues(alpha: 0.6),
+                          color: Colors.white.withValues(alpha: 0.7),
                         ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
@@ -529,7 +530,7 @@ class _MainDrawerMenu extends StatelessWidget {
                         profile.email,
                         style: TextStyle(
                           fontSize: 11,
-                          color: colors.onSurface.withValues(alpha: 0.45),
+                          color: Colors.white.withValues(alpha: 0.5),
                         ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
@@ -553,8 +554,8 @@ class _MainDrawerMenu extends StatelessWidget {
         style: TextStyle(
           fontSize: 11,
           fontWeight: FontWeight.w800,
-          letterSpacing: 1.2,
-          color: colors.primary.withValues(alpha: 0.7),
+          letterSpacing: 1.5,
+          color: Colors.white.withValues(alpha: 0.45),
         ),
       ),
     );
@@ -588,10 +589,10 @@ class _MainDrawerMenu extends StatelessWidget {
             if (badgeCount != 0)
               Badge(
                 label: badgeCount > 0 ? Text('$badgeCount') : null,
-                child: Icon(icon, color: colors.onSurface.withValues(alpha: 0.7), size: 22),
+                child: Icon(icon, color: Colors.white.withValues(alpha: 0.75), size: 22),
               )
             else
-              Icon(icon, color: colors.onSurface.withValues(alpha: 0.7), size: 22),
+              Icon(icon, color: Colors.white.withValues(alpha: 0.75), size: 22),
             const SizedBox(width: 16),
             Expanded(
               child: Text(
@@ -599,14 +600,14 @@ class _MainDrawerMenu extends StatelessWidget {
                 style: TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.w600,
-                  color: colors.onSurface.withValues(alpha: 0.85),
+                  color: Colors.white.withValues(alpha: 0.85),
                 ),
               ),
             ),
             Icon(
               Icons.chevron_right,
               size: 16,
-              color: colors.onSurface.withValues(alpha: 0.3),
+              color: Colors.white.withValues(alpha: 0.35),
             ),
           ],
         ),
@@ -624,9 +625,9 @@ class _MainDrawerMenu extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
+              Text(
                 'Theme Mode',
-                style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.white.withValues(alpha: 0.9)),
               ),
               const SizedBox(height: 8),
               Column(
@@ -649,9 +650,9 @@ class _MainDrawerMenu extends StatelessWidget {
                 ],
               ),
               const SizedBox(height: 16),
-              const Text(
+              Text(
                 'Color Scheme',
-                style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.white.withValues(alpha: 0.9)),
               ),
               const SizedBox(height: 8),
               SizedBox(
@@ -733,7 +734,7 @@ class _MainDrawerMenu extends StatelessWidget {
         child: Container(
           padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
           decoration: BoxDecoration(
-            color: isSelected ? colors.primary : colors.onSurface.withValues(alpha: 0.05),
+            color: isSelected ? colors.primary : Colors.white.withValues(alpha: 0.08),
             borderRadius: BorderRadius.circular(10),
             boxShadow: isSelected
                 ? [
@@ -751,7 +752,7 @@ class _MainDrawerMenu extends StatelessWidget {
               Icon(
                 icon,
                 size: 16,
-                color: isSelected ? Colors.white : colors.onSurface.withValues(alpha: 0.6),
+                color: isSelected ? Colors.white : Colors.white.withValues(alpha: 0.5),
               ),
               const SizedBox(height: 4),
               Text(
@@ -759,7 +760,7 @@ class _MainDrawerMenu extends StatelessWidget {
                 style: TextStyle(
                   fontSize: 11,
                   fontWeight: FontWeight.w600,
-                  color: isSelected ? Colors.white : colors.onSurface.withValues(alpha: 0.8),
+                  color: isSelected ? Colors.white : Colors.white.withValues(alpha: 0.7),
                 ),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
@@ -1047,6 +1048,8 @@ class _MainDrawerMenu extends StatelessWidget {
                                       elevation: 2,
                                     ),
                                   ),
+                                  const SizedBox(height: 8),
+                                  _buildGitHubButton(colors),
                                 ],
                               );
                             }
@@ -1095,6 +1098,8 @@ class _MainDrawerMenu extends StatelessWidget {
                                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                                   ),
                                 ),
+                                const SizedBox(height: 8),
+                                _buildGitHubButton(colors),
                               ],
                             );
                           },
@@ -1153,6 +1158,29 @@ class _MainDrawerMenu extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildGitHubButton(ColorScheme colors) {
+    return OutlinedButton.icon(
+      onPressed: () async {
+        final Uri uri = Uri.parse('https://github.com/ImranHasan13421/ShEC-CSE');
+        try {
+          if (await canLaunchUrl(uri)) {
+            await launchUrl(uri, mode: LaunchMode.externalApplication);
+          }
+        } catch (e) {
+          debugPrint('Error launching GitHub link: $e');
+        }
+      },
+      icon: const Icon(Icons.code, size: 16),
+      label: const Text('View on GitHub', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+      style: OutlinedButton.styleFrom(
+        foregroundColor: colors.onSurface.withValues(alpha: 0.6),
+        side: BorderSide(color: colors.onSurface.withValues(alpha: 0.15)),
+        minimumSize: const Size(double.infinity, 40),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      ),
     );
   }
 }
