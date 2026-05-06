@@ -7,6 +7,8 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:ShEC_CSE/backend/services/auth_service.dart';
 
+import 'package:ShEC_CSE/core/services/theme_service.dart';
+
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
 Future<void> main() async {
@@ -17,6 +19,9 @@ Future<void> main() async {
     url: dotenv.env['SUPABASE_URL']!,
     anonKey: dotenv.env['SUPABASE_ANON_KEY']!,
   );
+
+  // Initialize Theme Service
+  await ThemeService.instance.init();
   
   // Initialize listener with navigation capability
   Supabase.instance.client.auth.onAuthStateChange.listen((data) {
@@ -43,48 +48,20 @@ class ShEcCseApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      navigatorKey: navigatorKey,
-      title: 'ShEC CSE',
-      debugShowCheckedModeBanner: false,
-      themeMode: ThemeMode.system,
-      theme: ThemeData(
-        brightness: Brightness.light,
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFF00ADB5),
-          brightness: Brightness.light,
-          primary: const Color(0xFF00ADB5),
-          secondary: const Color(0xFF393E46),
-          surface: const Color(0xFFF7F9FC),
-          surfaceContainer: Colors.white,
-        ),
-        scaffoldBackgroundColor: const Color(0xFFF7F9FC),
-        appBarTheme: const AppBarTheme(
-          backgroundColor: Color(0xFF00ADB5),
-          foregroundColor: Colors.white,
-          elevation: 0,
-        ),
-        useMaterial3: true,
-      ),
-      darkTheme: ThemeData(
-        brightness: Brightness.dark,
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFF00ADB5),
-          brightness: Brightness.dark,
-          primary: const Color(0xFF00ADB5),
-          secondary: const Color(0xFFEEEEEE),
-          surface: const Color(0xFF1E2024),
-          surfaceContainer: const Color(0xFF2A2D32),
-        ),
-        scaffoldBackgroundColor: const Color(0xFF1E2024),
-        appBarTheme: const AppBarTheme(
-          backgroundColor: Color(0xFF1E2024),
-          foregroundColor: Colors.white,
-          elevation: 0,
-        ),
-        useMaterial3: true,
-      ),
-      home: SplashScreen(isLoggedIn: isLoggedIn),
+    return ListenableBuilder(
+      listenable: ThemeService.instance,
+      builder: (context, _) {
+        final themeService = ThemeService.instance;
+        return MaterialApp(
+          navigatorKey: navigatorKey,
+          title: 'ShEC CSE',
+          debugShowCheckedModeBanner: false,
+          themeMode: themeService.sdkThemeMode,
+          theme: themeService.getThemeData(false),
+          darkTheme: themeService.getThemeData(true),
+          home: SplashScreen(isLoggedIn: isLoggedIn),
+        );
+      },
     );
   }
-}
+}

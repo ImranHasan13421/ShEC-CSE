@@ -1,5 +1,6 @@
 // lib/screens/main_screen.dart
 import 'package:flutter/material.dart';
+import 'package:ShEC_CSE/core/services/theme_service.dart';
 import 'package:ShEC_CSE/features/profile/models/profile_state.dart';
 import 'package:ShEC_CSE/features/dashboard/screens/home_screen.dart';
 import 'package:ShEC_CSE/features/department/screens/department_screen.dart';
@@ -259,6 +260,11 @@ class _HomeLayoutState extends State<HomeLayout> with WidgetsBindingObserver {
                 _drawerItem(context, Icons.account_balance_outlined, 'CSE Department Info', const DepartmentScreen()),
                 _drawerItem(context, Icons.code, 'Programming Club', const ClubScreen()),
                 _drawerItem(context, Icons.group_work_outlined, 'Contributors', const ContributorsScreen()),
+                
+                const Divider(),
+                _drawerSection(context, 'Appearance'),
+                _buildThemeSelector(context, colors),
+                const SizedBox(height: 12),
               ],
             ),
           ),
@@ -282,6 +288,147 @@ class _HomeLayoutState extends State<HomeLayout> with WidgetsBindingObserver {
       ),
     );
   }
+
+  Widget _buildThemeSelector(BuildContext context, ColorScheme colors) {
+    final themeService = ThemeService.instance;
+    return ListenableBuilder(
+      listenable: themeService,
+      builder: (context, _) {
+        return Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Theme Mode',
+                style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+              ),
+              const SizedBox(height: 8),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: AppThemeMode.values.map((mode) {
+                  final isSelected = themeService.themeMode == mode;
+                  IconData icon;
+                  String label;
+                  switch (mode) {
+                    case AppThemeMode.system:
+                      icon = Icons.brightness_auto_outlined;
+                      label = 'System';
+                      break;
+                    case AppThemeMode.light:
+                      icon = Icons.light_mode_outlined;
+                      label = 'Light';
+                      break;
+                    case AppThemeMode.dark:
+                      icon = Icons.dark_mode_outlined;
+                      label = 'Dark';
+                      break;
+                    case AppThemeMode.night:
+                      icon = Icons.nights_stay_outlined;
+                      label = 'Night';
+                      break;
+                  }
+                  return Expanded(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 2.0),
+                      child: Tooltip(
+                        message: label,
+                        child: InkWell(
+                          onTap: () => themeService.setThemeMode(mode),
+                          borderRadius: BorderRadius.circular(8),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(vertical: 8.0),
+                            decoration: BoxDecoration(
+                              color: isSelected ? colors.primary.withValues(alpha: 0.15) : Colors.transparent,
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(
+                                color: isSelected ? colors.primary : colors.outline.withValues(alpha: 0.2),
+                                width: 1.5,
+                              ),
+                            ),
+                            child: Icon(
+                              icon,
+                              size: 20,
+                              color: isSelected ? colors.primary : colors.onSurface.withValues(alpha: 0.6),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  );
+                }).toList(),
+              ),
+              const SizedBox(height: 16),
+              const Text(
+                'Primary Color',
+                style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+              ),
+              const SizedBox(height: 8),
+              SizedBox(
+                height: 40,
+                child: ListView.separated(
+                  scrollDirection: Axis.horizontal,
+                  itemCount: AppColorTheme.values.length,
+                  separatorBuilder: (_, __) => const SizedBox(width: 8),
+                  itemBuilder: (context, index) {
+                    final colorTheme = AppColorTheme.values[index];
+                    final isSelected = themeService.colorTheme == colorTheme;
+                    Color color;
+                    switch (colorTheme) {
+                      case AppColorTheme.teal:
+                        color = const Color(0xFF00ADB5);
+                        break;
+                      case AppColorTheme.blue:
+                        color = const Color(0xFF1E88E5);
+                        break;
+                      case AppColorTheme.purple:
+                        color = const Color(0xFF8E24AA);
+                        break;
+                      case AppColorTheme.green:
+                        color = const Color(0xFF43A047);
+                        break;
+                      case AppColorTheme.amber:
+                        color = const Color(0xFFFFB300);
+                        break;
+                      case AppColorTheme.crimson:
+                        color = const Color(0xFFE53935);
+                        break;
+                    }
+                    return GestureDetector(
+                      onTap: () => themeService.setColorTheme(colorTheme),
+                      child: Container(
+                        width: 36,
+                        height: 36,
+                        decoration: BoxDecoration(
+                          color: color,
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                            color: isSelected ? colors.onSurface : Colors.transparent,
+                            width: 2,
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: color.withValues(alpha: 0.3),
+                              blurRadius: 6,
+                              offset: const Offset(0, 3),
+                            ),
+                          ],
+                        ),
+                        child: isSelected
+                            ? const Icon(Icons.check, color: Colors.white, size: 18)
+                            : null,
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
 
   Widget _drawerSection(BuildContext context, String title) {
     return Padding(
