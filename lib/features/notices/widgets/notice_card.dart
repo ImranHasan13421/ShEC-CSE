@@ -85,8 +85,6 @@ class NoticeCard extends StatelessWidget {
                             ],
                           ),
                         ),
-                        if (isAdmin)
-                          _buildAdminMenu(context),
                       ],
                     ),
                     const SizedBox(height: 6),
@@ -131,18 +129,20 @@ class NoticeCard extends StatelessWidget {
                     if (isAdmin) ...[
                       const Divider(height: 16, thickness: 0.5),
                       Row(
-                        mainAxisAlignment: MainAxisAlignment.end,
                         children: [
-                          Text(
-                            'Admin Actions',
-                            style: TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.bold,
-                              color: colors.onSurface.withOpacity(0.4),
-                              letterSpacing: 0.5,
+                          Expanded(
+                            child: Text(
+                              'Admin Actions',
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.bold,
+                                color: colors.onSurface.withOpacity(0.4),
+                                letterSpacing: 0.5,
+                              ),
+                              overflow: TextOverflow.ellipsis,
                             ),
                           ),
-                          const Spacer(),
+                          const SizedBox(width: 8),
                           _buildAdminMenu(context),
                         ],
                       ),
@@ -180,7 +180,7 @@ class NoticeCard extends StatelessWidget {
               _showToast(context, 'Notice approved successfully!', isError: false);
             },
           ),
-          const SizedBox(width: 12),
+          const SizedBox(width: 8),
         ],
         if (isSuperUser) ...[
           IconButton(
@@ -199,7 +199,7 @@ class NoticeCard extends StatelessWidget {
               }
             },
           ),
-          const SizedBox(width: 12),
+          const SizedBox(width: 8),
         ],
         IconButton(
           icon: Icon(notice.isVisible ? Icons.visibility : Icons.visibility_off, color: Colors.orange, size: 20),
@@ -211,7 +211,7 @@ class NoticeCard extends StatelessWidget {
             _showToast(context, notice.isVisible ? 'Notice hidden!' : 'Notice is now visible!', isError: false);
           },
         ),
-        const SizedBox(width: 12),
+        const SizedBox(width: 8),
         IconButton(
           icon: const Icon(Icons.edit_outlined, color: Colors.blueAccent, size: 20),
           padding: EdgeInsets.zero,
@@ -219,7 +219,7 @@ class NoticeCard extends StatelessWidget {
           tooltip: 'Edit Notice',
           onPressed: onEdit,
         ),
-        const SizedBox(width: 12),
+        const SizedBox(width: 8),
         IconButton(
           icon: const Icon(Icons.delete_outline, color: Colors.red, size: 20),
           padding: EdgeInsets.zero,
