@@ -336,12 +336,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   InputDecoration _inputDecoration(String label, IconData icon, {bool readOnly = false}) {
+    final colors = Theme.of(context).colorScheme;
     return InputDecoration(
       labelText: label,
-      prefixIcon: Icon(icon, color: Theme.of(context).colorScheme.primary),
+      prefixIcon: Icon(
+        icon, 
+        color: readOnly ? colors.onSurface.withOpacity(0.4) : colors.primary,
+      ),
       border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
       filled: readOnly,
-      fillColor: readOnly ? Colors.grey.shade50 : null,
+      fillColor: readOnly ? colors.onSurface.withOpacity(0.05) : null,
       isDense: true,
     );
   }
