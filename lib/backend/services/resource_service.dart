@@ -1,10 +1,13 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../features/resources/models/resource_state.dart';
+import '../../core/services/cache_service.dart';
 
 class ResourceService {
   static final SupabaseClient _client = Supabase.instance.client;
 
-  static Future<void> fetchResources() async {
+  static Future<void> fetchResources({bool forceRefresh = false}) async {
+    if (!forceRefresh && !CacheService.isStale(CacheKeys.resources)) return;
+
     final response = await _client
         .from('resources')
         .select()
@@ -16,6 +19,7 @@ class ResourceService {
     }
 
     resourceState.value = resources;
+    CacheService.markFresh(CacheKeys.resources);
   }
 
   static Future<void> addResourceToDB(ResourceItem item) async {
@@ -28,6 +32,7 @@ class ResourceService {
 
     final newItem = ResourceItem.fromJson(response);
     resourceState.value = List.from(resourceState.value)..insert(0, newItem);
+    CacheService.invalidate(CacheKeys.resources);
   }
 
   static Future<void> updateResourceInDB(ResourceItem item) async {
@@ -36,6 +41,7 @@ class ResourceService {
         .from('resources')
         .update(data)
         .eq('id', item.id);
+    CacheService.invalidate(CacheKeys.resources);
   }
 
   static Future<void> deleteResourceFromDB(ResourceItem item) async {
@@ -45,5 +51,6 @@ class ResourceService {
         .eq('id', item.id);
 
     resourceState.value = List.from(resourceState.value)..removeWhere((i) => i.id == item.id);
+    CacheService.invalidate(CacheKeys.resources);
   }
 }
