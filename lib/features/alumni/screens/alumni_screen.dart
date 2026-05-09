@@ -345,23 +345,9 @@ class _AlumniScreenState extends State<AlumniScreen> {
                             decoration: BoxDecoration(color: Colors.red.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(4)),
                             child: const Text('PENDING', style: TextStyle(color: Colors.red, fontSize: 9, fontWeight: FontWeight.bold)),
                           ),
-                        if (isAdmin)
-                          PopupMenuButton<String>(
-                            icon: const Icon(Icons.more_vert, size: 18),
-                            onSelected: (val) {
-                              if (val == 'edit') _showAlumniForm(existing: alumni);
-                              if (val == 'delete') AlumniService.deleteAlumni(alumni);
-                              if (val == 'approve') AlumniService.approveAlumni(alumni.id);
-                              if (val == 'visibility') AlumniService.toggleAlumniVisibility(alumni.id, !alumni.isVisible);
-                            },
-                            itemBuilder: (_) => [
-                              if (!alumni.isApproved && _isSuperUser)
-                                const PopupMenuItem(value: 'approve', child: Text('Approve', style: TextStyle(color: Colors.green))),
-                              PopupMenuItem(value: 'visibility', child: Text(alumni.isVisible ? 'Hide' : 'Show')),
-                              const PopupMenuItem(value: 'edit', child: Text('Edit')),
-                              const PopupMenuItem(value: 'delete', child: Text('Delete', style: TextStyle(color: Colors.red))),
-                            ],
-                          ),
+                        if (isAdmin) ...[
+                          // Removed PopupMenuButton from the header row
+                        ],
                       ],
                     ),
                     if (alumni.currentPosition.isNotEmpty || alumni.company.isNotEmpty)
@@ -375,12 +361,113 @@ class _AlumniScreenState extends State<AlumniScreen> {
                         '${alumni.passingYear.isNotEmpty ? ' • Passed: ${alumni.passingYear}' : ''}',
                         style: TextStyle(color: colors.onSurface.withValues(alpha: 0.5), fontSize: 12),
                       ),
+                    if (isAdmin) ...[
+                      const Divider(height: 16, thickness: 0.5),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        children: [
+                          Text(
+                            'Admin Actions',
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
+                              color: colors.onSurface.withValues(alpha: 0.4),
+                              letterSpacing: 0.5,
+                            ),
+                          ),
+                          const Spacer(),
+                          _buildCardAdminMenu(alumni),
+                        ],
+                      ),
+                    ],
                   ],
                 ),
               ),
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildCardAdminMenu(AlumniItem alumni) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        if (!alumni.isApproved && _isSuperUser) ...[
+          IconButton(
+            icon: const Icon(Icons.check_circle, color: Colors.green, size: 20),
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(),
+            tooltip: 'Approve Alumni',
+            onPressed: () async {
+              try {
+                await AlumniService.approveAlumni(alumni.id);
+                if (mounted) _showToast('Alumni approved successfully!', isError: false);
+              } catch (e) {
+                if (mounted) _showToast('Error: $e', isError: true);
+              }
+            },
+          ),
+          const SizedBox(width: 12),
+        ],
+        IconButton(
+          icon: Icon(alumni.isVisible ? Icons.visibility : Icons.visibility_off, color: Colors.orange, size: 20),
+          padding: EdgeInsets.zero,
+          constraints: const BoxConstraints(),
+          tooltip: alumni.isVisible ? 'Hide Alumni' : 'Show Alumni',
+          onPressed: () async {
+            try {
+              await AlumniService.toggleAlumniVisibility(alumni.id, !alumni.isVisible);
+              if (mounted) _showToast(alumni.isVisible ? 'Alumni profile hidden!' : 'Alumni profile is now visible!', isError: false);
+            } catch (e) {
+              if (mounted) _showToast('Error: $e', isError: true);
+            }
+          },
+        ),
+        const SizedBox(width: 12),
+        IconButton(
+          icon: const Icon(Icons.edit_outlined, color: Colors.blueAccent, size: 20),
+          padding: EdgeInsets.zero,
+          constraints: const BoxConstraints(),
+          tooltip: 'Edit Alumni',
+          onPressed: () => _showAlumniForm(existing: alumni),
+        ),
+        const SizedBox(width: 12),
+        IconButton(
+          icon: const Icon(Icons.delete_outline, color: Colors.red, size: 20),
+          padding: EdgeInsets.zero,
+          constraints: const BoxConstraints(),
+          tooltip: 'Delete Alumni',
+          onPressed: () async {
+            try {
+              await AlumniService.deleteAlumni(alumni);
+              if (mounted) _showToast('Alumni deleted successfully!', isError: false);
+            } catch (e) {
+              if (mounted) _showToast('Error: $e', isError: true);
+            }
+          },
+        ),
+      ],
+    );
+  }
+
+  void _showToast(String message, {required bool isError}) {
+    ScaffoldMessenger.of(context).hideCurrentSnackBar();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            Icon(isError ? Icons.error_outline : Icons.check_circle_outline, color: Colors.white, size: 20),
+            const SizedBox(width: 10),
+            Expanded(child: Text(message, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13))),
+          ],
+        ),
+        backgroundColor: isError ? Colors.redAccent : Colors.teal,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        margin: const EdgeInsets.all(16),
+        duration: const Duration(seconds: 2),
       ),
     );
   }

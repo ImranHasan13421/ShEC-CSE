@@ -25,7 +25,7 @@ class _MembersScreenState extends State<MembersScreen> {
       final members = await AuthService.fetchAllMembers();
       if (mounted) setState(() => _members = members);
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+      if (mounted) _showToast('Error: $e', isError: true);
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -34,10 +34,10 @@ class _MembersScreenState extends State<MembersScreen> {
   Future<void> _changeRole(ProfileData member, UserRole newRole) async {
     try {
       await AuthService.updateUserRole(member.id, newRole);
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Role updated successfully')));
+      if (mounted) _showToast('Role updated successfully', isError: false);
       _fetchMembers(); // Refresh list
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error updating role: $e')));
+      if (mounted) _showToast('Error updating role: $e', isError: true);
     }
   }
 
@@ -60,12 +60,32 @@ class _MembersScreenState extends State<MembersScreen> {
     if (confirm == true) {
       try {
         await AuthService.deleteUser(member.id);
-        if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Member deleted successfully')));
+        if (mounted) _showToast('Member deleted successfully', isError: false);
         _fetchMembers();
       } catch (e) {
-        if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error deleting member: $e')));
+        if (mounted) _showToast('Error deleting member: $e', isError: true);
       }
     }
+  }
+
+  void _showToast(String message, {required bool isError}) {
+    ScaffoldMessenger.of(context).hideCurrentSnackBar();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            Icon(isError ? Icons.error_outline : Icons.check_circle_outline, color: Colors.white, size: 20),
+            const SizedBox(width: 10),
+            Expanded(child: Text(message, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13))),
+          ],
+        ),
+        backgroundColor: isError ? Colors.redAccent : Colors.teal,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        margin: const EdgeInsets.all(16),
+        duration: const Duration(seconds: 2),
+      ),
+    );
   }
 
   @override
@@ -108,52 +128,88 @@ class _MembersScreenState extends State<MembersScreen> {
 
                 return Card(
                   margin: const EdgeInsets.only(bottom: 12),
-                  child: ListTile(
-                    leading: CircleAvatar(
-                      backgroundImage: member.imagePath != null && member.imagePath!.isNotEmpty 
-                        ? NetworkImage(member.imagePath!) 
-                        : null,
-                      child: member.imagePath == null || member.imagePath!.isEmpty
-                        ? Text(member.name[0].toUpperCase())
-                        : null,
-                    ),
-                    title: Text(member.name, style: const TextStyle(fontWeight: FontWeight.bold)),
-                    subtitle: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text('Student ID: ${member.studentFullId} | Session: ${member.session}'),
-                        const SizedBox(height: 4),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: roleColor.withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(color: roleColor.withOpacity(0.5)),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  child: Column(
+                    children: [
+                      ListTile(
+                        leading: CircleAvatar(
+                          backgroundImage: member.imagePath != null && member.imagePath!.isNotEmpty 
+                            ? NetworkImage(member.imagePath!) 
+                            : null,
+                          child: member.imagePath == null || member.imagePath!.isEmpty
+                            ? Text(member.name[0].toUpperCase())
+                            : null,
+                        ),
+                        title: Text(member.name, style: const TextStyle(fontWeight: FontWeight.bold)),
+                        subtitle: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('Student ID: ${member.studentFullId} | Session: ${member.session}'),
+                            const SizedBox(height: 4),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: roleColor.withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(color: roleColor.withOpacity(0.5)),
+                              ),
+                              child: Text(roleText, style: TextStyle(color: roleColor, fontSize: 12, fontWeight: FontWeight.bold)),
+                            ),
+                          ],
+                        ),
+                      ),
+                      if (!isSelf) ...[
+                        const Divider(height: 8, thickness: 0.5),
+                        Padding(
+                          padding: const EdgeInsets.only(left: 16, right: 12, bottom: 8, top: 4),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.end,
+                            children: [
+                              Text(
+                                'Member Management',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.bold,
+                                  color: Theme.of(context).colorScheme.onSurface.withOpacity(0.4),
+                                ),
+                              ),
+                              const Spacer(),
+                              if (member.role != UserRole.student)
+                                IconButton(
+                                  icon: const Icon(Icons.school, color: Colors.green, size: 20),
+                                  tooltip: 'Demote to Member',
+                                  onPressed: () => _changeRole(member, UserRole.student),
+                                  constraints: const BoxConstraints(),
+                                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                                ),
+                              if (member.role != UserRole.committeeMember)
+                                IconButton(
+                                  icon: const Icon(Icons.group, color: Colors.orange, size: 20),
+                                  tooltip: 'Promote to Committee',
+                                  onPressed: () => _changeRole(member, UserRole.committeeMember),
+                                  constraints: const BoxConstraints(),
+                                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                                ),
+                              if (member.role != UserRole.superUser)
+                                IconButton(
+                                  icon: const Icon(Icons.shield, color: Colors.purple, size: 20),
+                                  tooltip: 'Promote to Superuser',
+                                  onPressed: () => _changeRole(member, UserRole.superUser),
+                                  constraints: const BoxConstraints(),
+                                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                                ),
+                              IconButton(
+                                icon: const Icon(Icons.delete_outline, color: Colors.red, size: 20),
+                                tooltip: 'Delete Member',
+                                onPressed: () => _deleteMember(member),
+                                constraints: const BoxConstraints(),
+                                padding: const EdgeInsets.symmetric(horizontal: 8),
+                              ),
+                            ],
                           ),
-                          child: Text(roleText, style: TextStyle(color: roleColor, fontSize: 12, fontWeight: FontWeight.bold)),
                         ),
                       ],
-                    ),
-                    trailing: isSelf ? null : PopupMenuButton<String>(
-                      onSelected: (value) {
-                        if (value == 'delete') {
-                          _deleteMember(member);
-                        } else if (value == 'make_member') {
-                          _changeRole(member, UserRole.student);
-                        } else if (value == 'make_committee') {
-                          _changeRole(member, UserRole.committeeMember);
-                        } else if (value == 'make_superuser') {
-                          _changeRole(member, UserRole.superUser);
-                        }
-                      },
-                      itemBuilder: (context) => [
-                        if (member.role != UserRole.student) const PopupMenuItem(value: 'make_member', child: Text('Demote to Member')),
-                        if (member.role != UserRole.committeeMember) const PopupMenuItem(value: 'make_committee', child: Text('Promote to Committee')),
-                        if (member.role != UserRole.superUser) const PopupMenuItem(value: 'make_superuser', child: Text('Promote to Superuser')),
-                        const PopupMenuDivider(),
-                        const PopupMenuItem(value: 'delete', child: Text('Delete Member', style: TextStyle(color: Colors.red))),
-                      ],
-                    ),
+                    ],
                   ),
                 );
               },

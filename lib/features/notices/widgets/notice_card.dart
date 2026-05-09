@@ -128,6 +128,25 @@ class NoticeCard extends StatelessWidget {
                           ],
                         ),
                       ),
+                    if (isAdmin) ...[
+                      const Divider(height: 16, thickness: 0.5),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        children: [
+                          Text(
+                            'Admin Actions',
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
+                              color: colors.onSurface.withOpacity(0.4),
+                              letterSpacing: 0.5,
+                            ),
+                          ),
+                          const Spacer(),
+                          _buildAdminMenu(context),
+                        ],
+                      ),
+                    ],
                   ],
                 ),
               ),
@@ -147,24 +166,91 @@ class NoticeCard extends StatelessWidget {
   }
 
   Widget _buildAdminMenu(BuildContext context) {
-    return PopupMenuButton<String>(
-      icon: const Icon(Icons.more_vert, size: 18),
-      onSelected: (val) {
-        if (val == 'edit') onEdit?.call();
-        if (val == 'delete') onDelete?.call();
-        if (val == 'approve') onApprove?.call();
-        if (val == 'visibility') onToggleVisibility?.call();
-        if (val == 'pin') NoticeService.toggleNoticePin(notice.id, !notice.isPinned);
-      },
-      itemBuilder: (_) => [
-        if (!notice.isApproved && isSuperUser)
-          const PopupMenuItem(value: 'approve', child: Text('Approve', style: TextStyle(color: Colors.green))),
-        if (isSuperUser)
-          PopupMenuItem(value: 'pin', child: Text(notice.isPinned ? 'Unpin' : 'Pin')),
-        PopupMenuItem(value: 'visibility', child: Text(notice.isVisible ? 'Hide' : 'Show')),
-        const PopupMenuItem(value: 'edit', child: Text('Edit')),
-        const PopupMenuItem(value: 'delete', child: Text('Delete', style: TextStyle(color: Colors.red))),
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        if (!notice.isApproved && isSuperUser) ...[
+          IconButton(
+            icon: const Icon(Icons.check_circle, color: Colors.green, size: 20),
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(),
+            tooltip: 'Approve Notice',
+            onPressed: () {
+              onApprove?.call();
+              _showToast(context, 'Notice approved successfully!', isError: false);
+            },
+          ),
+          const SizedBox(width: 12),
+        ],
+        if (isSuperUser) ...[
+          IconButton(
+            icon: Icon(notice.isPinned ? Icons.push_pin : Icons.push_pin_outlined, color: Colors.blue, size: 20),
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(),
+            tooltip: notice.isPinned ? 'Unpin Notice' : 'Pin Notice',
+            onPressed: () async {
+              try {
+                await NoticeService.toggleNoticePin(notice.id, !notice.isPinned);
+                if (context.mounted) {
+                  _showToast(context, notice.isPinned ? 'Notice unpinned!' : 'Notice pinned!', isError: false);
+                }
+              } catch (e) {
+                if (context.mounted) _showToast(context, 'Error: $e', isError: true);
+              }
+            },
+          ),
+          const SizedBox(width: 12),
+        ],
+        IconButton(
+          icon: Icon(notice.isVisible ? Icons.visibility : Icons.visibility_off, color: Colors.orange, size: 20),
+          padding: EdgeInsets.zero,
+          constraints: const BoxConstraints(),
+          tooltip: notice.isVisible ? 'Hide Notice' : 'Show Notice',
+          onPressed: () {
+            onToggleVisibility?.call();
+            _showToast(context, notice.isVisible ? 'Notice hidden!' : 'Notice is now visible!', isError: false);
+          },
+        ),
+        const SizedBox(width: 12),
+        IconButton(
+          icon: const Icon(Icons.edit_outlined, color: Colors.blueAccent, size: 20),
+          padding: EdgeInsets.zero,
+          constraints: const BoxConstraints(),
+          tooltip: 'Edit Notice',
+          onPressed: onEdit,
+        ),
+        const SizedBox(width: 12),
+        IconButton(
+          icon: const Icon(Icons.delete_outline, color: Colors.red, size: 20),
+          padding: EdgeInsets.zero,
+          constraints: const BoxConstraints(),
+          tooltip: 'Delete Notice',
+          onPressed: () {
+            onDelete?.call();
+            _showToast(context, 'Notice deleted successfully!', isError: false);
+          },
+        ),
       ],
+    );
+  }
+
+  void _showToast(BuildContext context, String message, {required bool isError}) {
+    ScaffoldMessenger.of(context).hideCurrentSnackBar();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            Icon(isError ? Icons.error_outline : Icons.check_circle_outline, color: Colors.white, size: 20),
+            const SizedBox(width: 10),
+            Expanded(child: Text(message, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13))),
+          ],
+        ),
+        backgroundColor: isError ? Colors.redAccent : Colors.teal,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        margin: const EdgeInsets.all(16),
+        duration: const Duration(seconds: 2),
+      ),
     );
   }
 }

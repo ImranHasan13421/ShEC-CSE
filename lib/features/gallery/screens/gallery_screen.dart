@@ -377,29 +377,99 @@ class _GalleryScreenState extends State<GalleryScreen> {
           ),
           if (isAdmin)
             Positioned(
-              top: 0, right: 0,
+              top: 8, right: 8,
               child: Container(
-                decoration: const BoxDecoration(color: Colors.black45, borderRadius: BorderRadius.only(bottomLeft: Radius.circular(12))),
-                child: PopupMenuButton<String>(
-                  icon: const Icon(Icons.more_vert, color: Colors.white, size: 20),
-                  onSelected: (value) async {
-                    if (value == 'edit') _showGalleryForm(context, existingItem: item);
-                    if (value == 'delete') await GalleryService.deleteGalleryItemFromDB(item);
-                    if (value == 'approve') await GalleryService.approveGalleryItem(item.id);
-                    if (value == 'visibility') await GalleryService.toggleGalleryVisibility(item.id, !item.isVisible);
-                  },
-                  itemBuilder: (context) => [
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                decoration: BoxDecoration(
+                  color: Colors.black.withOpacity(0.7),
+                  borderRadius: BorderRadius.circular(20),
+                  boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 4, offset: Offset(0, 2))],
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
                     if (!item.isApproved &&
-                        (profile.designation == 'President' || profile.designation == 'Vice President'))
-                      const PopupMenuItem(value: 'approve', child: Text('Approve', style: TextStyle(color: Colors.green))),
-                    PopupMenuItem(value: 'visibility', child: Text(item.isVisible ? 'Hide' : 'Show')),
-                    const PopupMenuItem(value: 'edit', child: Text('Edit')),
-                    const PopupMenuItem(value: 'delete', child: Text('Delete', style: TextStyle(color: Colors.red))),
+                        (profile.designation == 'President' || profile.designation == 'Vice President')) ...[
+                      GestureDetector(
+                        onTap: () async {
+                          try {
+                            await GalleryService.approveGalleryItem(item.id);
+                            if (context.mounted) _showToast(context, 'Gallery item approved!', isError: false);
+                          } catch (e) {
+                            if (context.mounted) _showToast(context, 'Error: $e', isError: true);
+                          }
+                        },
+                        child: const Tooltip(
+                          message: 'Approve Gallery Item',
+                          child: Icon(Icons.check_circle, color: Colors.green, size: 18),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                    ],
+                    GestureDetector(
+                      onTap: () async {
+                        try {
+                          await GalleryService.toggleGalleryVisibility(item.id, !item.isVisible);
+                          if (context.mounted) {
+                            _showToast(context, item.isVisible ? 'Gallery item hidden!' : 'Gallery item is now visible!', isError: false);
+                          }
+                        } catch (e) {
+                          if (context.mounted) _showToast(context, 'Error: $e', isError: true);
+                        }
+                      },
+                      child: Tooltip(
+                        message: item.isVisible ? 'Hide Item' : 'Show Item',
+                        child: Icon(item.isVisible ? Icons.visibility : Icons.visibility_off, color: Colors.orange, size: 18),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    GestureDetector(
+                      onTap: () => _showGalleryForm(context, existingItem: item),
+                      child: const Tooltip(
+                        message: 'Edit Item',
+                        child: Icon(Icons.edit_outlined, color: Colors.blueAccent, size: 18),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    GestureDetector(
+                      onTap: () async {
+                        try {
+                          await GalleryService.deleteGalleryItemFromDB(item);
+                          if (context.mounted) _showToast(context, 'Gallery item deleted successfully!', isError: false);
+                        } catch (e) {
+                          if (context.mounted) _showToast(context, 'Error: $e', isError: true);
+                        }
+                      },
+                      child: const Tooltip(
+                        message: 'Delete Item',
+                        child: Icon(Icons.delete_outline, color: Colors.redAccent, size: 18),
+                      ),
+                    ),
                   ],
                 ),
               ),
             ),
         ],
+      ),
+    );
+  }
+
+  void _showToast(BuildContext context, String message, {required bool isError}) {
+    ScaffoldMessenger.of(context).hideCurrentSnackBar();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            Icon(isError ? Icons.error_outline : Icons.check_circle_outline, color: Colors.white, size: 20),
+            const SizedBox(width: 10),
+            Expanded(child: Text(message, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13))),
+          ],
+        ),
+        backgroundColor: isError ? Colors.redAccent : Colors.teal,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        margin: const EdgeInsets.all(16),
+        duration: const Duration(seconds: 2),
       ),
     );
   }

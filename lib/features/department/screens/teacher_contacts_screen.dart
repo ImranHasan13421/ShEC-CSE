@@ -289,23 +289,9 @@ class _TeacherContactsScreenState extends State<TeacherContactsScreen> {
                             decoration: BoxDecoration(color: Colors.red.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(4)),
                             child: const Text('PENDING', style: TextStyle(color: Colors.red, fontSize: 9, fontWeight: FontWeight.bold)),
                           ),
-                        if (isAdmin)
-                          PopupMenuButton<String>(
-                            icon: const Icon(Icons.more_vert, size: 18),
-                            onSelected: (val) {
-                              if (val == 'edit') _showTeacherForm(existingTeacher: teacher);
-                              if (val == 'delete') TeacherService.deleteTeacher(teacher);
-                              if (val == 'approve') TeacherService.approveTeacher(teacher.id);
-                              if (val == 'visibility') TeacherService.toggleTeacherVisibility(teacher.id, !teacher.isVisible);
-                            },
-                            itemBuilder: (_) => [
-                              if (!teacher.isApproved && (profile.designation == 'President' || profile.designation == 'Vice President'))
-                                const PopupMenuItem(value: 'approve', child: Text('Approve', style: TextStyle(color: Colors.green))),
-                              PopupMenuItem(value: 'visibility', child: Text(teacher.isVisible ? 'Hide' : 'Show')),
-                              const PopupMenuItem(value: 'edit', child: Text('Edit')),
-                              const PopupMenuItem(value: 'delete', child: Text('Delete', style: TextStyle(color: Colors.red))),
-                            ],
-                          ),
+                        if (isAdmin) ...[
+                          // Removed PopupMenuButton from card header
+                        ],
                       ],
                     ),
                     Text(teacher.designation, style: TextStyle(color: colors.primary, fontWeight: FontWeight.bold, fontSize: 13)),
@@ -320,6 +306,25 @@ class _TeacherContactsScreenState extends State<TeacherContactsScreen> {
                           child: Text(area, style: TextStyle(color: colors.onPrimaryContainer, fontSize: 10)),
                         )).toList(),
                       ),
+                    if (isAdmin) ...[
+                      const Divider(height: 16, thickness: 0.5),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        children: [
+                          Text(
+                            'Admin Actions',
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
+                              color: colors.onSurface.withValues(alpha: 0.4),
+                              letterSpacing: 0.5,
+                            ),
+                          ),
+                          const Spacer(),
+                          _buildTeacherAdminMenu(context, teacher, profile),
+                        ],
+                      ),
+                    ],
                   ],
                 ),
               ),
@@ -329,4 +334,87 @@ class _TeacherContactsScreenState extends State<TeacherContactsScreen> {
       ),
     );
   }
+
+  Widget _buildTeacherAdminMenu(BuildContext context, TeacherContact teacher, ProfileData profile) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        if (!teacher.isApproved && (profile.designation == 'President' || profile.designation == 'Vice President')) ...[
+          IconButton(
+            icon: const Icon(Icons.check_circle, color: Colors.green, size: 20),
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(),
+            tooltip: 'Approve Teacher',
+            onPressed: () async {
+              try {
+                await TeacherService.approveTeacher(teacher.id);
+                if (context.mounted) _showToast(context, 'Teacher contact approved!', isError: false);
+              } catch (e) {
+                if (context.mounted) _showToast(context, 'Error: $e', isError: true);
+              }
+            },
+          ),
+          const SizedBox(width: 12),
+        ],
+        IconButton(
+          icon: Icon(teacher.isVisible ? Icons.visibility : Icons.visibility_off, color: Colors.orange, size: 20),
+          padding: EdgeInsets.zero,
+          constraints: const BoxConstraints(),
+          tooltip: teacher.isVisible ? 'Hide Teacher' : 'Show Teacher',
+          onPressed: () async {
+            try {
+              await TeacherService.toggleTeacherVisibility(teacher.id, !teacher.isVisible);
+              if (context.mounted) _showToast(context, teacher.isVisible ? 'Teacher contact hidden!' : 'Teacher contact is now visible!', isError: false);
+            } catch (e) {
+              if (context.mounted) _showToast(context, 'Error: $e', isError: true);
+            }
+          },
+        ),
+        const SizedBox(width: 12),
+        IconButton(
+          icon: const Icon(Icons.edit_outlined, color: Colors.blueAccent, size: 20),
+          padding: EdgeInsets.zero,
+          constraints: const BoxConstraints(),
+          tooltip: 'Edit Teacher',
+          onPressed: () => _showTeacherForm(existingTeacher: teacher),
+        ),
+        const SizedBox(width: 12),
+        IconButton(
+          icon: const Icon(Icons.delete_outline, color: Colors.red, size: 20),
+          padding: EdgeInsets.zero,
+          constraints: const BoxConstraints(),
+          tooltip: 'Delete Teacher',
+          onPressed: () async {
+            try {
+              await TeacherService.deleteTeacher(teacher);
+              if (context.mounted) _showToast(context, 'Teacher contact deleted successfully!', isError: false);
+            } catch (e) {
+              if (context.mounted) _showToast(context, 'Error: $e', isError: true);
+            }
+          },
+        ),
+      ],
+    );
+  }
+
+  void _showToast(BuildContext context, String message, {required bool isError}) {
+    ScaffoldMessenger.of(context).hideCurrentSnackBar();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            Icon(isError ? Icons.error_outline : Icons.check_circle_outline, color: Colors.white, size: 20),
+            const SizedBox(width: 10),
+            Expanded(child: Text(message, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13))),
+          ],
+        ),
+        backgroundColor: isError ? Colors.redAccent : Colors.teal,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        margin: const EdgeInsets.all(16),
+        duration: const Duration(seconds: 2),
+      ),
+    );
+  }
 }
+

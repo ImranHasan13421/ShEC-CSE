@@ -251,26 +251,12 @@ class _ContestsScreenState extends State<ContestsScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Row(
+                       Row(
                         children: [
                           Expanded(child: Text(item.title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18))),
-                          if (isAdmin)
-                            PopupMenuButton<String>(
-                              icon: const Icon(Icons.more_vert, size: 20),
-                              onSelected: (val) {
-                                if (val == 'edit') _showForm(context, existingItem: item);
-                                if (val == 'delete') ContestService.deleteContestFromDB(item);
-                                if (val == 'approve') ContestService.approveContest(item.id);
-                                if (val == 'visibility') ContestService.toggleContestVisibility(item.id, !item.isVisible);
-                              },
-                              itemBuilder: (_) => [
-                                if (!item.isApproved && isSuperUser)
-                                  const PopupMenuItem(value: 'approve', child: Text('Approve', style: TextStyle(color: Colors.green))),
-                                PopupMenuItem(value: 'visibility', child: Text(item.isVisible ? 'Hide' : 'Show')),
-                                const PopupMenuItem(value: 'edit', child: Text('Edit')),
-                                const PopupMenuItem(value: 'delete', child: Text('Delete', style: TextStyle(color: Colors.red))),
-                              ],
-                            ),
+                          if (isAdmin) ...[
+                            // Removed PopupMenuButton from card header
+                          ],
                         ],
                       ),
                       const SizedBox(height: 4),
@@ -302,6 +288,25 @@ class _ContestsScreenState extends State<ContestsScreen> {
                    const Text('PENDING', style: TextStyle(color: Colors.red, fontSize: 10, fontWeight: FontWeight.bold)),
               ],
             ),
+            if (isAdmin) ...[
+              const Divider(height: 24, thickness: 0.5),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  Text(
+                    'Admin Actions',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold,
+                      color: colors.onSurface.withValues(alpha: 0.4),
+                      letterSpacing: 0.5,
+                    ),
+                  ),
+                  const Spacer(),
+                  _buildContestAdminMenu(context, item, isSuperUser),
+                ],
+              ),
+            ],
             const Divider(height: 32),
             SizedBox(
               width: double.infinity,
@@ -319,6 +324,88 @@ class _ContestsScreenState extends State<ContestsScreen> {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildContestAdminMenu(BuildContext context, ContestItem item, bool isSuperUser) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        if (!item.isApproved && isSuperUser) ...[
+          IconButton(
+            icon: const Icon(Icons.check_circle, color: Colors.green, size: 20),
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(),
+            tooltip: 'Approve Contest',
+            onPressed: () async {
+              try {
+                await ContestService.approveContest(item.id);
+                if (context.mounted) _showToast(context, 'Contest approved successfully!', isError: false);
+              } catch (e) {
+                if (context.mounted) _showToast(context, 'Error: $e', isError: true);
+              }
+            },
+          ),
+          const SizedBox(width: 12),
+        ],
+        IconButton(
+          icon: Icon(item.isVisible ? Icons.visibility : Icons.visibility_off, color: Colors.orange, size: 20),
+          padding: EdgeInsets.zero,
+          constraints: const BoxConstraints(),
+          tooltip: item.isVisible ? 'Hide Contest' : 'Show Contest',
+          onPressed: () async {
+            try {
+              await ContestService.toggleContestVisibility(item.id, !item.isVisible);
+              if (context.mounted) _showToast(context, item.isVisible ? 'Contest hidden!' : 'Contest is now visible!', isError: false);
+            } catch (e) {
+              if (context.mounted) _showToast(context, 'Error: $e', isError: true);
+            }
+          },
+        ),
+        const SizedBox(width: 12),
+        IconButton(
+          icon: const Icon(Icons.edit_outlined, color: Colors.blueAccent, size: 20),
+          padding: EdgeInsets.zero,
+          constraints: const BoxConstraints(),
+          tooltip: 'Edit Contest',
+          onPressed: () => _showForm(context, existingItem: item),
+        ),
+        const SizedBox(width: 12),
+        IconButton(
+          icon: const Icon(Icons.delete_outline, color: Colors.red, size: 20),
+          padding: EdgeInsets.zero,
+          constraints: const BoxConstraints(),
+          tooltip: 'Delete Contest',
+          onPressed: () async {
+            try {
+              await ContestService.deleteContestFromDB(item);
+              if (context.mounted) _showToast(context, 'Contest deleted successfully!', isError: false);
+            } catch (e) {
+              if (context.mounted) _showToast(context, 'Error: $e', isError: true);
+            }
+          },
+        ),
+      ],
+    );
+  }
+
+  void _showToast(BuildContext context, String message, {required bool isError}) {
+    ScaffoldMessenger.of(context).hideCurrentSnackBar();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            Icon(isError ? Icons.error_outline : Icons.check_circle_outline, color: Colors.white, size: 20),
+            const SizedBox(width: 10),
+            Expanded(child: Text(message, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13))),
+          ],
+        ),
+        backgroundColor: isError ? Colors.redAccent : Colors.teal,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        margin: const EdgeInsets.all(16),
+        duration: const Duration(seconds: 2),
       ),
     );
   }

@@ -277,6 +277,8 @@ class _JobsScreenState extends State<JobsScreen> {
 
   Widget _buildJobCard(JobItem job) {
     final colors = Theme.of(context).colorScheme;
+    final profile = currentProfile.value;
+    final isAdmin = profile.role == UserRole.committeeMember || profile.role == UserRole.superUser;
     const iconColor = Colors.blue;
     const typeColor = Colors.teal;
 
@@ -341,94 +343,166 @@ class _JobsScreenState extends State<JobsScreen> {
                                 ],
                               ),
                             ),
-                            IconButton(
-                              icon: Icon(
-                                job.isStarred ? Icons.star : Icons.star_border,
-                                color: job.isStarred ? Colors.amber : colors.onSurface.withValues(alpha: 0.3),
-                              ),
-                              onPressed: () => _toggleStar(job),
-                              constraints: const BoxConstraints(),
-                              padding: EdgeInsets.zero,
-                            ),
-                            ValueListenableBuilder<ProfileData>(
-                              valueListenable: currentProfile,
-                              builder: (context, profile, _) {
-                                if (profile.role == UserRole.committeeMember || profile.role == UserRole.superUser) {
-                                  return PopupMenuButton<String>(
-                                    icon: const Icon(Icons.more_vert, size: 20),
-                                    onSelected: (value) {
-                                      if (value == 'edit') {
-                                        _showJobForm(context, existingJob: job);
-                                      } else if (value == 'delete') {
-                                        _deleteJob(job);
-                                      } else if (value == 'approve') {
-                                        JobService.approveJob(job.id);
-                                      } else if (value == 'visibility') {
-                                        JobService.toggleJobVisibility(job.id, !job.isVisible);
-                                      }
-                                    },
-                                      itemBuilder: (context) => [
-                                        if (!job.isApproved && (profile.designation == 'President' || profile.designation == 'Vice President'))
-                                          const PopupMenuItem(value: 'approve', child: Text('Approve', style: TextStyle(color: Colors.green))),
-                                        PopupMenuItem(value: 'visibility', child: Text(job.isVisible ? 'Hide' : 'Show')),
-                                        const PopupMenuItem(value: 'edit', child: Text('Edit')),
-                                        const PopupMenuItem(value: 'delete', child: Text('Delete', style: TextStyle(color: Colors.red))),
-                                      ],
-                                    );
-                                }
-                                return const SizedBox.shrink();
-                              },
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          job.company,
-                          style: TextStyle(color: colors.onSurface.withValues(alpha: 0.7), fontSize: 14, fontWeight: FontWeight.w500),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-              Row(
-                children: [
-                  Icon(Icons.location_on, size: 14, color: colors.onSurface.withValues(alpha: 0.5)),
-                  const SizedBox(width: 4),
-                  Text(
-                    job.location,
-                    style: TextStyle(color: colors.onSurface.withValues(alpha: 0.6), fontSize: 12),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: typeColor.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(6),
-                      border: Border.all(color: typeColor.withValues(alpha: 0.3)),
-                    ),
-                    child: Text(
-                      job.jobType,
-                      style: TextStyle(color: typeColor, fontSize: 11, fontWeight: FontWeight.bold),
-                    ),
-                  ),
-                  const Spacer(),
-                  Icon(Icons.access_time, size: 12, color: colors.error.withValues(alpha: 0.8)),
-                  const SizedBox(width: 4),
-                  Text(
-                    'Deadline: ${job.deadline}',
-                    style: TextStyle(color: colors.error.withValues(alpha: 0.8), fontSize: 12, fontWeight: FontWeight.w500),
-                  ),
-                ],
-              ),
-            ],
+                             IconButton(
+                               icon: Icon(
+                                 job.isStarred ? Icons.star : Icons.star_border,
+                                 color: job.isStarred ? Colors.amber : colors.onSurface.withValues(alpha: 0.3),
+                                ),
+                               onPressed: () => _toggleStar(job),
+                               constraints: const BoxConstraints(),
+                               padding: EdgeInsets.zero,
+                             ),
+                           ],
+                         ),
+                         const SizedBox(height: 4),
+                         Text(
+                           job.company,
+                           style: TextStyle(color: colors.onSurface.withValues(alpha: 0.7), fontSize: 14, fontWeight: FontWeight.w500),
+                         ),
+                       ],
+                     ),
+                   ),
+                 ],
+               ),
+               const SizedBox(height: 16),
+               Row(
+                 children: [
+                   Icon(Icons.location_on, size: 14, color: colors.onSurface.withValues(alpha: 0.5)),
+                   const SizedBox(width: 4),
+                   Text(
+                     job.location,
+                     style: TextStyle(color: colors.onSurface.withValues(alpha: 0.6), fontSize: 12),
+                   ),
+                 ],
+               ),
+               const SizedBox(height: 12),
+               Row(
+                 children: [
+                   Container(
+                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                     decoration: BoxDecoration(
+                       color: typeColor.withValues(alpha: 0.1),
+                       borderRadius: BorderRadius.circular(6),
+                       border: Border.all(color: typeColor.withValues(alpha: 0.3)),
+                     ),
+                     child: Text(
+                       job.jobType,
+                       style: TextStyle(color: typeColor, fontSize: 11, fontWeight: FontWeight.bold),
+                     ),
+                   ),
+                   const Spacer(),
+                   Icon(Icons.access_time, size: 12, color: colors.error.withValues(alpha: 0.8)),
+                   const SizedBox(width: 4),
+                   Text(
+                     'Deadline: ${job.deadline}',
+                     style: TextStyle(color: colors.error.withValues(alpha: 0.8), fontSize: 12, fontWeight: FontWeight.w500),
+                   ),
+                 ],
+               ),
+               if (isAdmin) ...[
+                 const Divider(height: 24, thickness: 0.5),
+                 Row(
+                   mainAxisAlignment: MainAxisAlignment.end,
+                   children: [
+                     Text(
+                       'Admin Actions',
+                       style: TextStyle(
+                         fontSize: 11,
+                         fontWeight: FontWeight.bold,
+                         color: colors.onSurface.withValues(alpha: 0.4),
+                         letterSpacing: 0.5,
+                       ),
+                     ),
+                     const Spacer(),
+                     _buildJobAdminMenu(context, job, profile),
+                   ],
+                 ),
+               ],
+             ],
+           ),
+         ),
+       ),
+     );
+   }
+
+  Widget _buildJobAdminMenu(BuildContext context, JobItem job, ProfileData profile) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        if (!job.isApproved && (profile.designation == 'President' || profile.designation == 'Vice President')) ...[
+          IconButton(
+            icon: const Icon(Icons.check_circle, color: Colors.green, size: 20),
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(),
+            tooltip: 'Approve Job',
+            onPressed: () async {
+              try {
+                await JobService.approveJob(job.id);
+                if (context.mounted) _showToast(context, 'Job approved successfully!', isError: false);
+              } catch (e) {
+                if (context.mounted) _showToast(context, 'Error: $e', isError: true);
+              }
+            },
           ),
+          const SizedBox(width: 12),
+        ],
+        IconButton(
+          icon: Icon(job.isVisible ? Icons.visibility : Icons.visibility_off, color: Colors.orange, size: 20),
+          padding: EdgeInsets.zero,
+          constraints: const BoxConstraints(),
+          tooltip: job.isVisible ? 'Hide Job' : 'Show Job',
+          onPressed: () async {
+            try {
+              await JobService.toggleJobVisibility(job.id, !job.isVisible);
+              if (context.mounted) _showToast(context, job.isVisible ? 'Job hidden!' : 'Job is now visible!', isError: false);
+            } catch (e) {
+              if (context.mounted) _showToast(context, 'Error: $e', isError: true);
+            }
+          },
         ),
+        const SizedBox(width: 12),
+        IconButton(
+          icon: const Icon(Icons.edit_outlined, color: Colors.blueAccent, size: 20),
+          padding: EdgeInsets.zero,
+          constraints: const BoxConstraints(),
+          tooltip: 'Edit Job',
+          onPressed: () => _showJobForm(context, existingJob: job),
+        ),
+        const SizedBox(width: 12),
+        IconButton(
+          icon: const Icon(Icons.delete_outline, color: Colors.red, size: 20),
+          padding: EdgeInsets.zero,
+          constraints: const BoxConstraints(),
+          tooltip: 'Delete Job',
+          onPressed: () async {
+            try {
+              await JobService.deleteJobFromDB(job.id);
+              if (context.mounted) _showToast(context, 'Job deleted successfully!', isError: false);
+            } catch (e) {
+              if (context.mounted) _showToast(context, 'Error: $e', isError: true);
+            }
+          },
+        ),
+      ],
+    );
+  }
+
+  void _showToast(BuildContext context, String message, {required bool isError}) {
+    ScaffoldMessenger.of(context).hideCurrentSnackBar();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            Icon(isError ? Icons.error_outline : Icons.check_circle_outline, color: Colors.white, size: 20),
+            const SizedBox(width: 10),
+            Expanded(child: Text(message, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13))),
+          ],
+        ),
+        backgroundColor: isError ? Colors.redAccent : Colors.teal,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        margin: const EdgeInsets.all(16),
+        duration: const Duration(seconds: 2),
       ),
     );
   }

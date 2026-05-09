@@ -337,14 +337,14 @@ class _PdfsScreenState extends State<PdfsScreen> {
 
                         if (existingItem == null) {
                           await ResourceService.addResourceToDB(newItem);
-                          if (mounted) messenger.showSnackBar(const SnackBar(content: Text('Resource uploaded!')));
+                          if (mounted) _showToast('Resource uploaded successfully!', isError: false);
                         } else {
                           await ResourceService.updateResourceInDB(newItem);
                           ResourceService.fetchResources(); // Refresh
-                          if (mounted) messenger.showSnackBar(const SnackBar(content: Text('Resource updated!')));
+                          if (mounted) _showToast('Resource updated successfully!', isError: false);
                         }
                       } catch (e) {
-                        if (mounted) messenger.showSnackBar(SnackBar(content: Text('Error: $e')));
+                        if (mounted) _showToast('Error: $e', isError: true);
                       }
                     }
                   },
@@ -374,11 +374,31 @@ class _PdfsScreenState extends State<PdfsScreen> {
     if (confirm == true) {
       try {
         await ResourceService.deleteResourceFromDB(item);
-        if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Resource deleted')));
+        if (mounted) _showToast('Resource deleted successfully!', isError: false);
       } catch (e) {
-        if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+        if (mounted) _showToast('Error: $e', isError: true);
       }
     }
+  }
+
+  void _showToast(String message, {required bool isError}) {
+    ScaffoldMessenger.of(context).hideCurrentSnackBar();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            Icon(isError ? Icons.error_outline : Icons.check_circle_outline, color: Colors.white, size: 20),
+            const SizedBox(width: 10),
+            Expanded(child: Text(message, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13))),
+          ],
+        ),
+        backgroundColor: isError ? Colors.redAccent : Colors.teal,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        margin: const EdgeInsets.all(16),
+        duration: const Duration(seconds: 2),
+      ),
+    );
   }
 
   @override
@@ -466,15 +486,19 @@ class _PdfsScreenState extends State<PdfsScreen> {
                         valueListenable: currentProfile,
                         builder: (context, profile, _) {
                           if (profile.role == UserRole.committeeMember || profile.role == UserRole.superUser) {
-                            return PopupMenuButton<String>(
-                              icon: const Icon(Icons.more_vert_rounded),
-                              onSelected: (value) {
-                                if (value == 'edit') _showForm(context, existingItem: res);
-                                if (value == 'delete') _deleteItem(res);
-                              },
-                              itemBuilder: (context) => [
-                                const PopupMenuItem(value: 'edit', child: Text('Update Details')),
-                                const PopupMenuItem(value: 'delete', child: Text('Delete File', style: TextStyle(color: Colors.red))),
+                            return Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                IconButton(
+                                  icon: const Icon(Icons.edit_outlined, color: Colors.blueAccent, size: 20),
+                                  onPressed: () => _showForm(context, existingItem: res),
+                                  tooltip: 'Update Details',
+                                ),
+                                IconButton(
+                                  icon: const Icon(Icons.delete_outline, color: Colors.red, size: 20),
+                                  onPressed: () => _deleteItem(res),
+                                  tooltip: 'Delete File',
+                                ),
                               ],
                             );
                           }
