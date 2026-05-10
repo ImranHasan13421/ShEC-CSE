@@ -11,6 +11,7 @@ import '../../../backend/services/auth_service.dart';
 import '../screens/pending_approval_screen.dart';
 import '../../dashboard/screens/main_screen.dart';
 import 'forgot_password_screen.dart';
+import '../../../core/utils/validation_rules.dart';
 
 class AuthAnimatedScreen extends StatefulWidget {
   const AuthAnimatedScreen({super.key});
@@ -27,6 +28,7 @@ class _AuthAnimatedScreenState extends State<AuthAnimatedScreen> with TickerProv
   bool _isLoading = false;
 
   // Login Controllers
+  final _loginFormKey = GlobalKey<FormState>();
   final _loginEmailController = TextEditingController();
   final _loginPasswordController = TextEditingController();
   bool _loginPasswordVisible = false;
@@ -94,10 +96,7 @@ class _AuthAnimatedScreenState extends State<AuthAnimatedScreen> with TickerProv
 
   // --- Auth Logic ---
   Future<void> _login() async {
-    if (_loginEmailController.text.isEmpty || _loginPasswordController.text.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please enter email and password')));
-      return;
-    }
+    if (!_loginFormKey.currentState!.validate()) return;
     setState(() => _isLoading = true);
     try {
       await AuthService.signIn(email: _loginEmailController.text.trim(), password: _loginPasswordController.text.trim());
@@ -288,28 +287,44 @@ class _AuthAnimatedScreenState extends State<AuthAnimatedScreen> with TickerProv
   }
 
   Widget _buildLoginForm() {
-    return Column(
-      children: [
-        const SizedBox(height: 30),
-        _buildGlowTextField(controller: _loginEmailController, hint: 'EMAIL / USERNAME', icon: Icons.alternate_email_rounded),
-        const SizedBox(height: 25),
-        _buildGlowTextField(
-          controller: _loginPasswordController, hint: 'PASSWORD', icon: Icons.lock_person_outlined, obscure: !_loginPasswordVisible,
-          suffix: IconButton(
-            icon: Icon(_loginPasswordVisible ? Icons.visibility : Icons.visibility_off, color: const Color(0xFF6C63FF)),
-            onPressed: () => setState(() => _loginPasswordVisible = !_loginPasswordVisible),
+    return Form(
+      key: _loginFormKey,
+      child: Column(
+        children: [
+          const SizedBox(height: 30),
+          _buildGlowTextField(
+            controller: _loginEmailController, 
+            hint: 'EMAIL / USERNAME', 
+            icon: Icons.alternate_email_rounded,
+            validator: (v) {
+              if (v == null || v.trim().isEmpty) return 'Email or Username is required';
+              if (v.contains('@')) return ValidationRules.validateEmail(v);
+              return null;
+            },
           ),
-        ),
-        const SizedBox(height: 15),
-        Align(
-          alignment: Alignment.centerRight,
-          child: TextButton(
-            onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ForgotPasswordScreen())),
-            child: const Text('FORGOT PASSWORD?', style: TextStyle(color: Colors.black38, fontSize: 10, letterSpacing: 1)),
+          const SizedBox(height: 25),
+          _buildGlowTextField(
+            controller: _loginPasswordController, 
+            hint: 'PASSWORD', 
+            icon: Icons.lock_person_outlined, 
+            obscure: !_loginPasswordVisible,
+            validator: (v) => ValidationRules.validateRequired(v, 'Password'),
+            suffix: IconButton(
+              icon: Icon(_loginPasswordVisible ? Icons.visibility : Icons.visibility_off, color: const Color(0xFF6C63FF)),
+              onPressed: () => setState(() => _loginPasswordVisible = !_loginPasswordVisible),
+            ),
           ),
-        ),
-        const SizedBox(height: 20),
-      ],
+          const SizedBox(height: 15),
+          Align(
+            alignment: Alignment.centerRight,
+            child: TextButton(
+              onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ForgotPasswordScreen())),
+              child: const Text('FORGOT PASSWORD?', style: TextStyle(color: Colors.black38, fontSize: 10, letterSpacing: 1)),
+            ),
+          ),
+          const SizedBox(height: 20),
+        ],
+      ),
     );
   }
 
@@ -320,26 +335,77 @@ class _AuthAnimatedScreenState extends State<AuthAnimatedScreen> with TickerProv
         children: [
           _buildProgressiveItem(0, _buildSignupAvatar()),
           const SizedBox(height: 20),
-          _buildProgressiveItem(1, _buildGlowTextField(controller: _signupFirstNameController, hint: 'FIRST NAME', icon: Icons.person_outline)),
+          _buildProgressiveItem(1, _buildGlowTextField(
+            controller: _signupFirstNameController, 
+            hint: 'FIRST NAME', 
+            icon: Icons.person_outline,
+            validator: (v) => ValidationRules.validateRequired(v, 'First name'),
+          )),
           const SizedBox(height: 15),
-          _buildProgressiveItem(2, _buildGlowTextField(controller: _signupLastNameController, hint: 'LAST NAME', icon: Icons.person_outline)),
+          _buildProgressiveItem(2, _buildGlowTextField(
+            controller: _signupLastNameController, 
+            hint: 'LAST NAME', 
+            icon: Icons.person_outline,
+            validator: (v) => ValidationRules.validateRequired(v, 'Last name'),
+          )),
           const SizedBox(height: 15),
-          _buildProgressiveItem(3, _buildGlowTextField(controller: _signupUniversityIdController, hint: 'UNIVERSITY ID', icon: Icons.badge_outlined)),
+          _buildProgressiveItem(3, _buildGlowTextField(
+            controller: _signupUniversityIdController, 
+            hint: 'UNIVERSITY ID', 
+            icon: Icons.badge_outlined,
+            validator: ValidationRules.validateUniversityId,
+          )),
           const SizedBox(height: 15),
-          _buildProgressiveItem(4, _buildGlowTextField(controller: _signupClassRollController, hint: 'CLASS ROLL', icon: Icons.format_list_numbered_rounded)),
+          _buildProgressiveItem(4, _buildGlowTextField(
+            controller: _signupClassRollController, 
+            hint: 'CLASS ROLL', 
+            icon: Icons.format_list_numbered_rounded,
+            validator: ValidationRules.validateClassRoll,
+          )),
           const SizedBox(height: 15),
-          _buildProgressiveItem(5, _buildGlowTextField(controller: _signupDuRegController, hint: 'DU REGISTRATION', icon: Icons.app_registration_rounded)),
+          _buildProgressiveItem(5, _buildGlowTextField(
+            controller: _signupDuRegController, 
+            hint: 'DU REGISTRATION', 
+            icon: Icons.app_registration_rounded,
+            validator: ValidationRules.validateDuReg,
+          )),
           const SizedBox(height: 15),
-          _buildProgressiveItem(6, _buildGlowDropdown('SESSION', Icons.calendar_month_outlined, _sessions.map((s) => s['session'] as String).toList(), (v) => _selectedSession = v)),
+          _buildProgressiveItem(6, _buildGlowDropdown(
+            hint: 'SESSION', 
+            icon: Icons.calendar_month_outlined, 
+            items: _sessions.map((s) => s['session'] as String).toList(), 
+            onChanged: (v) => _selectedSession = v,
+            validator: (v) => ValidationRules.validateRequired(v, 'Session'),
+          )),
           const SizedBox(height: 15),
-          _buildProgressiveItem(7, _buildGlowDropdown('BATCH', Icons.school_outlined, _batches, (v) => _selectedBatch = v)),
+          _buildProgressiveItem(7, _buildGlowDropdown(
+            hint: 'BATCH', 
+            icon: Icons.school_outlined, 
+            items: _batches, 
+            onChanged: (v) => _selectedBatch = v,
+            validator: (v) => ValidationRules.validateRequired(v, 'Batch'),
+          )),
           const SizedBox(height: 15),
-          _buildProgressiveItem(8, _buildGlowTextField(controller: _signupPhoneController, hint: 'PHONE', icon: Icons.phone_android_outlined)),
+          _buildProgressiveItem(8, _buildGlowTextField(
+            controller: _signupPhoneController, 
+            hint: 'PHONE', 
+            icon: Icons.phone_android_outlined,
+            validator: ValidationRules.validatePhone,
+          )),
           const SizedBox(height: 15),
-          _buildProgressiveItem(9, _buildGlowTextField(controller: _signupEmailController, hint: 'EMAIL', icon: Icons.email_outlined)),
+          _buildProgressiveItem(9, _buildGlowTextField(
+            controller: _signupEmailController, 
+            hint: 'EMAIL', 
+            icon: Icons.email_outlined,
+            validator: ValidationRules.validateEmail,
+          )),
           const SizedBox(height: 15),
           _buildProgressiveItem(10, _buildGlowTextField(
-            controller: _signupPasswordController, hint: 'PASSWORD', icon: Icons.lock_outline, obscure: !_signupPasswordVisible,
+            controller: _signupPasswordController, 
+            hint: 'PASSWORD', 
+            icon: Icons.lock_outline, 
+            obscure: !_signupPasswordVisible,
+            validator: (v) => ValidationRules.validatePassword(v, isSignup: true),
             suffix: IconButton(
               icon: Icon(_signupPasswordVisible ? Icons.visibility : Icons.visibility_off, color: const Color(0xFF6C63FF)),
               onPressed: () => setState(() => _signupPasswordVisible = !_signupPasswordVisible),
@@ -347,7 +413,14 @@ class _AuthAnimatedScreenState extends State<AuthAnimatedScreen> with TickerProv
           )),
           const SizedBox(height: 15),
           _buildProgressiveItem(11, _buildGlowTextField(
-            controller: _signupConfirmPasswordController, hint: 'CONFIRM PASSWORD', icon: Icons.lock_reset_rounded, obscure: !_signupConfirmPasswordVisible,
+            controller: _signupConfirmPasswordController, 
+            hint: 'CONFIRM PASSWORD', 
+            icon: Icons.lock_reset_rounded, 
+            obscure: !_signupConfirmPasswordVisible,
+            validator: (v) {
+              if (v != _signupPasswordController.text) return 'Passwords do not match';
+              return ValidationRules.validatePassword(v, isSignup: true);
+            },
             suffix: IconButton(
               icon: Icon(_signupConfirmPasswordVisible ? Icons.visibility : Icons.visibility_off, color: const Color(0xFF6C63FF)),
               onPressed: () => setState(() => _signupConfirmPasswordVisible = !_signupConfirmPasswordVisible),
@@ -385,31 +458,48 @@ class _AuthAnimatedScreenState extends State<AuthAnimatedScreen> with TickerProv
     );
   }
 
-  Widget _buildGlowTextField({required TextEditingController controller, required String hint, required IconData icon, bool obscure = false, Widget? suffix}) {
+  Widget _buildGlowTextField({
+    required TextEditingController controller, 
+    required String hint, 
+    required IconData icon, 
+    bool obscure = false, 
+    Widget? suffix,
+    String? Function(String?)? validator,
+  }) {
     return Container(
       decoration: BoxDecoration(color: Colors.black.withValues(alpha: 0.03), borderRadius: BorderRadius.circular(15), border: Border.all(color: Colors.black.withValues(alpha: 0.05))),
       child: TextFormField(
         controller: controller, obscureText: obscure,
         style: const TextStyle(color: Color(0xFF2D3436), fontSize: 14),
+        validator: validator,
         decoration: InputDecoration(
           hintText: hint, hintStyle: const TextStyle(color: Colors.black26, fontSize: 12, letterSpacing: 1),
           prefixIcon: Icon(icon, color: const Color(0xFF6C63FF), size: 20),
           suffixIcon: suffix, border: InputBorder.none, contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+          errorStyle: const TextStyle(fontSize: 10, height: 0.8),
         ),
       ),
     );
   }
 
-  Widget _buildGlowDropdown(String hint, IconData icon, List<String> items, Function(String?) onChanged) {
+  Widget _buildGlowDropdown({
+    required String hint, 
+    required IconData icon, 
+    required List<String> items, 
+    required Function(String?) onChanged, 
+    String? Function(String?)? validator,
+  }) {
     return Container(
       decoration: BoxDecoration(color: Colors.black.withValues(alpha: 0.03), borderRadius: BorderRadius.circular(15), border: Border.all(color: Colors.black.withValues(alpha: 0.05))),
       child: DropdownButtonFormField<String>(
         dropdownColor: Colors.white, iconEnabledColor: const Color(0xFF6C63FF),
         style: const TextStyle(color: Color(0xFF2D3436), fontSize: 14),
+        validator: validator,
         decoration: InputDecoration(
           hintText: hint, hintStyle: const TextStyle(color: Colors.black26, fontSize: 12, letterSpacing: 1),
           prefixIcon: Icon(icon, color: const Color(0xFF6C63FF), size: 20),
           border: InputBorder.none, contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+          errorStyle: const TextStyle(fontSize: 10, height: 0.8),
         ),
         items: items.map((i) => DropdownMenuItem(value: i, child: Text(i))).toList(),
         onChanged: onChanged,

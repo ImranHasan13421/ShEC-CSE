@@ -3,6 +3,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:ShEC_CSE/features/profile/models/profile_state.dart';
 import '../models/contest_state.dart';
 import '../../../backend/services/contest_service.dart';
+import 'package:ShEC_CSE/core/utils/validation_rules.dart';
 
 class ContestsScreen extends StatefulWidget {
   const ContestsScreen({super.key});
@@ -38,6 +39,7 @@ class _ContestsScreenState extends State<ContestsScreen> {
     final urlController = TextEditingController(text: existingItem?.url ?? '');
     final descriptionController = TextEditingController(text: existingItem?.description ?? '');
     bool isVisible = existingItem?.isVisible ?? true;
+    final formKey = GlobalKey<FormState>();
 
     showModalBottomSheet(
       context: context,
@@ -52,75 +54,81 @@ class _ContestsScreenState extends State<ContestsScreen> {
                 left: 24, right: 24, top: 24,
               ),
               child: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(existingItem == null ? 'Add Contest' : 'Edit Contest', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-                    const SizedBox(height: 16),
-                    TextField(
-                      controller: titleController,
-                      decoration: const InputDecoration(labelText: 'Contest Name *', border: OutlineInputBorder()),
-                    ),
-                    const SizedBox(height: 12),
-                    TextField(
-                      controller: platformController,
-                      decoration: const InputDecoration(labelText: 'Platform (e.g. Codeforces) *', border: OutlineInputBorder()),
-                    ),
-                    const SizedBox(height: 12),
-                    Row(children: [
-                      Expanded(child: TextField(
-                        controller: levelController,
-                        decoration: const InputDecoration(labelText: 'Level / Div', border: OutlineInputBorder()),
-                      )),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: InkWell(
-                          onTap: () async {
-                            final picked = await showDatePicker(
-                              context: context,
-                              initialDate: DateTime.now(),
-                              firstDate: DateTime.now(),
-                              lastDate: DateTime(2101),
-                            );
-                            if (picked != null) {
-                              setModalState(() {
-                                dateController.text = "${picked.day}/${picked.month}/${picked.year}";
-                              });
-                            }
-                          },
-                          child: AbsorbPointer(
-                            child: TextField(
-                              controller: dateController,
-                              decoration: const InputDecoration(labelText: 'Date', border: OutlineInputBorder(), prefixIcon: Icon(Icons.calendar_today, size: 18)),
+                child: Form(
+                  key: formKey,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(existingItem == null ? 'Add Contest' : 'Edit Contest', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+                      const SizedBox(height: 16),
+                      TextFormField(
+                        controller: titleController,
+                        decoration: const InputDecoration(labelText: 'Contest Name *', border: OutlineInputBorder()),
+                        validator: (v) => ValidationRules.validateRequired(v, 'Contest name'),
+                      ),
+                      const SizedBox(height: 12),
+                      TextFormField(
+                        controller: platformController,
+                        decoration: const InputDecoration(labelText: 'Platform (e.g. Codeforces) *', border: OutlineInputBorder()),
+                        validator: (v) => ValidationRules.validateRequired(v, 'Platform name'),
+                      ),
+                      const SizedBox(height: 12),
+                      Row(children: [
+                        Expanded(child: TextFormField(
+                          controller: levelController,
+                          decoration: const InputDecoration(labelText: 'Level / Div', border: OutlineInputBorder()),
+                        )),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: InkWell(
+                            onTap: () async {
+                              final picked = await showDatePicker(
+                                context: context,
+                                initialDate: DateTime.now(),
+                                firstDate: DateTime.now(),
+                                lastDate: DateTime(2101),
+                              );
+                              if (picked != null) {
+                                setModalState(() {
+                                  dateController.text = "${picked.day}/${picked.month}/${picked.year}";
+                                });
+                              }
+                            },
+                            child: AbsorbPointer(
+                              child: TextFormField(
+                                controller: dateController,
+                                decoration: const InputDecoration(labelText: 'Date', border: OutlineInputBorder(), prefixIcon: Icon(Icons.calendar_today, size: 18)),
+                              ),
                             ),
                           ),
                         ),
+                      ]),
+                      const SizedBox(height: 12),
+                      TextFormField(
+                        controller: descriptionController,
+                        decoration: const InputDecoration(labelText: 'Description / Rules', border: OutlineInputBorder()),
+                        maxLines: 3,
                       ),
-                    ]),
-                    const SizedBox(height: 12),
-                    TextField(
-                      controller: descriptionController,
-                      decoration: const InputDecoration(labelText: 'Description / Rules', border: OutlineInputBorder()),
-                      maxLines: 3,
-                    ),
-                    const SizedBox(height: 12),
-                    TextField(
-                      controller: urlController,
-                      decoration: const InputDecoration(labelText: 'Contest Link / URL *', border: OutlineInputBorder()),
-                    ),
-                    const SizedBox(height: 12),
-                    SwitchListTile(
-                      title: const Text('Visible to Members'),
-                      value: isVisible,
-                      onChanged: (val) => setModalState(() => isVisible = val),
-                    ),
-                    const SizedBox(height: 24),
-                    SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton(
-                        onPressed: () async {
-                          if (titleController.text.isNotEmpty && urlController.text.isNotEmpty) {
+                      const SizedBox(height: 12),
+                      TextFormField(
+                        controller: urlController,
+                        decoration: const InputDecoration(labelText: 'Contest Link / URL *', border: OutlineInputBorder()),
+                        validator: (v) => ValidationRules.validateUrl(v, 'Contest Link'),
+                      ),
+                      const SizedBox(height: 12),
+                      SwitchListTile(
+                        title: const Text('Visible to Members'),
+                        value: isVisible,
+                        onChanged: (val) => setModalState(() => isVisible = val),
+                      ),
+                      const SizedBox(height: 24),
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton(
+                          onPressed: () async {
+                            if (!formKey.currentState!.validate()) return;
+                            
                             final messenger = ScaffoldMessenger.of(context);
                             Navigator.pop(modalContext);
                             try {
@@ -135,7 +143,7 @@ class _ContestsScreenState extends State<ContestsScreen> {
                                 isVisible: isVisible,
                                 createdByName: existingItem?.createdByName ?? currentProfile.value.name,
                               );
-
+  
                               if (existingItem == null) {
                                 await ContestService.addContestToDB(item);
                                 if (mounted) messenger.showSnackBar(const SnackBar(content: Text('Contest added')));
@@ -146,13 +154,13 @@ class _ContestsScreenState extends State<ContestsScreen> {
                             } catch (e) {
                               if (mounted) messenger.showSnackBar(SnackBar(content: Text('Error: $e')));
                             }
-                          }
-                        },
-                        child: Text(existingItem == null ? 'Create' : 'Update'),
+                          },
+                          child: Text(existingItem == null ? 'Create' : 'Update'),
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 24),
-                  ],
+                      const SizedBox(height: 24),
+                    ],
+                  ),
                 ),
               ),
             );

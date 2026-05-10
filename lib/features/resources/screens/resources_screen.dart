@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:ShEC_CSE/features/profile/models/profile_state.dart';
 import '../models/resource_state.dart';
 import '../../../backend/services/resource_service.dart';
+import 'package:ShEC_CSE/core/utils/validation_rules.dart';
 
 // ==========================================
 // 1. YEARS SCREEN
@@ -269,6 +270,7 @@ class _PdfsScreenState extends State<PdfsScreen> {
   void _showForm(BuildContext context, {ResourceItem? existingItem}) {
     final nameController = TextEditingController(text: existingItem?.name ?? '');
     final urlController = TextEditingController(text: existingItem?.fileUrl ?? '');
+    final formKey = GlobalKey<FormState>();
 
     showModalBottomSheet(
       context: context,
@@ -287,42 +289,54 @@ class _PdfsScreenState extends State<PdfsScreen> {
             right: 24,
             top: 12,
           ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 40, height: 4,
-                margin: const EdgeInsets.only(bottom: 24),
-                decoration: BoxDecoration(color: colors.outlineVariant, borderRadius: BorderRadius.circular(2)),
-              ),
-              Text(existingItem == null ? 'Upload Resource' : 'Update Resource', 
-                style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-              const SizedBox(height: 8),
-              Text('${widget.semester} • Session ${widget.session}', 
-                style: TextStyle(color: colors.onSurfaceVariant, fontSize: 13)),
-              const SizedBox(height: 24),
-              TextField(
-                controller: nameController,
-                decoration: const InputDecoration(labelText: 'Resource Title (e.g. Midterm Q 2023)', border: OutlineInputBorder()),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: urlController,
-                decoration: const InputDecoration(labelText: 'File URL (Google Drive/Dropbox)', border: OutlineInputBorder()),
-              ),
-              const SizedBox(height: 24),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: widget.color,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          child: Form(
+            key: formKey,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 40, height: 4,
+                  margin: const EdgeInsets.only(bottom: 24),
+                  decoration: BoxDecoration(color: colors.outlineVariant, borderRadius: BorderRadius.circular(2)),
+                ),
+                Text(existingItem == null ? 'Upload Resource' : 'Update Resource', 
+                  style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+                const SizedBox(height: 8),
+                Text('${widget.semester} • Session ${widget.session}', 
+                  style: TextStyle(color: colors.onSurfaceVariant, fontSize: 13)),
+                const SizedBox(height: 24),
+                TextFormField(
+                  controller: nameController,
+                  decoration: const InputDecoration(
+                    labelText: 'Resource Title (e.g. Midterm Q 2023)', 
+                    border: OutlineInputBorder(),
+                    errorStyle: TextStyle(fontSize: 10, height: 0.8),
                   ),
-                  onPressed: () async {
-                    if (nameController.text.isNotEmpty && urlController.text.isNotEmpty) {
-                      final messenger = ScaffoldMessenger.of(context);
+                  validator: (v) => ValidationRules.validateRequired(v, 'Resource title'),
+                ),
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: urlController,
+                  decoration: const InputDecoration(
+                    labelText: 'File URL (Google Drive/Dropbox)', 
+                    border: OutlineInputBorder(),
+                    errorStyle: TextStyle(fontSize: 10, height: 0.8),
+                  ),
+                  validator: (v) => ValidationRules.validateUrl(v, 'File URL'),
+                ),
+                const SizedBox(height: 24),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: widget.color,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                    ),
+                    onPressed: () async {
+                      if (!formKey.currentState!.validate()) return;
+                      
                       Navigator.pop(modalContext);
                       try {
                         final newItem = ResourceItem(
@@ -334,7 +348,7 @@ class _PdfsScreenState extends State<PdfsScreen> {
                           fileUrl: urlController.text.trim(),
                           uploadedBy: currentProfile.value.id,
                         );
-
+  
                         if (existingItem == null) {
                           await ResourceService.addResourceToDB(newItem);
                           if (mounted) _showToast('Resource uploaded successfully!', isError: false);
@@ -346,12 +360,12 @@ class _PdfsScreenState extends State<PdfsScreen> {
                       } catch (e) {
                         if (mounted) _showToast('Error: $e', isError: true);
                       }
-                    }
-                  },
-                  child: Text(existingItem == null ? 'Upload Now' : 'Save Changes'),
+                    },
+                    child: Text(existingItem == null ? 'Upload Now' : 'Save Changes'),
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         );
       },

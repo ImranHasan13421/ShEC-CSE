@@ -8,6 +8,7 @@ import 'package:ShEC_CSE/features/profile/models/profile_state.dart';
 import 'package:ShEC_CSE/backend/services/auth_service.dart';
 import 'package:ShEC_CSE/core/services/image_processing_service.dart';
 import 'package:image_cropper/image_cropper.dart';
+import 'package:ShEC_CSE/core/utils/validation_rules.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -232,6 +233,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
               TextFormField(
                 controller: _passwordController,
                 obscureText: !_showPassword,
+                validator: (v) {
+                  if (v == null || v.isEmpty) return null;
+                  return ValidationRules.validatePassword(v, isSignup: true);
+                },
                 decoration: _inputDecoration('Change Password', Icons.lock).copyWith(
                   suffixIcon: IconButton(
                     icon: Icon(_showPassword ? Icons.visibility : Icons.visibility_off),
@@ -259,6 +264,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   return DropdownButtonFormField<String>(
                     value: _selectedSession,
                     decoration: _inputDecoration('Session', Icons.date_range),
+                    validator: (v) => ValidationRules.validateRequired(v, 'Session'),
                     items: generatedSessions.map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
                     onChanged: (val) => setState(() => _selectedSession = val),
                   );
@@ -273,6 +279,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   return DropdownButtonFormField<String>(
                     value: _selectedBatch,
                     decoration: _inputDecoration('Batch', Icons.group),
+                    validator: (v) => ValidationRules.validateRequired(v, 'Batch'),
                     items: generatedBatches.map((s) => DropdownMenuItem(value: s, child: Text('Batch $s'))).toList(),
                     onChanged: (val) => setState(() => _selectedBatch = val),
                   );
@@ -356,7 +363,28 @@ class _ProfileScreenState extends State<ProfileScreen> {
       readOnly: readOnly,
       keyboardType: keyboardType,
       decoration: _inputDecoration(label, icon, readOnly: readOnly),
-      validator: (v) => v == null || v.isEmpty ? 'Required' : null,
+      validator: (v) {
+        if (readOnly) return null;
+        
+        final cleanLabel = label.toLowerCase();
+        if (cleanLabel.contains('first name')) {
+          return ValidationRules.validateRequired(v, 'First Name');
+        } else if (cleanLabel.contains('last name')) {
+          return ValidationRules.validateRequired(v, 'Last Name');
+        } else if (cleanLabel.contains('email')) {
+          return ValidationRules.validateEmail(v);
+        } else if (cleanLabel.contains('phone')) {
+          return ValidationRules.validatePhone(v);
+        } else if (cleanLabel.contains('university id')) {
+          return ValidationRules.validateUniversityId(v);
+        } else if (cleanLabel.contains('class roll')) {
+          return ValidationRules.validateClassRoll(v);
+        } else if (cleanLabel.contains('registration')) {
+          return ValidationRules.validateDuReg(v);
+        }
+        
+        return v == null || v.isEmpty ? '$label is required' : null;
+      },
     );
   }
 }

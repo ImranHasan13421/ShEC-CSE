@@ -3,10 +3,10 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:ShEC_CSE/features/profile/models/profile_state.dart';
 import 'package:ShEC_CSE/core/services/image_processing_service.dart';
-import 'package:image_cropper/image_cropper.dart';
 import '../models/notice_state.dart';
 import '../../../backend/services/notice_service.dart';
 import '../widgets/notice_card.dart';
+import 'package:ShEC_CSE/core/utils/validation_rules.dart';
 
 class NoticesScreen extends StatefulWidget {
   const NoticesScreen({super.key});
@@ -78,165 +78,183 @@ class _NoticesScreenState extends State<NoticesScreen> {
               }
             }
 
+            final formKey = GlobalKey<FormState>();
+
             return Padding(
               padding: EdgeInsets.only(
                 bottom: MediaQuery.of(modalContext).viewInsets.bottom,
                 left: 24, right: 24, top: 24,
               ),
               child: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(existingNotice == null ? 'Add Notice' : 'Edit Notice', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-                    const SizedBox(height: 16),
-                    
-                    if (existingNotice == null) ...[
-                      const Text('Category', style: TextStyle(fontWeight: FontWeight.bold)),
-                      const SizedBox(height: 8),
-                      SegmentedButton<ValueNotifier<List<NoticeItem>>>(
-                        segments: [
-                          ButtonSegment(value: clubNoticesState, label: const Text('Club')),
-                          ButtonSegment(value: deptNoticesState, label: const Text('Department')),
-                        ],
-                        selected: {selectedNotifier},
-                        onSelectionChanged: (Set<ValueNotifier<List<NoticeItem>>> newSelection) {
-                          setModalState(() => selectedNotifier = newSelection.first);
-                        },
+                child: Form(
+                  key: formKey,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(existingNotice == null ? 'Add Notice' : 'Edit Notice', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+                      const SizedBox(height: 16),
+                      
+                      if (existingNotice == null) ...[
+                        const Text('Category', style: TextStyle(fontWeight: FontWeight.bold)),
+                        const SizedBox(height: 8),
+                        SegmentedButton<ValueNotifier<List<NoticeItem>>>(
+                          segments: [
+                            ButtonSegment(value: clubNoticesState, label: const Text('Club')),
+                            ButtonSegment(value: deptNoticesState, label: const Text('Department')),
+                          ],
+                          selected: {selectedNotifier},
+                          onSelectionChanged: (Set<ValueNotifier<List<NoticeItem>>> newSelection) {
+                            setModalState(() => selectedNotifier = newSelection.first);
+                          },
+                        ),
+                        const SizedBox(height: 16),
+                      ],
+  
+                      TextFormField(
+                        controller: titleController,
+                        decoration: const InputDecoration(
+                          labelText: 'Title *', 
+                          border: OutlineInputBorder(),
+                          errorStyle: TextStyle(fontSize: 10, height: 0.8),
+                        ),
+                        validator: (v) => ValidationRules.validateRequired(v, 'Title'),
+                      ),
+                      const SizedBox(height: 12),
+                      TextFormField(
+                        controller: descriptionController,
+                        decoration: const InputDecoration(
+                          labelText: 'Full Description *', 
+                          border: OutlineInputBorder(),
+                          errorStyle: TextStyle(fontSize: 10, height: 0.8),
+                        ),
+                        maxLines: 4,
+                        validator: (v) => ValidationRules.validateRequired(v, 'Description'),
                       ),
                       const SizedBox(height: 16),
-                    ],
-
-                    TextField(
-                      controller: titleController,
-                      decoration: const InputDecoration(labelText: 'Title *', border: OutlineInputBorder()),
-                    ),
-                    const SizedBox(height: 12),
-                    TextField(
-                      controller: descriptionController,
-                      decoration: const InputDecoration(labelText: 'Full Description', border: OutlineInputBorder()),
-                      maxLines: 4,
-                    ),
-                    const SizedBox(height: 16),
-
-                    const Text('Photo / Attachment', style: TextStyle(fontWeight: FontWeight.bold)),
-                    const SizedBox(height: 8),
-                    if (selectedImage != null)
-                      Stack(
-                        children: [
-                          ClipRRect(
-                            borderRadius: BorderRadius.circular(8),
-                            child: Image.file(selectedImage!, height: 150, width: double.infinity, fit: BoxFit.cover),
-                          ),
-                          Positioned(
-                            top: 8, right: 8,
-                            child: IconButton(
-                              icon: const Icon(Icons.close, color: Colors.white),
-                              style: IconButton.styleFrom(backgroundColor: Colors.black54),
-                              onPressed: () => setModalState(() => selectedImage = null),
+  
+                      const Text('Photo / Attachment', style: TextStyle(fontWeight: FontWeight.bold)),
+                      const SizedBox(height: 8),
+                      if (selectedImage != null)
+                        Stack(
+                          children: [
+                            ClipRRect(
+                              borderRadius: BorderRadius.circular(8),
+                              child: Image.file(selectedImage!, height: 150, width: double.infinity, fit: BoxFit.cover),
                             ),
-                          ),
-                        ],
-                      )
-                    else if (currentImageUrl != null && currentImageUrl!.isNotEmpty)
-                      Stack(
-                        children: [
-                          ClipRRect(
-                            borderRadius: BorderRadius.circular(8),
-                            child: Image.network(currentImageUrl!, height: 150, width: double.infinity, fit: BoxFit.cover),
-                          ),
-                          Positioned(
-                            top: 8, right: 8,
-                            child: IconButton(
-                              icon: const Icon(Icons.close, color: Colors.white),
-                              style: IconButton.styleFrom(backgroundColor: Colors.black54),
-                              onPressed: () => setModalState(() => currentImageUrl = null),
+                            Positioned(
+                              top: 8, right: 8,
+                              child: IconButton(
+                                icon: const Icon(Icons.close, color: Colors.white),
+                                style: IconButton.styleFrom(backgroundColor: Colors.black54),
+                                onPressed: () => setModalState(() => selectedImage = null),
+                              ),
                             ),
-                          ),
-                        ],
-                      )
-                    else
-                      OutlinedButton.icon(
-                        onPressed: pickImage,
-                        icon: const Icon(Icons.image),
-                        label: const Text('Select Image'),
-                        style: OutlinedButton.styleFrom(minimumSize: const Size(double.infinity, 50)),
+                          ],
+                        )
+                      else if (currentImageUrl != null && currentImageUrl!.isNotEmpty)
+                        Stack(
+                          children: [
+                            ClipRRect(
+                              borderRadius: BorderRadius.circular(8),
+                              child: Image.network(currentImageUrl!, height: 150, width: double.infinity, fit: BoxFit.cover),
+                            ),
+                            Positioned(
+                              top: 8, right: 8,
+                              child: IconButton(
+                                icon: const Icon(Icons.close, color: Colors.white),
+                                style: IconButton.styleFrom(backgroundColor: Colors.black54),
+                                onPressed: () => setModalState(() => currentImageUrl = null),
+                              ),
+                            ),
+                          ],
+                        )
+                      else
+                        OutlinedButton.icon(
+                          onPressed: pickImage,
+                          icon: const Icon(Icons.image),
+                          label: const Text('Select Image'),
+                          style: OutlinedButton.styleFrom(minimumSize: const Size(double.infinity, 50)),
+                        ),
+                      const SizedBox(height: 16),
+  
+                      const Text('Tags', style: TextStyle(fontWeight: FontWeight.bold)),
+                      const SizedBox(height: 8),
+                      Wrap(
+                        spacing: 8.0,
+                        runSpacing: 4.0,
+                        children: availableTags.map((tag) {
+                          return FilterChip(
+                            label: Text(tag, style: const TextStyle(fontSize: 12)),
+                            selected: selectedTags.contains(tag),
+                            onSelected: (bool selected) {
+                              setModalState(() {
+                                if (selected) {
+                                  selectedTags.add(tag);
+                                } else {
+                                  selectedTags.remove(tag);
+                                }
+                              });
+                            },
+                          );
+                        }).toList(),
                       ),
-                    const SizedBox(height: 16),
-
-                    const Text('Tags', style: TextStyle(fontWeight: FontWeight.bold)),
-                    const SizedBox(height: 8),
-                    Wrap(
-                      spacing: 8.0,
-                      runSpacing: 4.0,
-                      children: availableTags.map((tag) {
-                        return FilterChip(
-                          label: Text(tag, style: const TextStyle(fontSize: 12)),
-                          selected: selectedTags.contains(tag),
-                          onSelected: (bool selected) {
-                            setModalState(() {
-                              if (selected) {
-                                selectedTags.add(tag);
-                              } else {
-                                selectedTags.remove(tag);
-                              }
-                            });
-                          },
-                        );
-                      }).toList(),
-                    ),
-                    
-                    const SizedBox(height: 16),
-                    SwitchListTile(
-                      title: const Text('Visible to Members', style: TextStyle(fontWeight: FontWeight.bold)),
-                      value: isVisible,
-                      onChanged: (val) => setModalState(() => isVisible = val),
-                    ),
-                    
-                    const SizedBox(height: 24),
-                    SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton(
-                        onPressed: () async {
-                          if (titleController.text.isEmpty) return;
-                          setModalState(() => isUploading = true);
-                          
-                          String? finalImageUrl = currentImageUrl;
-                          if (selectedImage != null) {
-                            finalImageUrl = await NoticeService.uploadImage(selectedImage!);
-                          }
-
-                          if (!context.mounted) return;
-                          
-                          try {
-                            final noticeItem = NoticeItem(
-                              id: existingNotice?.id ?? '',
-                              title: titleController.text.trim(),
-                              description: descriptionController.text.trim(),
-                              imagePath: finalImageUrl,
-                              tags: selectedTags,
-                              date: existingNotice?.date ?? '${DateTime.now().day}/${DateTime.now().month}/${DateTime.now().year}',
-                              isVisible: isVisible,
-                              createdByName: existingNotice?.createdByName ?? currentProfile.value.name,
-                            );
-
-                            String category = selectedNotifier == clubNoticesState ? 'club' : 'department';
-                            if (existingNotice == null) {
-                              await NoticeService.addNoticeToDB(noticeItem, category);
-                            } else {
-                              await NoticeService.updateNoticeInDB(noticeItem, category);
+                      
+                      const SizedBox(height: 16),
+                      SwitchListTile(
+                        title: const Text('Visible to Members', style: TextStyle(fontWeight: FontWeight.bold)),
+                        value: isVisible,
+                        onChanged: (val) => setModalState(() => isVisible = val),
+                      ),
+                      
+                      const SizedBox(height: 24),
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton(
+                          onPressed: () async {
+                            if (isUploading) return;
+                            if (!formKey.currentState!.validate()) return;
+                            setModalState(() => isUploading = true);
+                            
+                            String? finalImageUrl = currentImageUrl;
+                            if (selectedImage != null) {
+                              finalImageUrl = await NoticeService.uploadImage(selectedImage!);
                             }
-                            if (context.mounted) Navigator.pop(modalContext);
-                          } catch (e) {
-                            debugPrint('Error saving notice: $e');
-                            setModalState(() => isUploading = false);
-                          }
-                        },
-                        child: Text(existingNotice == null ? 'Create' : 'Update'),
+  
+                            if (!context.mounted) return;
+                            
+                            try {
+                              final noticeItem = NoticeItem(
+                                id: existingNotice?.id ?? '',
+                                title: titleController.text.trim(),
+                                description: descriptionController.text.trim(),
+                                imagePath: finalImageUrl,
+                                tags: selectedTags,
+                                date: existingNotice?.date ?? '${DateTime.now().day}/${DateTime.now().month}/${DateTime.now().year}',
+                                isVisible: isVisible,
+                                createdByName: existingNotice?.createdByName ?? currentProfile.value.name,
+                              );
+  
+                              String category = selectedNotifier == clubNoticesState ? 'club' : 'department';
+                              if (existingNotice == null) {
+                                await NoticeService.addNoticeToDB(noticeItem, category);
+                              } else {
+                                await NoticeService.updateNoticeInDB(noticeItem, category);
+                              }
+                              if (context.mounted) Navigator.pop(modalContext);
+                            } catch (e) {
+                              debugPrint('Error saving notice: $e');
+                              setModalState(() => isUploading = false);
+                            }
+                          },
+                          child: isUploading
+                              ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                              : Text(existingNotice == null ? 'Create' : 'Update'),
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 24),
-                  ],
+                      const SizedBox(height: 24),
+                    ],
+                  ),
                 ),
               ),
             );

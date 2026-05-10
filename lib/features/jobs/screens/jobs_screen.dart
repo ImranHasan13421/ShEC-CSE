@@ -4,6 +4,7 @@ import '../models/job_state.dart';
 import 'job_detail_screen.dart';
 import '../../../backend/services/job_service.dart';
 import 'package:intl/intl.dart';
+import '../../../core/utils/validation_rules.dart';
 
 class JobsScreen extends StatefulWidget {
   const JobsScreen({super.key});
@@ -49,6 +50,7 @@ class _JobsScreenState extends State<JobsScreen> {
     
     String? selectedJobType = existingJob?.jobType ?? 'Full Time';
     bool isVisible = existingJob?.isVisible ?? true;
+    final formKey = GlobalKey<FormState>();
 
     showModalBottomSheet(
       context: context,
@@ -75,7 +77,7 @@ class _JobsScreenState extends State<JobsScreen> {
             final colors = Theme.of(context).colorScheme;
 
             return Container(
-              height: MediaQuery.of(context).size.height * 0.7,
+              height: MediaQuery.of(context).size.height * 0.75,
               decoration: BoxDecoration(
                 color: colors.surface,
                 borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
@@ -93,75 +95,102 @@ class _JobsScreenState extends State<JobsScreen> {
                   Expanded(
                     child: SingleChildScrollView(
                       padding: const EdgeInsets.symmetric(horizontal: 24),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(existingJob == null ? 'Post a New Job' : 'Edit Job Posting', 
-                              style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
-                          const SizedBox(height: 24),
-                          
-                          _buildTextField('Job Role', roleController, Icons.work_outline, 'e.g. Software Engineer'),
-                          const SizedBox(height: 16),
-                          _buildTextField('Company', companyController, Icons.business, 'e.g. Google'),
-                          const SizedBox(height: 16),
-                          
-                          Row(
-                            children: [
-                              Expanded(child: _buildTextField('Location', locationController, Icons.location_on_outlined, 'e.g. Dhaka (Remote)')),
-                              const SizedBox(width: 16),
-                              Expanded(child: _buildTextField('Salary/Stipend', salaryController, Icons.payments_outlined, 'e.g. 30k - 40k')),
-                            ],
-                          ),
-                          const SizedBox(height: 16),
-                          
-                          Row(
-                            children: [
-                              Expanded(
-                                child: InkWell(
-                                  onTap: _selectDate,
-                                  child: AbsorbPointer(
-                                    child: _buildTextField('Deadline', deadlineController, Icons.calendar_today_outlined, 'Select Date'),
+                      child: Form(
+                        key: formKey,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(existingJob == null ? 'Post a New Job' : 'Edit Job Posting', 
+                                style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+                            const SizedBox(height: 24),
+                            
+                            _buildTextField(
+                              'Job Role', roleController, Icons.work_outline, 'e.g. Software Engineer',
+                              validator: (v) => ValidationRules.validateRequired(v, 'Job role'),
+                            ),
+                            const SizedBox(height: 16),
+                            _buildTextField(
+                              'Company', companyController, Icons.business, 'e.g. Google',
+                              validator: (v) => ValidationRules.validateRequired(v, 'Company name'),
+                            ),
+                            const SizedBox(height: 16),
+                            
+                            Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Expanded(child: _buildTextField(
+                                  'Location', locationController, Icons.location_on_outlined, 'e.g. Dhaka (Remote)',
+                                  validator: (v) => ValidationRules.validateRequired(v, 'Location'),
+                                )),
+                                const SizedBox(width: 16),
+                                Expanded(child: _buildTextField(
+                                  'Salary/Stipend', salaryController, Icons.payments_outlined, 'e.g. 30k - 40k',
+                                  validator: (v) => ValidationRules.validateRequired(v, 'Salary/Stipend'),
+                                )),
+                              ],
+                            ),
+                            const SizedBox(height: 16),
+                            
+                            Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Expanded(
+                                  child: InkWell(
+                                    onTap: _selectDate,
+                                    child: AbsorbPointer(
+                                      child: _buildTextField(
+                                        'Deadline', deadlineController, Icons.calendar_today_outlined, 'Select Date',
+                                        validator: (v) => ValidationRules.validateRequired(v, 'Deadline'),
+                                      ),
+                                    ),
                                   ),
                                 ),
-                              ),
-                              const SizedBox(width: 16),
-                              Expanded(
-                                child: DropdownButtonFormField<String>(
-                                  value: selectedJobType,
-                                  decoration: _inputDecoration('Job Type', Icons.access_time),
-                                  items: ['Full Time', 'Part Time', 'Internship'].map((String type) {
-                                    return DropdownMenuItem<String>(value: type, child: Text(type));
-                                  }).toList(),
-                                  onChanged: (value) => setModalState(() => selectedJobType = value),
+                                const SizedBox(width: 16),
+                                Expanded(
+                                  child: DropdownButtonFormField<String>(
+                                    value: selectedJobType,
+                                    decoration: _inputDecoration('Job Type', Icons.access_time),
+                                    validator: (v) => ValidationRules.validateRequired(v, 'Job type'),
+                                    items: ['Full Time', 'Part Time', 'Internship'].map((String type) {
+                                      return DropdownMenuItem<String>(value: type, child: Text(type));
+                                    }).toList(),
+                                    onChanged: (value) => setModalState(() => selectedJobType = value),
+                                  ),
                                 ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 16),
-
-                          _buildTextField('Apply URL', applyUrlController, Icons.link, 'LinkedIn/Google Form link'),
-                          const SizedBox(height: 16),
-                          
-                          _buildTextField('Description', descriptionController, Icons.description_outlined, 'Summary of the job...', maxLines: 4),
-                          const SizedBox(height: 24),
-                          
-                          Container(
-                            padding: const EdgeInsets.all(12),
-                            decoration: BoxDecoration(color: colors.primaryContainer.withOpacity(0.2), borderRadius: BorderRadius.circular(12)),
-                            child: SwitchListTile(
-                              title: const Text('Visible to Public Members', style: TextStyle(fontWeight: FontWeight.w600)),
-                              value: isVisible,
-                              onChanged: (val) => setModalState(() => isVisible = val),
+                              ],
                             ),
-                          ),
-                          const SizedBox(height: 32),
-                          
-                          SizedBox(
-                            width: double.infinity,
-                            height: 56,
-                            child: ElevatedButton(
-                              onPressed: () async {
-                                if (roleController.text.isNotEmpty && companyController.text.isNotEmpty) {
+                            const SizedBox(height: 16),
+  
+                            _buildTextField(
+                              'Apply URL', applyUrlController, Icons.link, 'LinkedIn/Google Form link',
+                              validator: (v) => ValidationRules.validateUrl(v, 'Apply link'),
+                            ),
+                            const SizedBox(height: 16),
+                            
+                            _buildTextField(
+                              'Description', descriptionController, Icons.description_outlined, 'Summary of the job...', maxLines: 4,
+                              validator: (v) => ValidationRules.validateRequired(v, 'Description'),
+                            ),
+                            const SizedBox(height: 24),
+                            
+                            Container(
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(color: colors.primaryContainer.withOpacity(0.2), borderRadius: BorderRadius.circular(12)),
+                              child: SwitchListTile(
+                                title: const Text('Visible to Public Members', style: TextStyle(fontWeight: FontWeight.w600)),
+                                value: isVisible,
+                                onChanged: (val) => setModalState(() => isVisible = val),
+                              ),
+                            ),
+                            const SizedBox(height: 32),
+                            
+                            SizedBox(
+                              width: double.infinity,
+                              height: 56,
+                              child: ElevatedButton(
+                                onPressed: () async {
+                                  if (!formKey.currentState!.validate()) return;
+                                  
                                   final messenger = ScaffoldMessenger.of(context);
                                   Navigator.pop(modalContext);
                                   try {
@@ -189,18 +218,18 @@ class _JobsScreenState extends State<JobsScreen> {
                                   } catch (e) {
                                     if (mounted) messenger.showSnackBar(SnackBar(content: Text('Error: $e')));
                                   }
-                                }
-                              },
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: colors.primary,
-                                foregroundColor: Colors.white,
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                },
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: colors.primary,
+                                  foregroundColor: Colors.white,
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                ),
+                                child: Text(existingJob == null ? 'Post Job' : 'Save Changes', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                               ),
-                              child: Text(existingJob == null ? 'Post Job' : 'Save Changes', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                             ),
-                          ),
-                          const SizedBox(height: 40),
-                        ],
+                            const SizedBox(height: 40),
+                          ],
+                        ),
                       ),
                     ),
                   ),
@@ -219,14 +248,23 @@ class _JobsScreenState extends State<JobsScreen> {
       prefixIcon: Icon(icon, size: 20),
       border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.grey.withOpacity(0.3))),
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+      errorStyle: const TextStyle(fontSize: 10, height: 0.8),
     );
   }
 
-  Widget _buildTextField(String label, TextEditingController controller, IconData icon, String hint, {int maxLines = 1}) {
-    return TextField(
+  Widget _buildTextField(
+    String label, 
+    TextEditingController controller, 
+    IconData icon, 
+    String hint, {
+    int maxLines = 1,
+    String? Function(String?)? validator,
+  }) {
+    return TextFormField(
       controller: controller,
       maxLines: maxLines,
       decoration: _inputDecoration(label, icon).copyWith(hintText: hint),
+      validator: validator,
     );
   }
 

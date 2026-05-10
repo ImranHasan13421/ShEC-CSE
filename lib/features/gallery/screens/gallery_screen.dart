@@ -3,10 +3,10 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:ShEC_CSE/features/profile/models/profile_state.dart';
 import 'package:ShEC_CSE/core/services/image_processing_service.dart';
-import 'package:image_cropper/image_cropper.dart';
 import '../models/gallery_state.dart';
 import '../../../backend/services/gallery_service.dart';
 import 'gallery_detail_screen.dart';
+import 'package:ShEC_CSE/core/utils/validation_rules.dart';
 
 class GalleryScreen extends StatefulWidget {
   const GalleryScreen({super.key});
@@ -26,6 +26,7 @@ class _GalleryScreenState extends State<GalleryScreen> {
     final titleController = TextEditingController(text: existingItem?.title ?? '');
     final descriptionController = TextEditingController(text: existingItem?.description ?? '');
     bool isVisible = existingItem?.isVisible ?? true;
+    final formKey = GlobalKey<FormState>();
 
     File? selectedImage;
     String? currentImageUrl = existingItem?.imagePath.isNotEmpty == true ? existingItem!.imagePath : null;
@@ -67,151 +68,154 @@ class _GalleryScreenState extends State<GalleryScreen> {
                 left: 24, right: 24, top: 24,
               ),
               child: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      existingItem == null ? 'Add Gallery Item' : 'Edit Gallery Item',
-                      style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-                    ),
-                    const SizedBox(height: 16),
-
-                    TextField(
-                      controller: titleController,
-                      decoration: const InputDecoration(labelText: 'Event Title *', border: OutlineInputBorder()),
-                    ),
-                    const SizedBox(height: 12),
-                    TextField(
-                      controller: descriptionController,
-                      decoration: const InputDecoration(labelText: 'Description / Location', border: OutlineInputBorder()),
-                      maxLines: 3,
-                    ),
-                    const SizedBox(height: 12),
-                    SwitchListTile(
-                      title: const Text('Visible to Members'),
-                      value: isVisible,
-                      onChanged: (val) => setModalState(() => isVisible = val),
-                      contentPadding: EdgeInsets.zero,
-                    ),
-                    const SizedBox(height: 8),
-
-                    const Text('Photo *', style: TextStyle(fontWeight: FontWeight.bold)),
-                    const SizedBox(height: 8),
-                    if (selectedImage != null) ...[
-                      Stack(
-                        children: [
-                          ClipRRect(
-                            borderRadius: BorderRadius.circular(10),
-                            child: Image.file(selectedImage!, height: 160, width: double.infinity, fit: BoxFit.cover),
-                          ),
-                          Positioned(
-                            top: 6, right: 6,
-                            child: IconButton(
-                              icon: const Icon(Icons.close, color: Colors.white),
-                              style: IconButton.styleFrom(backgroundColor: Colors.black54),
-                              onPressed: () => setModalState(() => selectedImage = null),
-                            ),
-                          ),
-                        ],
+                child: Form(
+                  key: formKey,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        existingItem == null ? 'Add Gallery Item' : 'Edit Gallery Item',
+                        style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
                       ),
-                    ] else if (currentImageUrl != null) ...[
-                      Stack(
-                        children: [
-                          ClipRRect(
-                            borderRadius: BorderRadius.circular(10),
-                            child: Image.network(currentImageUrl!, height: 160, width: double.infinity, fit: BoxFit.cover,
-                              errorBuilder: (_, __, ___) => Container(height: 160, color: Colors.grey.shade200, child: const Icon(Icons.broken_image, size: 48))),
-                          ),
-                          Positioned(
-                            top: 6, right: 6,
-                            child: IconButton(
-                              icon: const Icon(Icons.close, color: Colors.white),
-                              style: IconButton.styleFrom(backgroundColor: Colors.black54),
-                              onPressed: () => setModalState(() => currentImageUrl = null),
-                            ),
-                          ),
-                        ],
+                      const SizedBox(height: 16),
+  
+                      TextFormField(
+                        controller: titleController,
+                        decoration: const InputDecoration(labelText: 'Event Title *', border: OutlineInputBorder()),
+                        validator: (v) => ValidationRules.validateRequired(v, 'Event title'),
                       ),
-                    ] else ...[
-                      GestureDetector(
-                        onTap: pickImage,
-                        child: Container(
-                          height: 120,
-                          decoration: BoxDecoration(
-                            border: Border.all(color: Colors.grey.shade400, style: BorderStyle.solid),
-                            borderRadius: BorderRadius.circular(10),
-                            color: Colors.grey.shade50,
-                          ),
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(Icons.add_photo_alternate_outlined, size: 40, color: Colors.grey.shade500),
-                              const SizedBox(height: 8),
-                              Text('Tap to select image', style: TextStyle(color: Colors.grey.shade600)),
-                            ],
+                      const SizedBox(height: 12),
+                      TextFormField(
+                        controller: descriptionController,
+                        decoration: const InputDecoration(labelText: 'Description / Location', border: OutlineInputBorder()),
+                        maxLines: 3,
+                      ),
+                      const SizedBox(height: 12),
+                      SwitchListTile(
+                        title: const Text('Visible to Members'),
+                        value: isVisible,
+                        onChanged: (val) => setModalState(() => isVisible = val),
+                        contentPadding: EdgeInsets.zero,
+                      ),
+                      const SizedBox(height: 8),
+  
+                      const Text('Photo *', style: TextStyle(fontWeight: FontWeight.bold)),
+                      const SizedBox(height: 8),
+                      if (selectedImage != null) ...[
+                        Stack(
+                          children: [
+                            ClipRRect(
+                              borderRadius: BorderRadius.circular(10),
+                              child: Image.file(selectedImage!, height: 160, width: double.infinity, fit: BoxFit.cover),
+                            ),
+                            Positioned(
+                              top: 6, right: 6,
+                              child: IconButton(
+                                icon: const Icon(Icons.close, color: Colors.white),
+                                style: IconButton.styleFrom(backgroundColor: Colors.black54),
+                                onPressed: () => setModalState(() => selectedImage = null),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ] else if (currentImageUrl != null) ...[
+                        Stack(
+                          children: [
+                            ClipRRect(
+                              borderRadius: BorderRadius.circular(10),
+                              child: Image.network(currentImageUrl!, height: 160, width: double.infinity, fit: BoxFit.cover,
+                                errorBuilder: (_, __, ___) => Container(height: 160, color: Colors.grey.shade200, child: const Icon(Icons.broken_image, size: 48))),
+                            ),
+                            Positioned(
+                              top: 6, right: 6,
+                              child: IconButton(
+                                icon: const Icon(Icons.close, color: Colors.white),
+                                style: IconButton.styleFrom(backgroundColor: Colors.black54),
+                                onPressed: () => setModalState(() => currentImageUrl = null),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ] else ...[
+                        GestureDetector(
+                          onTap: pickImage,
+                          child: Container(
+                            height: 120,
+                            decoration: BoxDecoration(
+                              border: Border.all(color: Colors.grey.shade400, style: BorderStyle.solid),
+                              borderRadius: BorderRadius.circular(10),
+                              color: Colors.grey.shade50,
+                            ),
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(Icons.add_photo_alternate_outlined, size: 40, color: Colors.grey.shade500),
+                                const SizedBox(height: 8),
+                                Text('Tap to select image', style: TextStyle(color: Colors.grey.shade600)),
+                              ],
+                            ),
                           ),
                         ),
+                      ],
+                      if (selectedImage != null || currentImageUrl != null) ...[
+                        const SizedBox(height: 8),
+                        TextButton.icon(
+                          onPressed: pickImage,
+                          icon: const Icon(Icons.swap_horiz),
+                          label: const Text('Change Image'),
+                        ),
+                      ],
+  
+                      const SizedBox(height: 24),
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton(
+                          onPressed: isUploading ? null : () async {
+                            if (!formKey.currentState!.validate()) return;
+                            if (selectedImage == null && (currentImageUrl == null || currentImageUrl!.isEmpty)) {
+                              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please select an image')));
+                              return;
+                            }
+  
+                            setModalState(() => isUploading = true);
+                            String? finalImageUrl = currentImageUrl;
+                            if (selectedImage != null) {
+                              finalImageUrl = await GalleryService.uploadImage(selectedImage!);
+                            }
+  
+                            if (!context.mounted) return;
+                            if (finalImageUrl == null || finalImageUrl.isEmpty) {
+                              setModalState(() => isUploading = false);
+                              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Image upload failed. Try again.')));
+                              return;
+                            }
+  
+                            Navigator.pop(modalContext);
+                            final item = GalleryItem(
+                              id: existingItem?.id ?? '',
+                              title: titleController.text.trim(),
+                              description: descriptionController.text.trim(),
+                              imagePath: finalImageUrl,
+                              isVisible: isVisible,
+                              createdByName: existingItem?.createdByName ?? currentProfile.value.name,
+                            );
+  
+                            if (existingItem == null) {
+                              await GalleryService.addGalleryItemToDB(item);
+                            } else {
+                              await GalleryService.updateGalleryItemInDB(item);
+                            }
+                          },
+                          style: ElevatedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 14)),
+                          child: isUploading
+                              ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                              : Text(existingItem == null ? 'Create Gallery Item' : 'Update'),
+                        ),
                       ),
+                      const SizedBox(height: 24),
                     ],
-                    if (selectedImage != null || currentImageUrl != null) ...[
-                      const SizedBox(height: 8),
-                      TextButton.icon(
-                        onPressed: pickImage,
-                        icon: const Icon(Icons.swap_horiz),
-                        label: const Text('Change Image'),
-                      ),
-                    ],
-
-                    const SizedBox(height: 24),
-                    SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton(
-                        onPressed: () async {
-                                if (titleController.text.isEmpty) {
-                                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please enter a title')));
-                                  return;
-                                }
-                                if (selectedImage == null && (currentImageUrl == null || currentImageUrl!.isEmpty)) {
-                                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please select an image')));
-                                  return;
-                                }
-
-                                setModalState(() => isUploading = true);
-                                String? finalImageUrl = currentImageUrl;
-                                if (selectedImage != null) {
-                                  finalImageUrl = await GalleryService.uploadImage(selectedImage!);
-                                }
-
-                                if (!context.mounted) return;
-                                if (finalImageUrl == null || finalImageUrl.isEmpty) {
-                                  setModalState(() => isUploading = false);
-                                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Image upload failed. Try again.')));
-                                  return;
-                                }
-
-                                Navigator.pop(modalContext);
-                                final item = GalleryItem(
-                                  id: existingItem?.id ?? '',
-                                  title: titleController.text.trim(),
-                                  description: descriptionController.text.trim(),
-                                  imagePath: finalImageUrl,
-                                  isVisible: isVisible,
-                                  createdByName: existingItem?.createdByName ?? currentProfile.value.name,
-                                );
-
-                                if (existingItem == null) {
-                                  await GalleryService.addGalleryItemToDB(item);
-                                } else {
-                                  await GalleryService.updateGalleryItemInDB(item);
-                                }
-                              },
-                        style: ElevatedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 14)),
-                        child: Text(existingItem == null ? 'Create Gallery Item' : 'Update'),
-                      ),
-                    ),
-                    const SizedBox(height: 24),
-                  ],
+                  ),
                 ),
               ),
             );
