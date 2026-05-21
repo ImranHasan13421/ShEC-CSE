@@ -55,7 +55,7 @@ class _AddPaymentDialogState extends State<AddPaymentDialog> {
   @override
   void initState() {
     super.initState();
-    _amountController.text = '500'; // Default standard dues fee amount
+    _amountController.text = '50'; // Default standard dues fee amount
     
     if (widget.preselectedMember != null) {
       _selectedMember = widget.preselectedMember;

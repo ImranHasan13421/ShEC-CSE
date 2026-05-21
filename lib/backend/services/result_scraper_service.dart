@@ -33,8 +33,11 @@ class ResultScraperService {
       }
       final String sessId = sessionData['sess_id'];
 
-      // 2. Get all exam IDs
-      final examsData = await _client.from('DUCMC_exams_id').select('exam_id, exam_name');
+      // 2. Get all exam IDs for the specific session
+      final examsData = await _client
+          .from('DUCMC_exams_id')
+          .select('exam_id, exam_name')
+          .eq('session', session);
       final List<Map<String, dynamic>> exams = List<Map<String, dynamic>>.from(examsData);
 
       // 3. Iterate through exams and scrape
@@ -57,51 +60,34 @@ class ResultScraperService {
       
       final response = await http.get(url).timeout(const Duration(minutes: 2));
       
-        if (response.statusCode == 200) {
-          final Map<String, dynamic> data = json.decode(response.body);
-          
-          if (data.containsKey('error')) {
-            await _updateScraperLog(userId, regNo, examId, examName, 'failed');
-            return;
-          }
-
-          final subjects = data['subjects'];
-          final bool hasSubjects = subjects is List && subjects.isNotEmpty;
-          final bool hasGpa = data['gpa'] != null || data['cgpa'] != null;
-
-          if (hasGpa || hasSubjects) {
-            await _saveResultToDB(userId, regNo, examId, sessId, examName, data);
-            await _updateScraperLog(userId, regNo, examId, examName, 'success');
-          } else {
-            await _updateScraperLog(userId, regNo, examId, examName, 'empty');
-          }
-        } else {
-          await _updateScraperLog(userId, regNo, examId, examName, 'failed');
+      if (response.statusCode == 200) {
+        final Map<String, dynamic> data = json.decode(response.body);
+        
+        if (data.containsKey('error')) {
+          debugPrint('API returned error for exam $examId: ${data['error']}');
+          return;
         }
-      } catch (e) {
-        await _updateScraperLog(userId, regNo, examId, examName, 'failed');
-        debugPrint('Scrape error for Exam $examId: $e');
-      }
-    }
 
-    static Future<void> _updateScraperLog(String userId, String regNo, String examId, String examName, String status) async {
-      try {
-        await _client.from('scraper_logs').upsert({
-          'user_id': userId,
-          'reg_no': regNo,
-          'exam_id': examId,
-          'exam_name': examName,
-          'status': status,
-          'last_sync': DateTime.now().toIso8601String(),
-        });
-      } catch (e) {
-        debugPrint('Error updating scraper log: $e');
+        final subjects = data['subjects'];
+        final bool hasSubjects = subjects is List && subjects.isNotEmpty;
+        final bool hasGpa = data['gpa'] != null || data['cgpa'] != null;
+
+        if (hasGpa || hasSubjects) {
+          await _saveResultToDB(userId, regNo, examId, sessId, examName, data);
+        } else {
+          debugPrint('No GPA or subjects returned for exam $examId');
+        }
+      } else {
+        debugPrint('Failed to scrape exam $examId: HTTP ${response.statusCode}');
       }
+    } catch (e) {
+      debugPrint('Scrape error for Exam $examId: $e');
     }
+  }
 
   static Future<void> _saveResultToDB(String userId, String regNo, String examId, String sessId, String examName, Map<String, dynamic> data) async {
     try {
-      // 1. Insert/Update the main result record
+      // 1. Insert/Update the main result record with user_id, exam_id onConflict target
       final resultResponse = await _client.from('results').upsert({
         'user_id': userId,
         'reg_no': regNo,
@@ -110,7 +96,7 @@ class ResultScraperService {
         'exam_name': examName,
         'gpa': data['gpa'],
         'cgpa': data['cgpa'],
-      }).select('id').single();
+      }, onConflict: 'user_id,exam_id').select('id').single();
 
       final String resultId = resultResponse['id'];
 
@@ -134,6 +120,7 @@ class ResultScraperService {
       }
     } catch (e) {
       debugPrint('Error saving result to DB: $e');
+      rethrow;
     }
   }
 }

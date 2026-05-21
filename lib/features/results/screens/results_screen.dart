@@ -1,8 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import '../../../core/services/image_processing_service.dart';
-import '../../../core/services/storage_service.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../profile/models/profile_state.dart';
 import '../models/result_state.dart';
 import '../../../backend/services/result_service.dart';
@@ -78,16 +75,19 @@ class _ResultsScreenState extends State<ResultsScreen> {
                   PopupMenuButton<String>(
                     icon: const Icon(Icons.admin_panel_settings),
                     onSelected: (val) {
-                      if (val == 'session') _showAdminIdDialog('Session');
-                      if (val == 'exam') _showAdminIdDialog('Exam');
-                      if (val == 'migrate') _runImageMigration();
-                      if (val == 'cleanup') _runStorageCleanup();
+                      if (val == 'session') {
+                        _showAdminIdDialog('Session');
+                      }
+                      if (val == 'exam') {
+                        showDialog(
+                          context: context,
+                          builder: (context) => const _ManageExamsDialog(),
+                        );
+                      }
                     },
                     itemBuilder: (context) => [
                       const PopupMenuItem(value: 'session', child: Text('Manage Session IDs')),
                       const PopupMenuItem(value: 'exam', child: Text('Manage Exam IDs')),
-                      const PopupMenuItem(value: 'migrate', child: Text('Migrate Images to WebP', style: TextStyle(color: Colors.blue))),
-                      const PopupMenuItem(value: 'cleanup', child: Text('Clean Up Orphaned Images', style: TextStyle(color: Colors.red))),
                     ],
                   ),
               ],
@@ -190,7 +190,7 @@ class _ResultsScreenState extends State<ResultsScreen> {
             TextField(
               controller: nameController,
               decoration: InputDecoration(
-                labelText: type == 'Session' ? 'Session Name (e.g., 2020-21)' : 'Exam Name (e.g., 1st Year)',
+                labelText: type == 'Session' ? 'Session Name (e.g., 2020-2021)' : 'Exam Name (e.g., 1st Year)',
                 border: const OutlineInputBorder(),
               ),
             ),
@@ -212,24 +212,21 @@ class _ResultsScreenState extends State<ResultsScreen> {
               final id = idController.text.trim();
               if (name.isEmpty || id.isEmpty) return;
 
+              final navigator = Navigator.of(context);
+              final messenger = ScaffoldMessenger.of(context);
+
               try {
                 if (type == 'Session') {
                   await ResultService.addSessionId(name, id);
-                } else {
-                  await ResultService.addExamId(name, id);
                 }
-                if (mounted) {
-                  Navigator.pop(context);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('$type ID saved successfully')),
-                  );
-                }
+                navigator.pop();
+                messenger.showSnackBar(
+                  SnackBar(content: Text('$type ID saved successfully')),
+                );
               } catch (e) {
-                if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
-                  );
-                }
+                messenger.showSnackBar(
+                  SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+                );
               }
             },
             child: const Text('Save'),
@@ -237,159 +234,6 @@ class _ResultsScreenState extends State<ResultsScreen> {
         ],
       ),
     );
-  }
-
-  Future<void> _runImageMigration() async {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => const AlertDialog(
-        title: Text('Migrating Images...'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            LinearProgressIndicator(),
-            SizedBox(height: 16),
-            Text('Processing database tables. This may take a while...'),
-          ],
-        ),
-      ),
-    );
-
-    int totalMigrated = 0;
-    try {
-      final client = Supabase.instance.client;
-      final tasks = [
-        {'table': 'profiles', 'column': 'profile_pic', 'bucket': 'profile_pictures'},
-        {'table': 'notices', 'column': 'image_path', 'bucket': 'notice_images'},
-        {'table': 'gallery', 'column': 'image_path', 'bucket': 'gallery_images'},
-        {'table': 'teachers', 'column': 'image_path', 'bucket': 'teacher_images'},
-        {'table': 'alumni', 'column': 'image_path', 'bucket': 'alumni_images'},
-      ];
-
-      for (var task in tasks) {
-        final table = task['table']!;
-        final column = task['column']!;
-        final bucket = task['bucket']!;
-
-        final data = await client.from(table).select('id, $column');
-        
-        for (var row in data) {
-          final String? url = row[column];
-          if (url == null || url.isEmpty || url.contains('.webp')) continue;
-
-          debugPrint('Migrating $url...');
-          final migratedFile = await ImageProcessingService.downloadAndConvertToWebP(url);
-          
-          if (migratedFile != null) {
-            final newUrl = await StorageService.uploadFile(migratedFile, bucket);
-            if (newUrl != null) {
-              await client.from(table).update({column: newUrl}).eq('id', row['id']);
-              totalMigrated++;
-            }
-          }
-        }
-      }
-
-      if (mounted) {
-        Navigator.pop(context); // Close loading dialog
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Migration complete! $totalMigrated images converted to WebP.')),
-        );
-      }
-    } catch (e) {
-      debugPrint('Migration error: $e');
-      if (mounted) {
-        Navigator.pop(context);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Migration error: $e'), backgroundColor: Colors.red),
-        );
-      }
-    }
-  }
-
-  Future<void> _runStorageCleanup() async {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => const AlertDialog(
-        title: Text('Cleaning Up Storage...'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            LinearProgressIndicator(),
-            SizedBox(height: 16),
-            Text('Scanning for orphaned images. This may take a moment...'),
-          ],
-        ),
-      ),
-    );
-
-    int totalDeleted = 0;
-    try {
-      final client = Supabase.instance.client;
-      final tasks = [
-        {'table': 'profiles', 'column': 'profile_pic', 'bucket': 'profile_pictures'},
-        {'table': 'notices', 'column': 'image_path', 'bucket': 'notice_images'},
-        {'table': 'gallery', 'column': 'image_path', 'bucket': 'gallery_images'},
-        {'table': 'teachers', 'column': 'image_path', 'bucket': 'teacher_images'},
-        {'table': 'alumni', 'column': 'image_path', 'bucket': 'alumni_images'},
-      ];
-
-      for (var task in tasks) {
-        final table = task['table']!;
-        final column = task['column']!;
-        final bucket = task['bucket']!;
-
-        // 1. Get all files in storage
-        final List<String> storageFilesKeys = await StorageService.listFiles(bucket);
-        if (storageFilesKeys.isEmpty) continue;
-
-        // 2. Get all referenced filenames in DB
-        final dbData = await client.from(table).select(column);
-        final Set<String> referencedFiles = {};
-        for (var row in dbData) {
-          final String? url = row[column];
-          if (url != null && url.isNotEmpty) {
-            try {
-              final uri = Uri.parse(url);
-              referencedFiles.add(uri.pathSegments.last);
-            } catch (_) {}
-          }
-        }
-
-        // 3. Find orphaned files
-        final List<String> orphanedKeys = [];
-        for (var key in storageFilesKeys) {
-          final filename = key.split('/').last;
-          if (filename.isEmpty || filename == '.emptyFolderPlaceholder') continue;
-          if (!referencedFiles.contains(filename)) {
-            orphanedKeys.add(key);
-          }
-        }
-
-        // 4. Delete orphaned files
-        if (orphanedKeys.isNotEmpty) {
-          await StorageService.deleteFiles(orphanedKeys);
-          totalDeleted += orphanedKeys.length;
-        }
-      }
-
-      if (mounted) {
-        Navigator.pop(context);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Cleanup complete! $totalDeleted orphaned images removed.')),
-        );
-      }
-    } catch (e) {
-      debugPrint('Cleanup error: $e');
-      if (mounted) {
-        Navigator.pop(context);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Cleanup error: $e'), backgroundColor: Colors.red),
-        );
-      }
-    }
   }
 
   Widget _buildResultCard(BuildContext context, ExamResult result) {
@@ -452,10 +296,15 @@ class _ResultsScreenState extends State<ResultsScreen> {
     
     // Determine grade color
     Color gradeColor = Colors.grey;
-    if (subject.grade.startsWith('A')) gradeColor = Colors.green;
-    else if (subject.grade.startsWith('B')) gradeColor = Colors.blue;
-    else if (subject.grade.startsWith('C')) gradeColor = Colors.orange;
-    else if (subject.grade == 'F') gradeColor = Colors.red;
+    if (subject.grade.startsWith('A')) {
+      gradeColor = Colors.green;
+    } else if (subject.grade.startsWith('B')) {
+      gradeColor = Colors.blue;
+    } else if (subject.grade.startsWith('C')) {
+      gradeColor = Colors.orange;
+    } else if (subject.grade == 'F') {
+      gradeColor = Colors.red;
+    }
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 12.0),
@@ -495,5 +344,327 @@ class _ResultsScreenState extends State<ResultsScreen> {
         ],
       ),
     );
+  }
+}
+
+class _ManageExamsDialog extends StatefulWidget {
+  const _ManageExamsDialog();
+
+  @override
+  State<_ManageExamsDialog> createState() => _ManageExamsDialogState();
+}
+
+class _ManageExamsDialogState extends State<_ManageExamsDialog> {
+  List<Map<String, String>> _exams = [];
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadExams();
+  }
+
+  Future<void> _loadExams() async {
+    setState(() => _isLoading = true);
+    final exams = await ResultService.fetchAllExams();
+    if (mounted) {
+      setState(() {
+        _exams = exams;
+        _isLoading = false;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+
+    return AlertDialog(
+      title: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          const Text('Manage Exam IDs'),
+          IconButton(
+            icon: const Icon(Icons.add_circle, color: Colors.blue),
+            tooltip: 'Add New Exam ID',
+            onPressed: () async {
+              final result = await showDialog<bool>(
+                context: context,
+                builder: (context) => const _AddEditExamDialog(),
+              );
+              if (result == true) {
+                _loadExams();
+              }
+            },
+          ),
+        ],
+      ),
+      content: SizedBox(
+        width: double.maxFinite,
+        height: 400,
+        child: _isLoading
+            ? const Center(child: CircularProgressIndicator())
+            : _exams.isEmpty
+                ? const Center(
+                    child: Text('No exam IDs configured yet.'),
+                  )
+                : ListView.separated(
+                    itemCount: _exams.length,
+                    separatorBuilder: (context, index) => const Divider(),
+                    itemBuilder: (context, index) {
+                      final exam = _exams[index];
+                      final examId = exam['exam_id'] ?? '';
+                      final examName = exam['exam_name'] ?? '';
+                      final session = exam['session'] ?? '';
+
+                      return ListTile(
+                        contentPadding: EdgeInsets.zero,
+                        title: Text(
+                          examName,
+                          style: const TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                        subtitle: Padding(
+                          padding: const EdgeInsets.only(top: 4.0),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text('ID: $examId'),
+                              Text(
+                                'Session: ${session.isEmpty ? 'None (Needs Update!)' : session}',
+                                style: TextStyle(
+                                  color: session.isEmpty ? Colors.red : colors.primary,
+                                  fontWeight: session.isEmpty ? FontWeight.bold : FontWeight.normal,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        trailing: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            IconButton(
+                              icon: const Icon(Icons.edit, color: Colors.blue),
+                              onPressed: () async {
+                                final result = await showDialog<bool>(
+                                  context: context,
+                                  builder: (context) => _AddEditExamDialog(examToEdit: exam),
+                                );
+                                if (result == true) {
+                                  _loadExams();
+                                }
+                              },
+                            ),
+                            IconButton(
+                              icon: const Icon(Icons.delete, color: Colors.red),
+                              onPressed: () => _confirmDelete(examId, examName),
+                            ),
+                          ],
+                        ),
+                      );
+                    },
+                  ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Close'),
+        ),
+      ],
+    );
+  }
+
+  void _confirmDelete(String examId, String examName) {
+    showDialog(
+      context: context,
+      builder: (context) {
+        final navigator = Navigator.of(context);
+        final messenger = ScaffoldMessenger.of(context);
+        return AlertDialog(
+          title: const Text('Confirm Delete'),
+          content: Text('Are you sure you want to delete the exam configuration for "$examName" (ID: $examId)?'),
+          actions: [
+            TextButton(
+              onPressed: () => navigator.pop(),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+              onPressed: () async {
+                try {
+                  await ResultService.deleteExamId(examId);
+                  navigator.pop(); // Close confirm dialog
+                  _loadExams(); // Refresh list
+                  messenger.showSnackBar(
+                    const SnackBar(content: Text('Exam ID deleted successfully')),
+                  );
+                } catch (e) {
+                  navigator.pop();
+                  messenger.showSnackBar(
+                    SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+                  );
+                }
+              },
+              child: const Text('Delete', style: TextStyle(color: Colors.white)),
+            ),
+          ],
+        );
+      },
+    );
+  }
+}
+
+class _AddEditExamDialog extends StatefulWidget {
+  final Map<String, String>? examToEdit;
+
+  const _AddEditExamDialog({this.examToEdit});
+
+  @override
+  State<_AddEditExamDialog> createState() => _AddEditExamDialogState();
+}
+
+class _AddEditExamDialogState extends State<_AddEditExamDialog> {
+  final _nameController = TextEditingController();
+  final _idController = TextEditingController();
+  String? _selectedSession;
+  List<String> _sessions = [];
+  bool _isLoadingSessions = true;
+  bool _isSaving = false;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.examToEdit != null) {
+      _nameController.text = widget.examToEdit!['exam_name'] ?? '';
+      _idController.text = widget.examToEdit!['exam_id'] ?? '';
+      _selectedSession = widget.examToEdit!['session'];
+      if (_selectedSession != null && _selectedSession!.isEmpty) {
+        _selectedSession = null;
+      }
+    }
+    _loadSessions();
+  }
+
+  Future<void> _loadSessions() async {
+    final sessions = await ResultService.fetchSessions();
+    if (mounted) {
+      setState(() {
+        _sessions = sessions;
+        // Verify that if we have a pre-selected session, it exists in the list
+        if (_selectedSession != null && !_sessions.contains(_selectedSession)) {
+          // If it doesn't exist, we temporarily add it so it can display properly
+          _sessions.add(_selectedSession!);
+        }
+        _isLoadingSessions = false;
+      });
+    }
+  }
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _idController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isEdit = widget.examToEdit != null;
+
+    return AlertDialog(
+      title: Text(isEdit ? 'Edit Exam ID' : 'Add Exam ID'),
+      content: _isLoadingSessions
+          ? const SizedBox(
+              height: 150,
+              child: Center(child: CircularProgressIndicator()),
+            )
+          : SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextField(
+                    controller: _nameController,
+                    decoration: const InputDecoration(
+                      labelText: 'Exam Name (e.g., 1st Year)',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: _idController,
+                    enabled: !isEdit, // Cannot edit the ID since it is the unique identifier
+                    decoration: InputDecoration(
+                      labelText: 'Exam ID (from DUCMC)',
+                      border: const OutlineInputBorder(),
+                      helperText: isEdit ? 'Exam ID cannot be changed' : null,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  DropdownButtonFormField<String>(
+                    initialValue: _selectedSession,
+                    decoration: const InputDecoration(
+                      labelText: 'Session Name *',
+                      border: OutlineInputBorder(),
+                      helperText: 'Must match student session exactly',
+                    ),
+                    items: _sessions.map((session) {
+                      return DropdownMenuItem<String>(
+                        value: session,
+                        child: Text(session),
+                      );
+                    }).toList(),
+                    onChanged: (val) {
+                      setState(() {
+                        _selectedSession = val;
+                      });
+                    },
+                    validator: (val) => val == null ? 'Session is required' : null,
+                  ),
+                ],
+              ),
+            ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context, false),
+          child: const Text('Cancel'),
+        ),
+        ElevatedButton(
+          onPressed: _isSaving || _isLoadingSessions ? null : _save,
+          child: _isSaving
+              ? const SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              : const Text('Save'),
+        ),
+      ],
+    );
+  }
+
+  Future<void> _save() async {
+    final name = _nameController.text.trim();
+    final id = _idController.text.trim();
+    final session = _selectedSession;
+
+    if (name.isEmpty || id.isEmpty || session == null || session.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please fill all fields')),
+      );
+      return;
+    }
+
+    setState(() => _isSaving = true);
+    final navigator = Navigator.of(context);
+    final messenger = ScaffoldMessenger.of(context);
+
+    try {
+      await ResultService.addExamId(name, id, session);
+      navigator.pop(true); // Return true to indicate successful save
+    } catch (e) {
+      setState(() => _isSaving = false);
+      messenger.showSnackBar(
+        SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+      );
+    }
   }
 }

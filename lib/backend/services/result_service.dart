@@ -75,7 +75,44 @@ class ResultService {
     }
   }
 
-  // 4. Add new session ID (Admin only)
+  // 3. Fetch all sessions (Admin / general)
+  static Future<List<String>> fetchSessions() async {
+    try {
+      final List<dynamic> data = await _client
+          .from('DUCMC_sessions_id')
+          .select('session')
+          .order('session', ascending: true);
+      return data.map((row) => (row['session'] ?? '').toString()).toList();
+    } catch (e) {
+      debugPrint('Error fetching sessions: $e');
+      return [];
+    }
+  }
+
+  // 4. Fetch all configured exams (Admin only)
+  static Future<List<Map<String, String>>> fetchAllExams() async {
+    try {
+      final List<dynamic> data = await _client
+          .from('DUCMC_exams_id')
+          .select('exam_id, exam_name, session')
+          .order('exam_name', ascending: true);
+      return data.map((row) => {
+        'exam_id': (row['exam_id'] ?? '').toString(),
+        'exam_name': (row['exam_name'] ?? '').toString(),
+        'session': (row['session'] ?? '').toString(),
+      }).toList();
+    } catch (e) {
+      debugPrint('Error fetching exams: $e');
+      return [];
+    }
+  }
+
+  // 5. Delete an exam configuration (Admin only)
+  static Future<void> deleteExamId(String examId) async {
+    await _client.from('DUCMC_exams_id').delete().eq('exam_id', examId);
+  }
+
+  // 6. Add new session ID (Admin only)
   static Future<void> addSessionId(String session, String sessId) async {
     await _client.from('DUCMC_sessions_id').upsert({
       'session': session,
@@ -83,11 +120,12 @@ class ResultService {
     });
   }
 
-  // 5. Add new exam ID (Admin only)
-  static Future<void> addExamId(String examName, String examId) async {
+  // 7. Add new exam ID (Admin only)
+  static Future<void> addExamId(String examName, String examId, String session) async {
     await _client.from('DUCMC_exams_id').upsert({
       'exam_name': examName,
       'exam_id': examId,
+      'session': session,
     });
   }
 }
