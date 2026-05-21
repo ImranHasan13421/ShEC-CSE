@@ -21,6 +21,14 @@ class _AccountingDashboardScreenState extends State<AccountingDashboardScreen> {
   late DateTime _selectedDuesMonth;
   String _searchQuery = '';
   String _expenseFilter = 'all';
+  int? _selectedBarIndex;
+
+  bool get _isAdmin {
+    final designation = currentProfile.value.designation;
+    return designation == 'Treasurer' ||
+        designation == 'President' ||
+        designation == 'Vice President';
+  }
 
   @override
   void initState() {
@@ -56,6 +64,11 @@ class _AccountingDashboardScreenState extends State<AccountingDashboardScreen> {
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
+
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final tabLabelColor = isDark ? colors.primary : Colors.white;
+    final tabUnselectedColor = isDark ? colors.onSurface.withValues(alpha: 0.6) : Colors.white.withValues(alpha: 0.7);
+    final tabIndicatorColor = isDark ? colors.primary : Colors.white;
 
     return BlocListener<AccountingBloc, AccountingState>(
       listener: (context, state) {
@@ -98,9 +111,9 @@ class _AccountingDashboardScreenState extends State<AccountingDashboardScreen> {
             bottom: TabBar(
               isScrollable: true,
               tabAlignment: TabAlignment.start,
-              labelColor: colors.primary,
-              unselectedLabelColor: colors.onSurface.withValues(alpha: 0.6),
-              indicatorColor: colors.primary,
+              labelColor: tabLabelColor,
+              unselectedLabelColor: tabUnselectedColor,
+              indicatorColor: tabIndicatorColor,
               indicatorWeight: 3,
               physics: const BouncingScrollPhysics(),
               tabs: const [
@@ -121,9 +134,6 @@ class _AccountingDashboardScreenState extends State<AccountingDashboardScreen> {
               if (state is AccountingLoading) {
                 return const Center(child: CircularProgressIndicator());
               }
-
-              // Fetch state fallback or current data container
-              final bloc = context.read<AccountingBloc>();
               
               return TabBarView(
                 physics: const BouncingScrollPhysics(),
@@ -166,41 +176,53 @@ class _AccountingDashboardScreenState extends State<AccountingDashboardScreen> {
         children: [
           // Visual Premium Cards
           _buildSummaryCards(totalCol, totalExp, balance, colors),
-          const SizedBox(height: 24),
+          const SizedBox(height: 16),
 
-          // Overview Action buttons
-          Row(
-            children: [
-              Expanded(
-                child: ElevatedButton.icon(
-                  onPressed: () => _showAddPaymentDialog(context),
-                  icon: const Icon(Icons.add),
-                  label: const Text('Add Fee Payment'),
-                  style: ElevatedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    backgroundColor: colors.primaryContainer,
-                    foregroundColor: colors.onPrimaryContainer,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          // Funds Composition Ratio Bar
+          _buildRatioComposition(totalCol, totalExp, colors),
+          const SizedBox(height: 16),
+
+          // Cash Flow Trend Chart
+          if (hasData) ...[
+            _buildTrendChart(summary, colors),
+            const SizedBox(height: 20),
+          ],
+
+          // Overview Action buttons (Admins only)
+          if (_isAdmin) ...[
+            Row(
+              children: [
+                Expanded(
+                  child: ElevatedButton.icon(
+                    onPressed: () => _showAddPaymentDialog(context),
+                    icon: const Icon(Icons.add),
+                    label: const Text('Add Fee Payment'),
+                    style: ElevatedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      backgroundColor: colors.primaryContainer,
+                      foregroundColor: colors.onPrimaryContainer,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
                   ),
                 ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: ElevatedButton.icon(
-                  onPressed: () => _showAddExpenseDialog(context),
-                  icon: const Icon(Icons.remove),
-                  label: const Text('Log Expense'),
-                  style: ElevatedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    backgroundColor: colors.errorContainer,
-                    foregroundColor: colors.onErrorContainer,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: ElevatedButton.icon(
+                    onPressed: () => _showAddExpenseDialog(context),
+                    icon: const Icon(Icons.remove),
+                    label: const Text('Log Expense'),
+                    style: ElevatedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      backgroundColor: colors.errorContainer,
+                      foregroundColor: colors.onErrorContainer,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
                   ),
                 ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 24),
+              ],
+            ),
+            const SizedBox(height: 24),
+          ],
 
           // Recent Activity Ledger
           Text(
@@ -531,13 +553,15 @@ class _AccountingDashboardScreenState extends State<AccountingDashboardScreen> {
           ),
         ],
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => _showAddPaymentDialog(context),
-        label: const Text('Add Payment'),
-        icon: const Icon(Icons.add),
-        backgroundColor: colors.primary,
-        foregroundColor: Colors.white,
-      ),
+      floatingActionButton: _isAdmin
+          ? FloatingActionButton.extended(
+              onPressed: () => _showAddPaymentDialog(context),
+              label: const Text('Add Payment'),
+              icon: const Icon(Icons.add),
+              backgroundColor: colors.primary,
+              foregroundColor: Colors.white,
+            )
+          : null,
     );
   }
 
@@ -677,13 +701,15 @@ class _AccountingDashboardScreenState extends State<AccountingDashboardScreen> {
           ),
         ],
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => _showAddExpenseDialog(context),
-        label: const Text('Log Expense'),
-        icon: const Icon(Icons.remove),
-        backgroundColor: colors.error,
-        foregroundColor: Colors.white,
-      ),
+      floatingActionButton: _isAdmin
+          ? FloatingActionButton.extended(
+              onPressed: () => _showAddExpenseDialog(context),
+              label: const Text('Log Expense'),
+              icon: const Icon(Icons.remove),
+              backgroundColor: colors.error,
+              foregroundColor: Colors.white,
+            )
+          : null,
     );
   }
 
@@ -843,26 +869,47 @@ class _AccountingDashboardScreenState extends State<AccountingDashboardScreen> {
                                         ],
                                       ),
                                     )
-                                  : ElevatedButton(
-                                      onPressed: () {
-                                        _showAddPaymentDialog(
-                                          context,
-                                          member: due.profile,
-                                          month: DateFormat('yyyy-MM').format(_selectedDuesMonth),
-                                        );
-                                      },
-                                      style: ElevatedButton.styleFrom(
-                                        backgroundColor: colors.error.withValues(alpha: 0.1),
-                                        foregroundColor: colors.error,
-                                        elevation: 0,
-                                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                                        shape: RoundedRectangleBorder(
-                                          borderRadius: BorderRadius.circular(6),
-                                          side: BorderSide(color: colors.error.withValues(alpha: 0.2)),
+                                  : _isAdmin
+                                      ? ElevatedButton(
+                                          onPressed: () {
+                                            _showAddPaymentDialog(
+                                              context,
+                                              member: due.profile,
+                                              month: DateFormat('yyyy-MM').format(_selectedDuesMonth),
+                                            );
+                                          },
+                                          style: ElevatedButton.styleFrom(
+                                            backgroundColor: colors.error.withValues(alpha: 0.1),
+                                            foregroundColor: colors.error,
+                                            elevation: 0,
+                                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                            shape: RoundedRectangleBorder(
+                                              borderRadius: BorderRadius.circular(6),
+                                              side: BorderSide(color: colors.error.withValues(alpha: 0.2)),
+                                            ),
+                                          ),
+                                          child: const Text('Mark Paid', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                                        )
+                                      : Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                          decoration: BoxDecoration(
+                                            color: colors.error.withValues(alpha: 0.15),
+                                            borderRadius: BorderRadius.circular(6),
+                                            border: Border.all(color: colors.error.withValues(alpha: 0.3)),
+                                          ),
+                                          child: Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              Icon(Icons.info_outline, color: colors.error, size: 14),
+                                              const SizedBox(width: 6),
+                                              Text(
+                                                'Unpaid',
+                                                style: TextStyle(
+                                                    color: colors.error, fontWeight: FontWeight.bold, fontSize: 11),
+                                              ),
+                                            ],
+                                          ),
                                         ),
-                                      ),
-                                      child: const Text('Mark Paid', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
-                                    ),
                             ),
                           );
                         },
@@ -900,6 +947,300 @@ class _AccountingDashboardScreenState extends State<AccountingDashboardScreen> {
           child: const AddExpenseDialog(),
         );
       },
+    );
+  }
+
+  // --- CUSTOM GRAPHICAL GRAPH & CHARTS ---
+
+  Widget _buildRatioComposition(double collection, double expenses, ColorScheme colors) {
+    final total = collection + expenses;
+    final colPercent = total > 0 ? (collection / total) : 0.5;
+    final expPercent = total > 0 ? (expenses / total) : 0.5;
+
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: colors.surfaceContainer,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: colors.onSurface.withValues(alpha: 0.05)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'Funds Composition',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: colors.onSurface),
+              ),
+              Text(
+                '${(colPercent * 100).toStringAsFixed(0)}% vs ${(expPercent * 100).toStringAsFixed(0)}%',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: colors.primary),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(8),
+            child: SizedBox(
+              height: 16,
+              child: Row(
+                children: [
+                  Expanded(
+                    flex: (colPercent * 100).round().clamp(1, 99),
+                    child: Container(
+                      decoration: const BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [Color(0xFF059669), _emerald],
+                          begin: Alignment.centerLeft,
+                          end: Alignment.centerRight,
+                        ),
+                      ),
+                    ),
+                  ),
+                  Expanded(
+                    flex: (expPercent * 100).round().clamp(1, 99),
+                    child: Container(
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [colors.error, colors.errorContainer],
+                          begin: Alignment.centerLeft,
+                          end: Alignment.centerRight,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  Container(width: 10, height: 10, decoration: const BoxDecoration(color: _emerald, shape: BoxShape.circle)),
+                  const SizedBox(width: 6),
+                  const Text('Collections', style: TextStyle(fontSize: 11, color: Colors.grey)),
+                ],
+              ),
+              Row(
+                children: [
+                  Container(width: 10, height: 10, decoration: BoxDecoration(color: colors.error, shape: BoxShape.circle)),
+                  const SizedBox(width: 6),
+                  const Text('Expenses', style: TextStyle(fontSize: 11, color: Colors.grey)),
+                ],
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTrendChart(AccountingSummary? summary, ColorScheme colors) {
+    if (summary == null) return const SizedBox.shrink();
+
+    final now = DateTime.now();
+    final List<DateTime> months = List.generate(5, (i) => DateTime(now.year, now.month - (4 - i), 1));
+    
+    double maxVal = 1000.0; // Fallback min ceiling
+    final List<Map<String, dynamic>> chartData = [];
+
+    for (var month in months) {
+      double collection = 0.0;
+      for (var p in summary.recentPayments) {
+        if (p.paymentDate.year == month.year && p.paymentDate.month == month.month) {
+          collection += p.amount;
+        }
+      }
+
+      double expense = 0.0;
+      for (var e in summary.recentExpenses) {
+        if (e.expenseDate.year == month.year && e.expenseDate.month == month.month) {
+          expense += e.amount;
+        }
+      }
+
+      if (collection > maxVal) maxVal = collection;
+      if (expense > maxVal) maxVal = expense;
+
+      chartData.add({
+        'month': DateFormat('MMM').format(month),
+        'collection': collection,
+        'expense': expense,
+      });
+    }
+
+    // Boost maxVal slightly for aesthetic padding
+    maxVal *= 1.15;
+
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: colors.surfaceContainer,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: colors.onSurface.withValues(alpha: 0.05)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'Cash Flow Trend (Last 5 Months)',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: colors.onSurface),
+              ),
+              if (_selectedBarIndex != null)
+                Text(
+                  'Tap to hide detail',
+                  style: TextStyle(fontSize: 10, color: colors.primary.withValues(alpha: 0.6)),
+                )
+              else
+                const Text(
+                  'Tap bars for details',
+                  style: TextStyle(fontSize: 10, color: Colors.grey),
+                ),
+            ],
+          ),
+          const SizedBox(height: 18),
+          
+          // Render the selected month's tooltip details
+          AnimatedSize(
+            duration: const Duration(milliseconds: 200),
+            child: _selectedBarIndex == null
+                ? const SizedBox.shrink()
+                : Container(
+                    margin: const EdgeInsets.only(bottom: 16),
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: colors.primary.withValues(alpha: 0.08),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: colors.primary.withValues(alpha: 0.2)),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          '${chartData[_selectedBarIndex!]['month']} Breakdown:',
+                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: colors.primary),
+                        ),
+                        Text(
+                          'Col: ৳${chartData[_selectedBarIndex!]['collection'].toStringAsFixed(0)}  |  Exp: ৳${chartData[_selectedBarIndex!]['expense'].toStringAsFixed(0)}',
+                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: colors.onSurface),
+                        ),
+                      ],
+                    ),
+                  ),
+          ),
+
+          // Core chart canvas
+          SizedBox(
+            height: 180,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceAround,
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: List.generate(chartData.length, (index) {
+                final data = chartData[index];
+                final colHeight = (data['collection'] / maxVal) * 140;
+                final expHeight = (data['expense'] / maxVal) * 140;
+                final isSelected = _selectedBarIndex == index;
+
+                return GestureDetector(
+                  onTap: () {
+                    setState(() {
+                      if (_selectedBarIndex == index) {
+                        _selectedBarIndex = null;
+                      } else {
+                        _selectedBarIndex = index;
+                      }
+                    });
+                  },
+                  child: Container(
+                    color: Colors.transparent, // Expand tap target
+                    padding: const EdgeInsets.symmetric(horizontal: 4),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: [
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.end,
+                          children: [
+                            // Collections Bar
+                            AnimatedContainer(
+                              duration: const Duration(milliseconds: 500),
+                              curve: Curves.easeOutBack,
+                              width: 14,
+                              height: colHeight.clamp(4.0, 140.0),
+                              decoration: BoxDecoration(
+                                gradient: LinearGradient(
+                                  colors: isSelected
+                                      ? [const Color(0xFF047857), _emerald]
+                                      : [_emerald.withValues(alpha: 0.7), _emerald],
+                                  begin: Alignment.bottomCenter,
+                                  end: Alignment.topCenter,
+                                ),
+                                borderRadius: const BorderRadius.vertical(top: Radius.circular(4)),
+                                boxShadow: isSelected
+                                    ? [
+                                        BoxShadow(
+                                          color: _emerald.withValues(alpha: 0.4),
+                                          blurRadius: 6,
+                                          offset: const Offset(0, -2),
+                                        )
+                                      ]
+                                    : null,
+                              ),
+                            ),
+                            const SizedBox(width: 4),
+                            // Expenses Bar
+                            AnimatedContainer(
+                              duration: const Duration(milliseconds: 500),
+                              curve: Curves.easeOutBack,
+                              width: 14,
+                              height: expHeight.clamp(4.0, 140.0),
+                              decoration: BoxDecoration(
+                                gradient: LinearGradient(
+                                  colors: isSelected
+                                      ? [colors.error, colors.errorContainer]
+                                      : [colors.error.withValues(alpha: 0.7), colors.errorContainer.withValues(alpha: 0.8)],
+                                  begin: Alignment.bottomCenter,
+                                  end: Alignment.topCenter,
+                                ),
+                                borderRadius: const BorderRadius.vertical(top: Radius.circular(4)),
+                                boxShadow: isSelected
+                                    ? [
+                                        BoxShadow(
+                                          color: colors.error.withValues(alpha: 0.4),
+                                          blurRadius: 6,
+                                          offset: const Offset(0, -2),
+                                        )
+                                      ]
+                                    : null,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          data['month'] as String,
+                          style: TextStyle(
+                            fontSize: 10,
+                            fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                            color: isSelected ? colors.primary : Colors.grey,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              }),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

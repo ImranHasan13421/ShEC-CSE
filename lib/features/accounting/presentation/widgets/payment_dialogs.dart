@@ -137,12 +137,15 @@ class _AddPaymentDialogState extends State<AddPaymentDialog> {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Text(
-                            'Record Fee Payment',
-                            style: TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                              color: colors.onSurface,
+                          Expanded(
+                            child: Text(
+                              'Record Fee Payment',
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                                color: colors.onSurface,
+                              ),
+                              overflow: TextOverflow.ellipsis,
                             ),
                           ),
                           IconButton(
@@ -447,8 +450,10 @@ class _AddPaymentDialogState extends State<AddPaymentDialog> {
                       const SizedBox(height: 24),
 
                       // Actions
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.end,
+                      Wrap(
+                        spacing: 12,
+                        runSpacing: 8,
+                        alignment: WrapAlignment.end,
                         children: [
                           OutlinedButton(
                             onPressed: () => Navigator.pop(context),
@@ -457,7 +462,6 @@ class _AddPaymentDialogState extends State<AddPaymentDialog> {
                             ),
                             child: const Text('Cancel'),
                           ),
-                          const SizedBox(width: 12),
                           ElevatedButton(
                             onPressed: () {
                               if (_formKey.currentState!.validate() && _selectedMember != null) {
@@ -541,12 +545,15 @@ class _AddExpenseDialogState extends State<AddExpenseDialog> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text(
-                      'Log Club Expense',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: colors.onSurface,
+                    Expanded(
+                      child: Text(
+                        'Log Club Expense',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: colors.onSurface,
+                        ),
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
                     IconButton(
@@ -653,8 +660,10 @@ class _AddExpenseDialogState extends State<AddExpenseDialog> {
                 const SizedBox(height: 24),
 
                 // Actions
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
+                Wrap(
+                  spacing: 12,
+                  runSpacing: 8,
+                  alignment: WrapAlignment.end,
                   children: [
                     OutlinedButton(
                       onPressed: () => Navigator.pop(context),
@@ -663,7 +672,6 @@ class _AddExpenseDialogState extends State<AddExpenseDialog> {
                       ),
                       child: const Text('Cancel'),
                     ),
-                    const SizedBox(width: 12),
                     ElevatedButton(
                       onPressed: () {
                         if (_formKey.currentState!.validate()) {

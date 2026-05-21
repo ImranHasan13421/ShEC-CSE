@@ -365,31 +365,17 @@ class _MainDrawerMenu extends StatelessWidget {
                         title: 'CGPA Calculator',
                         destination: const CGPACalculatorScreen(),
                       ),
-                      ValueListenableBuilder<ProfileData>(
-                        valueListenable: currentProfile,
-                        builder: (context, profile, _) {
-                          final isAuthorized = profile.designation == 'Treasurer' ||
-                              profile.designation == 'President' ||
-                              profile.designation == 'Vice President';
-                          if (!isAuthorized) return const SizedBox.shrink();
-                          return Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const Padding(
-                                padding: EdgeInsets.symmetric(vertical: 8.0),
-                                child: Divider(color: Colors.grey, thickness: 0.1),
-                              ),
-                              _menuSectionHeader('Treasury & Accounts'),
-                              _menuItem(
-                                context,
-                                controller,
-                                icon: Icons.account_balance_wallet_outlined,
-                                title: 'Club Accounts',
-                                destination: const AccountingDashboardScreen(),
-                              ),
-                            ],
-                          );
-                        },
+                      const Padding(
+                        padding: EdgeInsets.symmetric(vertical: 8.0),
+                        child: Divider(color: Colors.grey, thickness: 0.1),
+                      ),
+                      _menuSectionHeader('Treasury & Accounts'),
+                      _menuItem(
+                        context,
+                        controller,
+                        icon: Icons.account_balance_wallet_outlined,
+                        title: 'Club Accounts',
+                        destination: const AccountingDashboardScreen(),
                       ),
                       const Padding(
                         padding: EdgeInsets.symmetric(vertical: 8.0),
