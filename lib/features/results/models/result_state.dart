@@ -1,4 +1,3 @@
-import 'package:flutter/material.dart';
 
 class SubjectResult {
   final String code;
@@ -92,6 +91,4 @@ class DucmcExam {
   }
 }
 
-// Global state for results
-final ValueNotifier<List<ExamResult>> studentResultsState = ValueNotifier([]);
-final ValueNotifier<bool> isSyncingResults = ValueNotifier(false);
+

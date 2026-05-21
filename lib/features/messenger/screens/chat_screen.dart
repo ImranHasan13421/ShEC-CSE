@@ -1,8 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/chat_state.dart';
 import '../../../backend/services/chat_service.dart';
 import 'package:intl/intl.dart';
+import '../presentation/bloc/chat_bloc.dart';
+import '../presentation/bloc/chat_event.dart';
+import '../presentation/bloc/chat_state.dart';
 
 class ChatScreen extends StatefulWidget {
   final String roomId;
@@ -21,39 +25,21 @@ class ChatScreen extends StatefulWidget {
 }
 
 class _ChatScreenState extends State<ChatScreen> {
-  final List<ChatMessage> _messages = [];
   final TextEditingController _messageController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
-  bool _isLoading = true;
   RealtimeChannel? _subscription;
 
   @override
   void initState() {
     super.initState();
-    _loadMessages();
+    context.read<ChatBloc>().add(FetchHistoryRequested(roomId: widget.roomId));
     _setupRealtime();
-  }
-
-  Future<void> _loadMessages() async {
-    final history = await ChatService.fetchMessageHistory(widget.roomId);
-    if (mounted) {
-      setState(() {
-        _messages.addAll(history);
-        _isLoading = false;
-      });
-      _scrollToBottom();
-    }
   }
 
   void _setupRealtime() {
     _subscription = ChatService.subscribeToRoom(widget.roomId, (newMessage) {
       if (mounted) {
-        setState(() {
-          if (!_messages.any((m) => m.id == newMessage.id)) {
-            _messages.add(newMessage);
-          }
-        });
-        _scrollToBottom();
+        context.read<ChatBloc>().add(ReceiveMessageRequested(message: newMessage));
       }
     });
   }
@@ -80,37 +66,12 @@ class _ChatScreenState extends State<ChatScreen> {
     super.dispose();
   }
 
-  void _handleSendMessage() async {
+  void _handleSendMessage() {
     final text = _messageController.text.trim();
     if (text.isEmpty) return;
 
     _messageController.clear();
-    
-    final tempMsg = ChatMessage(
-      id: 'temp_${DateTime.now().millisecondsSinceEpoch}',
-      roomId: widget.roomId,
-      senderId: Supabase.instance.client.auth.currentUser?.id ?? '',
-      senderName: 'Me',
-      text: text,
-      createdAt: DateTime.now(),
-      isMe: true,
-    );
-
-    setState(() {
-      _messages.add(tempMsg);
-    });
-    _scrollToBottom();
-
-    final realMsg = await ChatService.sendMessage(widget.roomId, text);
-    
-    if (mounted && realMsg != null) {
-      setState(() {
-        final index = _messages.indexWhere((m) => m.id == tempMsg.id);
-        if (index != -1) {
-          _messages[index] = realMsg;
-        }
-      });
-    }
+    context.read<ChatBloc>().add(SendMessageRequested(roomId: widget.roomId, text: text));
   }
 
   @override
@@ -144,14 +105,32 @@ class _ChatScreenState extends State<ChatScreen> {
       body: Column(
         children: [
           Expanded(
-            child: _isLoading 
-              ? const Center(child: CircularProgressIndicator())
-              : ListView.builder(
+            child: BlocConsumer<ChatBloc, ChatState>(
+              listener: (context, state) {
+                if (state is ChatHistoryLoaded) {
+                  _scrollToBottom();
+                } else if (state is ChatError) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text(state.message), backgroundColor: Colors.red),
+                  );
+                }
+              },
+              builder: (context, state) {
+                if (state is ChatHistoryLoading) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+
+                List<ChatMessage> messages = [];
+                if (state is ChatHistoryLoaded) {
+                  messages = state.messages;
+                }
+
+                return ListView.builder(
                   controller: _scrollController,
                   padding: const EdgeInsets.all(16.0),
-                  itemCount: _messages.length,
+                  itemCount: messages.length,
                   itemBuilder: (context, index) {
-                    final msg = _messages[index];
+                    final msg = messages[index];
                     if (msg.isMe) {
                       return _buildSentMessage(
                         context: context,
@@ -168,7 +147,9 @@ class _ChatScreenState extends State<ChatScreen> {
                       );
                     }
                   },
-                ),
+                );
+              },
+            ),
           ),
           _buildMessageInput(context, colors),
         ],

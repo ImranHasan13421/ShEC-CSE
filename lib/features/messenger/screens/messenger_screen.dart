@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:ShEC_CSE/features/messenger/screens/chat_screen.dart';
 import 'package:ShEC_CSE/features/messenger/models/chat_state.dart';
-import 'package:ShEC_CSE/backend/services/chat_service.dart';
+import '../presentation/bloc/chat_bloc.dart';
+import '../presentation/bloc/chat_event.dart';
+import '../presentation/bloc/chat_state.dart';
 
 class MessengerScreen extends StatefulWidget {
   const MessengerScreen({super.key});
@@ -14,7 +17,7 @@ class _MessengerScreenState extends State<MessengerScreen> {
   @override
   void initState() {
     super.initState();
-    ChatService.fetchRooms();
+    context.read<ChatBloc>().add(FetchRoomsRequested());
   }
 
   @override
@@ -22,41 +25,45 @@ class _MessengerScreenState extends State<MessengerScreen> {
     final colors = Theme.of(context).colorScheme;
 
     return Scaffold(
-      body: ValueListenableBuilder<bool>(
-        valueListenable: isLoadingChatRooms,
-        builder: (context, isLoading, _) {
-          if (isLoading) return const Center(child: CircularProgressIndicator());
+      body: BlocBuilder<ChatBloc, ChatState>(
+        builder: (context, state) {
+          final rooms = context.read<ChatBloc>().rooms;
 
-          return ValueListenableBuilder<List<ChatRoom>>(
-            valueListenable: chatRoomsList,
-            builder: (context, rooms, _) {
-              if (rooms.isEmpty) return const Center(child: Text('No active chat groups.'));
+          if (state is ChatRoomsLoading && rooms.isEmpty) {
+            return const Center(child: CircularProgressIndicator());
+          }
 
-              return ListView.builder(
-                padding: const EdgeInsets.symmetric(vertical: 8),
-                itemCount: rooms.length,
-                itemBuilder: (context, index) {
-                  final room = rooms[index];
-                  return _buildChatTile(
-                    context: context,
-                    title: room.name,
-                    subtitle: room.description,
-                    time: '', // Could be updated with last message time
-                    unreadCount: 0,
-                    icon: _getIcon(room.type),
-                    iconColor: _getColor(room.type, colors),
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => ChatScreen(
-                            roomId: room.id,
-                            groupName: room.name,
-                            themeColor: _getColor(room.type, colors),
-                          ),
-                        ),
-                      );
-                    },
+          if (state is ChatError && rooms.isEmpty) {
+            return Center(child: Text(state.message));
+          }
+
+          if (rooms.isEmpty) {
+            return const Center(child: Text('No active chat groups.'));
+          }
+
+          return ListView.builder(
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            itemCount: rooms.length,
+            itemBuilder: (context, index) {
+              final room = rooms[index];
+              return _buildChatTile(
+                context: context,
+                title: room.name,
+                subtitle: room.description,
+                time: '', // Could be updated with last message time
+                unreadCount: 0,
+                icon: _getIcon(room.type),
+                iconColor: _getColor(room.type, colors),
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => ChatScreen(
+                        roomId: room.id,
+                        groupName: room.name,
+                        themeColor: _getColor(room.type, colors),
+                      ),
+                    ),
                   );
                 },
               );

@@ -7,15 +7,18 @@ class ChatService {
   static final SupabaseClient _client = Supabase.instance.client;
 
   // Fetch available rooms based on user role
-  static Future<void> fetchRooms() async {
+  static Future<List<ChatRoom>> fetchRooms() async {
     isLoadingChatRooms.value = true;
     try {
       final response = await _client.from('chat_rooms').select();
-      chatRoomsList.value = (response as List)
+      final rooms = (response as List)
           .map((row) => ChatRoom.fromJson(row))
           .toList();
+      chatRoomsList.value = rooms;
+      return rooms;
     } catch (e) {
       print('Error fetching chat rooms: $e');
+      rethrow;
     } finally {
       isLoadingChatRooms.value = false;
     }

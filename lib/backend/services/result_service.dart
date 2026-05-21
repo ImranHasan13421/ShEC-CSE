@@ -8,11 +8,11 @@ class ResultService {
   static final SupabaseClient _client = Supabase.instance.client;
 
   // 1. Load results from the new normalized tables
-  static Future<void> loadResultsFromDB() async {
+  static Future<List<ExamResult>> loadResultsFromDB() async {
     final profile = currentProfile.value;
     if (profile.id.isEmpty) {
       debugPrint('Skipping results load: Profile ID is empty');
-      return;
+      return [];
     }
 
     try {
@@ -44,21 +44,20 @@ class ResultService {
         examResults.add(ExamResult.fromDB(resultRow, subjects));
       }
 
-      studentResultsState.value = examResults;
+      return examResults;
     } catch (e) {
       debugPrint('Error loading results: $e');
+      rethrow;
     }
   }
 
   // 2. Sync results using the ResultScraperService
-  static Future<void> syncResults() async {
+  static Future<List<ExamResult>> syncResults() async {
     final profile = currentProfile.value;
     if (profile.duRegNo.isEmpty || profile.session.isEmpty) {
       debugPrint('Cannot sync: missing duReg or session');
-      return;
+      return [];
     }
-
-    isSyncingResults.value = true;
 
     try {
       // Delegate the scraping and saving to the dedicated Scraper service
@@ -69,11 +68,10 @@ class ResultService {
       );
 
       // Reload the state from the DB after scraping finishes
-      await loadResultsFromDB();
+      return await loadResultsFromDB();
     } catch (e) {
       debugPrint('Sync Error: $e');
-    } finally {
-      isSyncingResults.value = false;
+      rethrow;
     }
   }
 

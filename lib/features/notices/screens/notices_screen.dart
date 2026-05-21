@@ -1,7 +1,13 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:ShEC_CSE/features/profile/models/profile_state.dart';
+import 'package:ShEC_CSE/features/auth/presentation/bloc/auth_bloc.dart';
+import 'package:ShEC_CSE/features/auth/presentation/bloc/auth_state.dart';
+import 'package:ShEC_CSE/features/notices/presentation/bloc/notice_bloc.dart';
+import 'package:ShEC_CSE/features/notices/presentation/bloc/notice_event.dart';
+import 'package:ShEC_CSE/features/notices/presentation/bloc/notice_state.dart';
 import 'package:ShEC_CSE/core/services/image_processing_service.dart';
 import '../models/notice_state.dart';
 import '../../../backend/services/notice_service.dart';
@@ -21,24 +27,27 @@ class _NoticesScreenState extends State<NoticesScreen> {
   @override
   void initState() {
     super.initState();
-    NoticeService.fetchNotices();
-  }
-
-  void _deleteNotice(NoticeItem notice, ValueNotifier<List<NoticeItem>> stateNotifier) async {
-    try {
-      String category = stateNotifier == clubNoticesState ? 'club' : 'department';
-      await NoticeService.deleteNoticeFromDB(notice, category);
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Notice deleted')));
-    } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error deleting notice: $e')));
+    // Fetch notices if not already loaded
+    final noticeState = context.read<NoticeBloc>().state;
+    if (noticeState is! NoticesLoaded) {
+      context.read<NoticeBloc>().add(const FetchNoticesRequested());
     }
   }
 
-  void _showNoticeForm(BuildContext context, ValueNotifier<List<NoticeItem>> defaultStateNotifier, {NoticeItem? existingNotice}) {
+  void _deleteNotice(NoticeItem notice, String category) {
+    context.read<NoticeBloc>().add(
+      DeleteNoticeRequested(notice: notice, category: category),
+    );
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Deleting notice...')),
+    );
+  }
+
+  void _showNoticeForm(BuildContext context, String defaultCategory, {NoticeItem? existingNotice}) {
     final titleController = TextEditingController(text: existingNotice?.title ?? '');
     final descriptionController = TextEditingController(text: existingNotice?.description ?? '');
     
-    ValueNotifier<List<NoticeItem>> selectedNotifier = defaultStateNotifier;
+    String selectedCategory = defaultCategory;
     
     final List<String> availableTags = ['Academic', 'Event', 'Workshop', 'Maintenance', 'Job', 'Lecture', 'General', 'Research'];
     List<String> selectedTags = existingNotice?.tags.toList() ?? [];
@@ -98,14 +107,14 @@ class _NoticesScreenState extends State<NoticesScreen> {
                       if (existingNotice == null) ...[
                         const Text('Category', style: TextStyle(fontWeight: FontWeight.bold)),
                         const SizedBox(height: 8),
-                        SegmentedButton<ValueNotifier<List<NoticeItem>>>(
-                          segments: [
-                            ButtonSegment(value: clubNoticesState, label: const Text('Club')),
-                            ButtonSegment(value: deptNoticesState, label: const Text('Department')),
+                        SegmentedButton<String>(
+                          segments: const [
+                            ButtonSegment(value: 'club', label: Text('Club')),
+                            ButtonSegment(value: 'department', label: Text('Department')),
                           ],
-                          selected: {selectedNotifier},
-                          onSelectionChanged: (Set<ValueNotifier<List<NoticeItem>>> newSelection) {
-                            setModalState(() => selectedNotifier = newSelection.first);
+                          selected: {selectedCategory},
+                          onSelectionChanged: (Set<String> newSelection) {
+                            setModalState(() => selectedCategory = newSelection.first);
                           },
                         ),
                         const SizedBox(height: 16),
@@ -224,6 +233,9 @@ class _NoticesScreenState extends State<NoticesScreen> {
                             if (!context.mounted) return;
                             
                             try {
+                              final authState = context.read<AuthBloc>().state;
+                              final profile = authState is AuthAuthenticated ? authState.profile : currentProfile.value;
+
                               final noticeItem = NoticeItem(
                                 id: existingNotice?.id ?? '',
                                 title: titleController.text.trim(),
@@ -232,14 +244,17 @@ class _NoticesScreenState extends State<NoticesScreen> {
                                 tags: selectedTags,
                                 date: existingNotice?.date ?? '${DateTime.now().day}/${DateTime.now().month}/${DateTime.now().year}',
                                 isVisible: isVisible,
-                                createdByName: existingNotice?.createdByName ?? currentProfile.value.name,
+                                createdByName: existingNotice?.createdByName ?? profile.name,
                               );
-  
-                              String category = selectedNotifier == clubNoticesState ? 'club' : 'department';
+   
                               if (existingNotice == null) {
-                                await NoticeService.addNoticeToDB(noticeItem, category);
+                                modalContext.read<NoticeBloc>().add(
+                                  AddNoticeRequested(notice: noticeItem, category: selectedCategory),
+                                );
                               } else {
-                                await NoticeService.updateNoticeInDB(noticeItem, category);
+                                modalContext.read<NoticeBloc>().add(
+                                  UpdateNoticeRequested(notice: noticeItem, category: selectedCategory),
+                                );
                               }
                               if (context.mounted) Navigator.pop(modalContext);
                             } catch (e) {
@@ -284,20 +299,44 @@ class _NoticesScreenState extends State<NoticesScreen> {
             ),
           ],
         ),
-        body: TabBarView(
-          children: [
-            _buildNoticeList(clubNoticesState),
-            _buildNoticeList(deptNoticesState),
-          ],
+        body: BlocListener<NoticeBloc, NoticeState>(
+          listener: (context, state) {
+            if (state is NoticeError) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text('Error: ${state.message}'), backgroundColor: Colors.red),
+              );
+            } else if (state is NoticeOperationSuccess) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Notice updated successfully!'), backgroundColor: Colors.green),
+              );
+            }
+          },
+          child: BlocBuilder<NoticeBloc, NoticeState>(
+            builder: (context, state) {
+              if (state is NoticeLoading && state is! NoticesLoaded) {
+                return const Center(child: CircularProgressIndicator());
+              }
+
+              final clubNotices = state is NoticesLoaded ? state.clubNotices : <NoticeItem>[];
+              final deptNotices = state is NoticesLoaded ? state.deptNotices : <NoticeItem>[];
+
+              return TabBarView(
+                children: [
+                  _buildNoticeList(clubNotices, 'club'),
+                  _buildNoticeList(deptNotices, 'department'),
+                ],
+              );
+            },
+          ),
         ),
-        floatingActionButton: ValueListenableBuilder<ProfileData>(
-          valueListenable: currentProfile,
-          builder: (context, profile, _) {
+        floatingActionButton: BlocBuilder<AuthBloc, AuthState>(
+          builder: (context, authState) {
+            final profile = authState is AuthAuthenticated ? authState.profile : currentProfile.value;
             if (profile.role != UserRole.student) {
               return FloatingActionButton(
                 onPressed: () {
                   final currentTab = DefaultTabController.of(context).index;
-                  _showNoticeForm(context, currentTab == 0 ? clubNoticesState : deptNoticesState);
+                  _showNoticeForm(context, currentTab == 0 ? 'club' : 'department');
                 },
                 child: const Icon(Icons.add),
               );
@@ -339,62 +378,60 @@ class _NoticesScreenState extends State<NoticesScreen> {
     );
   }
 
-  Widget _buildNoticeList(ValueNotifier<List<NoticeItem>> notifier) {
-    return ValueListenableBuilder<List<NoticeItem>>(
-      valueListenable: notifier,
-      builder: (context, notices, _) {
-        final profile = currentProfile.value;
-        final isAdmin = profile.role != UserRole.student;
-        final isSuperUser = profile.designation == 'President' || profile.designation == 'Vice President';
+  Widget _buildNoticeList(List<NoticeItem> notices, String category) {
+    final authState = context.read<AuthBloc>().state;
+    final profile = authState is AuthAuthenticated ? authState.profile : currentProfile.value;
+    final isAdmin = profile.role != UserRole.student;
+    final isSuperUser = profile.designation == 'President' || profile.designation == 'Vice President';
 
-        var filtered = notices.where((n) {
-          if (!isAdmin && (!n.isApproved || !n.isVisible)) return false;
-          if (selectedFilterTag == 'All') return true;
-          return n.tags.contains(selectedFilterTag);
-        }).toList();
+    var filtered = notices.where((n) {
+      if (!isAdmin && (!n.isApproved || !n.isVisible)) return false;
+      if (selectedFilterTag == 'All') return true;
+      return n.tags.contains(selectedFilterTag);
+    }).toList();
 
-        // Sort: Pinned first, then by createdAt descending
-        filtered.sort((a, b) {
-          if (a.isPinned && !b.isPinned) return -1;
-          if (!a.isPinned && b.isPinned) return 1;
-          final dateA = a.createdAt ?? DateTime(2000);
-          final dateB = b.createdAt ?? DateTime(2000);
-          return dateB.compareTo(dateA);
-        });
+    // Sort: Pinned first, then by createdAt descending
+    filtered.sort((a, b) {
+      if (a.isPinned && !b.isPinned) return -1;
+      if (!a.isPinned && b.isPinned) return 1;
+      final dateA = a.createdAt ?? DateTime(2000);
+      final dateB = b.createdAt ?? DateTime(2000);
+      return dateB.compareTo(dateA);
+    });
 
-        if (filtered.isEmpty) {
-          return Center(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(Icons.notifications_off_outlined, size: 64, color: Colors.grey.shade300),
-                const SizedBox(height: 16),
-                Text('No notices found.', style: TextStyle(color: Colors.grey.shade500)),
-              ],
-            ),
-          );
-        }
+    if (filtered.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.notifications_off_outlined, size: 64, color: Colors.grey.shade300),
+            const SizedBox(height: 16),
+            Text('No notices found.', style: TextStyle(color: Colors.grey.shade500)),
+          ],
+        ),
+      );
+    }
 
-        return RefreshIndicator(
-          onRefresh: () => NoticeService.fetchNotices(forceRefresh: true),
-          child: ListView.builder(
-            padding: const EdgeInsets.all(16),
-            itemCount: filtered.length,
-            itemBuilder: (context, index) {
-              final notice = filtered[index];
-              return NoticeCard(
-                notice: notice,
-                isAdmin: isAdmin,
-                isSuperUser: isSuperUser,
-                onEdit: () => _showNoticeForm(context, notifier, existingNotice: notice),
-                onDelete: () => _deleteNotice(notice, notifier),
-                onApprove: () => NoticeService.approveNotice(notice.id),
-                onToggleVisibility: () => NoticeService.toggleNoticeVisibility(notice.id, !notice.isVisible),
-              );
-            },
-          ),
-        );
+    return RefreshIndicator(
+      onRefresh: () async {
+        context.read<NoticeBloc>().add(const FetchNoticesRequested(forceRefresh: true));
       },
+      child: ListView.builder(
+        padding: const EdgeInsets.all(16),
+        itemCount: filtered.length,
+        itemBuilder: (context, index) {
+          final notice = filtered[index];
+          return NoticeCard(
+            notice: notice,
+            isAdmin: isAdmin,
+            isSuperUser: isSuperUser,
+            onEdit: () => _showNoticeForm(context, category, existingNotice: notice),
+            onDelete: () => _deleteNotice(notice, category),
+            onApprove: () => context.read<NoticeBloc>().add(ApproveNoticeRequested(noticeId: notice.id)),
+            onToggleVisibility: () => context.read<NoticeBloc>().add(ToggleNoticeVisibilityRequested(noticeId: notice.id, isVisible: !notice.isVisible)),
+          );
+        },
+      ),
     );
   }
 }

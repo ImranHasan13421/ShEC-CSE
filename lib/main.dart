@@ -1,5 +1,6 @@
 //lib/main.dart/
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:ShEC_CSE/features/auth/screens/splash_screen.dart';
 import 'package:ShEC_CSE/features/auth/screens/set_new_password_screen.dart';
 
@@ -8,6 +9,16 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:ShEC_CSE/backend/services/auth_service.dart';
 
 import 'package:ShEC_CSE/core/services/theme_service.dart';
+
+// Import Feature BLoCs
+import 'package:ShEC_CSE/features/auth/presentation/bloc/auth_bloc.dart';
+import 'package:ShEC_CSE/features/auth/presentation/bloc/auth_event.dart';
+import 'package:ShEC_CSE/features/notices/presentation/bloc/notice_bloc.dart';
+import 'package:ShEC_CSE/features/notices/presentation/bloc/notice_event.dart';
+import 'package:ShEC_CSE/features/results/presentation/bloc/result_bloc.dart';
+import 'package:ShEC_CSE/features/results/presentation/bloc/result_event.dart';
+import 'package:ShEC_CSE/features/messenger/presentation/bloc/chat_bloc.dart';
+import 'package:ShEC_CSE/features/messenger/presentation/bloc/chat_event.dart';
 
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
@@ -38,7 +49,25 @@ Future<void> main() async {
   final session = Supabase.instance.client.auth.currentSession;
   final isLoggedIn = session != null;
 
-  runApp(ShEcCseApp(isLoggedIn: isLoggedIn));
+  runApp(
+    MultiBlocProvider(
+      providers: [
+        BlocProvider<AuthBloc>(
+          create: (context) => AuthBloc()..add(AuthCheckRequested()),
+        ),
+        BlocProvider<NoticeBloc>(
+          create: (context) => NoticeBloc()..add(const FetchNoticesRequested()),
+        ),
+        BlocProvider<ResultBloc>(
+          create: (context) => ResultBloc()..add(LoadResultsRequested()),
+        ),
+        BlocProvider<ChatBloc>(
+          create: (context) => ChatBloc()..add(FetchRoomsRequested()),
+        ),
+      ],
+      child: ShEcCseApp(isLoggedIn: isLoggedIn),
+    ),
+  );
 }
 
 class ShEcCseApp extends StatelessWidget {

@@ -1,10 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../core/services/image_processing_service.dart';
 import '../../../core/services/storage_service.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../profile/models/profile_state.dart';
 import '../models/result_state.dart';
 import '../../../backend/services/result_service.dart';
+import '../presentation/bloc/result_bloc.dart';
+import '../presentation/bloc/result_event.dart';
+import '../presentation/bloc/result_state.dart';
 
 class ResultsScreen extends StatefulWidget {
   const ResultsScreen({super.key});
@@ -14,38 +18,43 @@ class ResultsScreen extends StatefulWidget {
 }
 
 class _ResultsScreenState extends State<ResultsScreen> {
+  bool _isSyncing = false;
+
   @override
   void initState() {
     super.initState();
-    _loadData();
-    currentProfile.addListener(_loadData);
-  }
-
-  void _loadData() {
-    if (mounted) {
-      ResultService.loadResultsFromDB();
-    }
-  }
-
-  @override
-  void dispose() {
-    currentProfile.removeListener(_loadData);
-    super.dispose();
+    context.read<ResultBloc>().add(LoadResultsRequested());
   }
 
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('My Results'),
-        actions: [
-          ValueListenableBuilder<bool>(
-            valueListenable: isSyncingResults,
-            builder: (context, isSyncing, _) {
-              if (isSyncing) {
-                return const Padding(
+    return BlocConsumer<ResultBloc, ResultState>(
+      listener: (context, state) {
+        if (state is ResultSyncInProgress) {
+          _isSyncing = true;
+        } else if (state is ResultsLoaded && _isSyncing) {
+          _isSyncing = false;
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Sync complete!')),
+          );
+        } else if (state is ResultError) {
+          _isSyncing = false;
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(state.message), backgroundColor: Colors.red),
+          );
+        }
+      },
+      builder: (context, state) {
+        final isSyncing = state is ResultSyncInProgress;
+
+        return Scaffold(
+          appBar: AppBar(
+            title: const Text('My Results'),
+            actions: [
+              if (isSyncing)
+                const Padding(
                   padding: EdgeInsets.symmetric(horizontal: 20.0),
                   child: Center(
                     child: SizedBox(
@@ -54,54 +63,41 @@ class _ResultsScreenState extends State<ResultsScreen> {
                       child: CircularProgressIndicator(strokeWidth: 2),
                     ),
                   ),
-                );
-              }
-              return Row(
-                children: [
-                  IconButton(
-                    icon: const Icon(Icons.sync),
-                    tooltip: 'Sync Results',
-                    onPressed: () async {
-                      await ResultService.syncResults();
-                      if (context.mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Sync complete!')),
-                        );
-                      }
+                )
+              else ...[
+                IconButton(
+                  icon: const Icon(Icons.sync),
+                  tooltip: 'Sync Results',
+                  onPressed: () {
+                    context.read<ResultBloc>().add(SyncResultsRequested());
+                  },
+                ),
+                if (currentProfile.value.role == UserRole.superUser || 
+                    currentProfile.value.designation == 'President' || 
+                    currentProfile.value.designation == 'Vice President')
+                  PopupMenuButton<String>(
+                    icon: const Icon(Icons.admin_panel_settings),
+                    onSelected: (val) {
+                      if (val == 'session') _showAdminIdDialog('Session');
+                      if (val == 'exam') _showAdminIdDialog('Exam');
+                      if (val == 'migrate') _runImageMigration();
+                      if (val == 'cleanup') _runStorageCleanup();
                     },
+                    itemBuilder: (context) => [
+                      const PopupMenuItem(value: 'session', child: Text('Manage Session IDs')),
+                      const PopupMenuItem(value: 'exam', child: Text('Manage Exam IDs')),
+                      const PopupMenuItem(value: 'migrate', child: Text('Migrate Images to WebP', style: TextStyle(color: Colors.blue))),
+                      const PopupMenuItem(value: 'cleanup', child: Text('Clean Up Orphaned Images', style: TextStyle(color: Colors.red))),
+                    ],
                   ),
-                  if (currentProfile.value.role == UserRole.superUser || 
-                      currentProfile.value.designation == 'President' || 
-                      currentProfile.value.designation == 'Vice President')
-                    PopupMenuButton<String>(
-                      icon: const Icon(Icons.admin_panel_settings),
-                      onSelected: (val) {
-                        if (val == 'session') _showAdminIdDialog('Session');
-                        if (val == 'exam') _showAdminIdDialog('Exam');
-                        if (val == 'migrate') _runImageMigration();
-                        if (val == 'cleanup') _runStorageCleanup();
-                      },
-                      itemBuilder: (context) => [
-                        const PopupMenuItem(value: 'session', child: Text('Manage Session IDs')),
-                        const PopupMenuItem(value: 'exam', child: Text('Manage Exam IDs')),
-                        const PopupMenuItem(value: 'migrate', child: Text('Migrate Images to WebP', style: TextStyle(color: Colors.blue))),
-                        const PopupMenuItem(value: 'cleanup', child: Text('Clean Up Orphaned Images', style: TextStyle(color: Colors.red))),
-                      ],
-                    ),
-                ],
-              );
-            },
+              ],
+            ],
           ),
-        ],
-      ),
-      body: Column(
-        children: [
-          // 1. Progress Bar at the Top
-          ValueListenableBuilder<bool>(
-            valueListenable: isSyncingResults,
-            builder: (context, isSyncing, _) {
-              if (isSyncing) {
-                return Column(
+          body: Column(
+            children: [
+              // 1. Progress Bar at the Top
+              if (isSyncing)
+                Column(
                   children: [
                     const LinearProgressIndicator(),
                     Padding(
@@ -116,55 +112,67 @@ class _ResultsScreenState extends State<ResultsScreen> {
                       ),
                     ),
                   ],
-                );
-              }
-              return const SizedBox(height: 4); // Spacer when not syncing
-            },
+                )
+              else
+                const SizedBox(height: 4), // Spacer when not syncing
+              
+              // 2. Main Content
+              Expanded(
+                child: _buildMainContent(context, state, colors),
+              ),
+            ],
           ),
-          
-          // 2. Main Content
-          Expanded(
-            child: ValueListenableBuilder<List<ExamResult>>(
-              valueListenable: studentResultsState,
-              builder: (context, results, _) {
-                if (results.isEmpty) {
-                  return Center(
-                    child: Padding(
-                      padding: const EdgeInsets.all(32.0),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(Icons.assignment_late, size: 64, color: colors.onSurface.withValues(alpha: 0.3)),
-                          const SizedBox(height: 16),
-                          Text(
-                            'No results found.',
-                            style: TextStyle(fontSize: 18, color: colors.onSurface.withValues(alpha: 0.6)),
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            'Click the Sync icon in the top right to fetch your latest results.',
-                            textAlign: TextAlign.center,
-                            style: TextStyle(fontSize: 14, color: colors.onSurface.withValues(alpha: 0.5)),
-                          ),
-                        ],
-                      ),
-                    ),
-                  );
-                }
+        );
+      },
+    );
+  }
 
-                return ListView.builder(
-                  padding: const EdgeInsets.all(16.0),
-                  itemCount: results.length,
-                  itemBuilder: (context, index) {
-                    final result = results[index];
-                    return _buildResultCard(context, result);
-                  },
-                );
-              },
-            ),
+  Widget _buildMainContent(BuildContext context, ResultState state, ColorScheme colors) {
+    if (state is ResultLoading) {
+      return const Center(
+        child: CircularProgressIndicator(),
+      );
+    }
+
+    List<ExamResult> results = [];
+    if (state is ResultsLoaded) {
+      results = state.results;
+    } else if (state is ResultSyncInProgress) {
+      results = state.results;
+    }
+
+    if (results.isEmpty) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(32.0),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.assignment_late, size: 64, color: colors.onSurface.withValues(alpha: 0.3)),
+              const SizedBox(height: 16),
+              Text(
+                'No results found.',
+                style: TextStyle(fontSize: 18, color: colors.onSurface.withValues(alpha: 0.6)),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Click the Sync icon in the top right to fetch your latest results.',
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 14, color: colors.onSurface.withValues(alpha: 0.5)),
+              ),
+            ],
           ),
-        ],
-      ),
+        ),
+      );
+    }
+
+    return ListView.builder(
+      padding: const EdgeInsets.all(16.0),
+      itemCount: results.length,
+      itemBuilder: (context, index) {
+        final result = results[index];
+        return _buildResultCard(context, result);
+      },
     );
   }
 

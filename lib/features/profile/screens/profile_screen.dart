@@ -1,11 +1,14 @@
 // lib/features/profile/screens/profile_screen.dart
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:supabase_flutter/supabase_flutter.dart' hide AuthState;
 import 'package:ShEC_CSE/core/services/storage_service.dart';
 import 'package:ShEC_CSE/features/profile/models/profile_state.dart';
-import 'package:ShEC_CSE/backend/services/auth_service.dart';
+import 'package:ShEC_CSE/features/auth/presentation/bloc/auth_bloc.dart';
+import 'package:ShEC_CSE/features/auth/presentation/bloc/auth_event.dart';
+import 'package:ShEC_CSE/features/auth/presentation/bloc/auth_state.dart';
 import 'package:ShEC_CSE/core/services/image_processing_service.dart';
 import 'package:image_cropper/image_cropper.dart';
 import 'package:ShEC_CSE/core/utils/validation_rules.dart';
@@ -34,13 +37,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   String? _imageUrl;  
   File? _newImageFile; 
-  bool _isUploading = false;
+  bool _isSubmitting = false;
   bool _showPassword = false;
 
   @override
   void initState() {
     super.initState();
-    final profile = currentProfile.value;
+    final authState = context.read<AuthBloc>().state;
+    final profile = authState is AuthAuthenticated ? authState.profile : currentProfile.value;
+    
     _firstNameController = TextEditingController(text: profile.firstName);
     _lastNameController = TextEditingController(text: profile.lastName);
     _emailController = TextEditingController(text: profile.email);
@@ -55,7 +60,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
     _checkLostData();
   }
-
 
   Future<void> _checkLostData() async {
     final ImagePicker picker = ImagePicker();
@@ -112,7 +116,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   Future<void> _saveProfile() async {
     if (!_formKey.currentState!.validate()) return;
-    setState(() => _isUploading = true);
+    setState(() => _isSubmitting = true);
 
     try {
       String? finalImageUrl = _imageUrl;
@@ -124,7 +128,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
         }
       }
 
-      final profile = currentProfile.value;
+      final authState = context.read<AuthBloc>().state;
+      final profile = authState is AuthAuthenticated ? authState.profile : currentProfile.value;
       final isSuperuser = profile.designation == 'President' || profile.designation == 'Vice President';
 
       // 1. Update Profile Metadata
@@ -142,7 +147,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
         duRegNo: isSuperuser ? _duRegController.text.trim() : profile.duRegNo,
       );
 
-      await AuthService.updateProfile(updatedProfile);
+      context.read<AuthBloc>().add(
+        AuthProfileUpdateRequested(profile: updatedProfile),
+      );
 
       // 2. Update Password if provided
       if (_passwordController.text.isNotEmpty) {
@@ -150,21 +157,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
           UserAttributes(password: _passwordController.text.trim()),
         );
       }
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Profile updated successfully!'), backgroundColor: Colors.green),
-        );
-        Navigator.pop(context);
-      }
     } catch (e) {
+      setState(() => _isSubmitting = false);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
         );
       }
-    } finally {
-      if (mounted) setState(() => _isUploading = false);
     }
   }
 
@@ -179,153 +178,175 @@ class _ProfileScreenState extends State<ProfileScreen> {
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
-    final profile = currentProfile.value;
-    final isSuperuser = profile.designation == 'President' || profile.designation == 'Vice President';
 
     return Scaffold(
       appBar: AppBar(title: const Text('Edit Profile')),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(24.0),
-        child: Form(
-          key: _formKey,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Center(
-                child: Stack(
-                  alignment: Alignment.bottomRight,
-                  children: [
-                    CircleAvatar(
-                      radius: 65,
-                      backgroundColor: colors.primaryContainer,
-                      backgroundImage: _displayImage,
-                      child: _displayImage == null
-                          ? Text(
-                              (profile.firstName.isNotEmpty
-                                  ? profile.firstName[0]
-                                  : '?').toUpperCase(),
-                              style: TextStyle(fontSize: 52, fontWeight: FontWeight.bold, color: colors.onPrimaryContainer),
-                            )
-                          : null,
+      body: BlocConsumer<AuthBloc, AuthState>(
+        listener: (context, state) {
+          if (_isSubmitting) {
+            if (state is AuthAuthenticated) {
+              setState(() => _isSubmitting = false);
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Profile updated successfully!'), backgroundColor: Colors.green),
+              );
+              Navigator.pop(context);
+            } else if (state is AuthError) {
+              setState(() => _isSubmitting = false);
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text('Error: ${state.message}'), backgroundColor: Colors.red),
+              );
+            }
+          }
+        },
+        builder: (context, state) {
+          final profile = state is AuthAuthenticated ? state.profile : currentProfile.value;
+          final isSuperuser = profile.designation == 'President' || profile.designation == 'Vice President';
+          final isLoading = state is AuthLoading || _isSubmitting;
+
+          return SingleChildScrollView(
+            padding: const EdgeInsets.all(24.0),
+            child: Form(
+              key: _formKey,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Center(
+                    child: Stack(
+                      alignment: Alignment.bottomRight,
+                      children: [
+                        CircleAvatar(
+                          radius: 65,
+                          backgroundColor: colors.primaryContainer,
+                          backgroundImage: _displayImage,
+                          child: _displayImage == null
+                              ? Text(
+                                  (profile.firstName.isNotEmpty
+                                      ? profile.firstName[0]
+                                      : '?').toUpperCase(),
+                                  style: TextStyle(fontSize: 52, fontWeight: FontWeight.bold, color: colors.onPrimaryContainer),
+                                )
+                              : null,
+                        ),
+                        GestureDetector(
+                          onTap: _pickImage,
+                          child: CircleAvatar(
+                            radius: 22,
+                            backgroundColor: colors.primary,
+                            child: const Icon(Icons.camera_alt, color: Colors.white, size: 20),
+                          ),
+                        ),
+                      ],
                     ),
-                    GestureDetector(
-                      onTap: _pickImage,
-                      child: CircleAvatar(
-                        radius: 22,
-                        backgroundColor: colors.primary,
-                        child: const Icon(Icons.camera_alt, color: Colors.white, size: 20),
+                  ),
+                  const SizedBox(height: 32),
+
+                  _sectionLabel('Personal Information'),
+                  const SizedBox(height: 12),
+                  _buildTextField('First Name', _firstNameController, Icons.person),
+                  const SizedBox(height: 16),
+                  _buildTextField('Last Name', _lastNameController, Icons.person_outline),
+                  const SizedBox(height: 16),
+                  _buildTextField('Email (Read Only)', _emailController, Icons.email, readOnly: true),
+                  
+                  const SizedBox(height: 16),
+                  TextFormField(
+                    controller: _passwordController,
+                    obscureText: !_showPassword,
+                    validator: (v) {
+                      if (v == null || v.isEmpty) return null;
+                      return ValidationRules.validatePassword(v, isSignup: true);
+                    },
+                    decoration: _inputDecoration('Change Password', Icons.lock).copyWith(
+                      suffixIcon: IconButton(
+                        icon: Icon(_showPassword ? Icons.visibility : Icons.visibility_off),
+                        onPressed: () => setState(() => _showPassword = !_showPassword),
+                      ),
+                      hintText: 'Leave empty to keep current',
+                    ),
+                  ),
+
+                  const SizedBox(height: 24),
+                  _sectionLabel(isSuperuser ? 'Academic Information' : 'Academic Information (Locked)'),
+                  const SizedBox(height: 12),
+                  _buildTextField('University ID', _universityIdController, Icons.badge, readOnly: !isSuperuser),
+                  const SizedBox(height: 16),
+                  _buildTextField('Class Roll', _classRollController, Icons.numbers, readOnly: !isSuperuser),
+                  const SizedBox(height: 16),
+                  
+                  if (isSuperuser) ...[
+                    Builder(builder: (context) {
+                      final generatedSessions = [for (var i = 2015; i <= 2026; i++) '${i}-${i + 1}'];
+                      if (_selectedSession != null && _selectedSession!.isNotEmpty && !generatedSessions.contains(_selectedSession)) {
+                        generatedSessions.add(_selectedSession!);
+                        generatedSessions.sort((a, b) => b.compareTo(a));
+                      }
+                      return DropdownButtonFormField<String>(
+                        value: _selectedSession,
+                        decoration: _inputDecoration('Session', Icons.date_range),
+                        validator: (v) => ValidationRules.validateRequired(v, 'Session'),
+                        items: generatedSessions.map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
+                        onChanged: (val) => setState(() => _selectedSession = val),
+                      );
+                    }),
+                    const SizedBox(height: 16),
+                    Builder(builder: (context) {
+                      final generatedBatches = [for (var i = 1; i <= 10; i++) '$i'];
+                      if (_selectedBatch != null && _selectedBatch!.isNotEmpty && !generatedBatches.contains(_selectedBatch)) {
+                        generatedBatches.add(_selectedBatch!);
+                      }
+                      generatedBatches.sort((a, b) => int.parse(a).compareTo(int.parse(b)));
+                      return DropdownButtonFormField<String>(
+                        value: _selectedBatch,
+                        decoration: _inputDecoration('Batch', Icons.group),
+                        validator: (v) => ValidationRules.validateRequired(v, 'Batch'),
+                        items: generatedBatches.map((s) => DropdownMenuItem(value: s, child: Text('Batch $s'))).toList(),
+                        onChanged: (val) => setState(() => _selectedBatch = val),
+                      );
+                    }),
+                  ]
+                  else ...[
+                    _buildTextField('Session', TextEditingController(text: _selectedSession), Icons.date_range, readOnly: true),
+                    const SizedBox(height: 16),
+                    _buildTextField('Batch', TextEditingController(text: _selectedBatch != null ? 'Batch $_selectedBatch' : ''), Icons.group, readOnly: true),
+                  ],
+                  
+                  const SizedBox(height: 16),
+                  
+                  _buildTextField('Phone', _phoneController, Icons.phone, readOnly: !isSuperuser),
+                  const SizedBox(height: 16),
+                  _buildTextField('DU Registration No.', _duRegController, Icons.app_registration, readOnly: !isSuperuser),
+                  
+                  if (!isSuperuser)
+                    const Padding(
+                      padding: EdgeInsets.only(top: 8.0),
+                      child: Text(
+                        'Contact admin to update academic details.',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(fontSize: 12, color: Colors.grey, fontStyle: FontStyle.italic),
                       ),
                     ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 32),
 
-              _sectionLabel('Personal Information'),
-              const SizedBox(height: 12),
-              _buildTextField('First Name', _firstNameController, Icons.person),
-              const SizedBox(height: 16),
-              _buildTextField('Last Name', _lastNameController, Icons.person_outline),
-              const SizedBox(height: 16),
-              _buildTextField('Email (Read Only)', _emailController, Icons.email, readOnly: true),
-              
-              const SizedBox(height: 16),
-              TextFormField(
-                controller: _passwordController,
-                obscureText: !_showPassword,
-                validator: (v) {
-                  if (v == null || v.isEmpty) return null;
-                  return ValidationRules.validatePassword(v, isSignup: true);
-                },
-                decoration: _inputDecoration('Change Password', Icons.lock).copyWith(
-                  suffixIcon: IconButton(
-                    icon: Icon(_showPassword ? Icons.visibility : Icons.visibility_off),
-                    onPressed: () => setState(() => _showPassword = !_showPassword),
+                  const SizedBox(height: 40),
+
+                  ElevatedButton(
+                    onPressed: isLoading ? null : _saveProfile,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: colors.primary,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      elevation: 2,
+                    ),
+                    child: isLoading
+                        ? const SizedBox(height: 24, width: 24, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                        : const Text('Save Changes', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                   ),
-                  hintText: 'Leave empty to keep current',
-                ),
+                  const SizedBox(height: 20),
+                ],
               ),
-
-              const SizedBox(height: 24),
-              _sectionLabel(isSuperuser ? 'Academic Information' : 'Academic Information (Locked)'),
-              const SizedBox(height: 12),
-              _buildTextField('University ID', _universityIdController, Icons.badge, readOnly: !isSuperuser),
-              const SizedBox(height: 16),
-              _buildTextField('Class Roll', _classRollController, Icons.numbers, readOnly: !isSuperuser),
-              const SizedBox(height: 16),
-              
-              if (isSuperuser) ...[
-                Builder(builder: (context) {
-                  final generatedSessions = [for (var i = 2015; i <= 2026; i++) '${i}-${i + 1}'];
-                  if (_selectedSession != null && _selectedSession!.isNotEmpty && !generatedSessions.contains(_selectedSession)) {
-                    generatedSessions.add(_selectedSession!);
-                    generatedSessions.sort((a, b) => b.compareTo(a));
-                  }
-                  return DropdownButtonFormField<String>(
-                    value: _selectedSession,
-                    decoration: _inputDecoration('Session', Icons.date_range),
-                    validator: (v) => ValidationRules.validateRequired(v, 'Session'),
-                    items: generatedSessions.map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
-                    onChanged: (val) => setState(() => _selectedSession = val),
-                  );
-                }),
-                const SizedBox(height: 16),
-                Builder(builder: (context) {
-                  final generatedBatches = [for (var i = 1; i <= 10; i++) '$i'];
-                  if (_selectedBatch != null && _selectedBatch!.isNotEmpty && !generatedBatches.contains(_selectedBatch)) {
-                    generatedBatches.add(_selectedBatch!);
-                  }
-                  generatedBatches.sort((a, b) => int.parse(a).compareTo(int.parse(b)));
-                  return DropdownButtonFormField<String>(
-                    value: _selectedBatch,
-                    decoration: _inputDecoration('Batch', Icons.group),
-                    validator: (v) => ValidationRules.validateRequired(v, 'Batch'),
-                    items: generatedBatches.map((s) => DropdownMenuItem(value: s, child: Text('Batch $s'))).toList(),
-                    onChanged: (val) => setState(() => _selectedBatch = val),
-                  );
-                }),
-              ]
- else ...[
-                _buildTextField('Session', TextEditingController(text: _selectedSession), Icons.date_range, readOnly: true),
-                const SizedBox(height: 16),
-                _buildTextField('Batch', TextEditingController(text: _selectedBatch != null ? 'Batch $_selectedBatch' : ''), Icons.group, readOnly: true),
-              ],
-              
-              const SizedBox(height: 16),
-              
-              _buildTextField('Phone', _phoneController, Icons.phone, readOnly: !isSuperuser),
-              const SizedBox(height: 16),
-              _buildTextField('DU Registration No.', _duRegController, Icons.app_registration, readOnly: !isSuperuser),
-              
-              if (!isSuperuser)
-                const Padding(
-                  padding: EdgeInsets.only(top: 8.0),
-                  child: Text(
-                    'Contact admin to update academic details.',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(fontSize: 12, color: Colors.grey, fontStyle: FontStyle.italic),
-                  ),
-                ),
-
-              const SizedBox(height: 40),
-
-              ElevatedButton(
-                onPressed: _isUploading ? null : _saveProfile,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: colors.primary,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                  elevation: 2,
-                ),
-                child: _isUploading
-                    ? const SizedBox(height: 24, width: 24, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                    : const Text('Save Changes', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-              ),
-              const SizedBox(height: 20),
-            ],
-          ),
-        ),
+            ),
+          );
+        },
       ),
     );
   }
