@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../../backend/services/auth_service.dart';
 import '../../profile/models/profile_state.dart';
 
@@ -16,6 +17,46 @@ class _ClubMembersScreenState extends State<ClubMembersScreen> with SingleTicker
   String _searchQuery = '';
   bool _isLoading = true;
   String? _copiedValue;
+
+  Future<void> _makePhoneCall(String phoneNumber) async {
+    final Uri launchUri = Uri(
+      scheme: 'tel',
+      path: phoneNumber,
+    );
+    try {
+      if (await canLaunchUrl(launchUri)) {
+        await launchUrl(launchUri);
+      } else {
+        throw 'Could not launch $launchUri';
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Could not start phone call: $e')),
+        );
+      }
+    }
+  }
+
+  Future<void> _sendEmail(String emailAddress) async {
+    final Uri launchUri = Uri(
+      scheme: 'mailto',
+      path: emailAddress,
+    );
+    try {
+      if (await canLaunchUrl(launchUri)) {
+        await launchUrl(launchUri);
+      } else {
+        throw 'Could not launch $launchUri';
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Could not send email: $e')),
+        );
+      }
+    }
+  }
 
   bool get isAdmin => currentProfile.value.role != UserRole.student;
 
@@ -105,7 +146,8 @@ class _ClubMembersScreenState extends State<ClubMembersScreen> with SingleTicker
                 _buildModernInfoRow(Icons.badge_outlined, 'Student ID', member.studentFullId),
                 _buildModernInfoRow(Icons.school_outlined, 'Session', member.session),
                 _buildModernInfoRow(Icons.numbers_outlined, 'DU Reg', member.duRegNo),
-                _buildModernInfoRow(Icons.phone_outlined, 'Phone', member.phone, isCopyable: true),
+                _buildModernInfoRow(Icons.phone_outlined, 'Phone', member.phone, isCopyable: true, onActionTap: member.phone.isNotEmpty ? () => _makePhoneCall(member.phone) : null, actionIcon: Icons.phone_forwarded),
+                _buildModernInfoRow(Icons.email_outlined, 'Email', member.email, isCopyable: true, onActionTap: member.email.isNotEmpty ? () => _sendEmail(member.email) : null, actionIcon: Icons.mail_outline),
                 
                 if (canManage && member.id != currentProfile.value.id) ...[
                   const SizedBox(height: 32),
@@ -244,7 +286,11 @@ class _ClubMembersScreenState extends State<ClubMembersScreen> with SingleTicker
     );
   }
 
-  Widget _buildModernInfoRow(IconData icon, String label, String value, {bool isCopyable = false}) {
+  Widget _buildModernInfoRow(IconData icon, String label, String value, {
+    bool isCopyable = false,
+    VoidCallback? onActionTap,
+    IconData? actionIcon,
+  }) {
     final colors = Theme.of(context).colorScheme;
     final isCopied = _copiedValue == value;
 
@@ -266,10 +312,28 @@ class _ClubMembersScreenState extends State<ClubMembersScreen> with SingleTicker
                 children: [
                   Text(label, style: TextStyle(fontSize: 11, color: colors.onSurfaceVariant, fontWeight: FontWeight.w600)),
                   const SizedBox(height: 2),
-                  Text(value, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
+                  Text(value.isNotEmpty ? value : 'N/A', style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
                 ],
               ),
             ),
+            if (onActionTap != null && value.isNotEmpty) ...[
+              GestureDetector(
+                onTap: onActionTap,
+                child: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: colors.primary.withOpacity(0.05),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    actionIcon ?? Icons.open_in_new, 
+                    size: 18, 
+                    color: colors.primary,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+            ],
             if (isCopyable && value.isNotEmpty)
               GestureDetector(
                 onTap: () {
@@ -515,6 +579,13 @@ class _ClubMembersScreenState extends State<ClubMembersScreen> with SingleTicker
 
   @override
   Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    
+    final tabLabelColor = isDark ? colors.primary : Colors.white;
+    final tabUnselectedColor = isDark ? colors.onSurface.withOpacity(0.6) : Colors.white.withOpacity(0.7);
+    final tabIndicatorColor = isDark ? colors.primary : Colors.white;
+
     final filteredAll = _allMembers.where((m) => 
       m.name.toLowerCase().contains(_searchQuery.toLowerCase()) || 
       m.studentFullId.contains(_searchQuery)
@@ -547,9 +618,9 @@ class _ClubMembersScreenState extends State<ClubMembersScreen> with SingleTicker
               ),
               TabBar(
                 controller: _tabController,
-                labelColor: Theme.of(context).colorScheme.primary,
-                unselectedLabelColor: Colors.grey,
-                indicatorColor: Theme.of(context).colorScheme.primary,
+                labelColor: tabLabelColor,
+                unselectedLabelColor: tabUnselectedColor,
+                indicatorColor: tabIndicatorColor,
                 tabs: [
                   const Tab(text: 'Members'),
                   const Tab(text: 'Committee'),
@@ -614,7 +685,28 @@ class _ClubMembersScreenState extends State<ClubMembersScreen> with SingleTicker
                 : null,
             ),
             title: Text(member.name, style: const TextStyle(fontWeight: FontWeight.bold)),
-            subtitle: Text('${member.designation} • Batch: ${member.batch} • ${member.session}'),
+            subtitle: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('${member.designation} • Batch: ${member.batch} • ${member.session}'),
+                if (member.email.isNotEmpty) ...[
+                  const SizedBox(height: 4),
+                  Row(
+                    children: [
+                      Icon(Icons.email_outlined, size: 13, color: Theme.of(context).colorScheme.onSurface.withOpacity(0.5)),
+                      const SizedBox(width: 4),
+                      Expanded(
+                        child: Text(
+                          member.email, 
+                          style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6)),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ],
+            ),
             trailing: const Icon(Icons.chevron_right),
           ),
         );
