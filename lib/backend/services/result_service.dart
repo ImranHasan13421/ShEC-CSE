@@ -82,6 +82,42 @@ class ResultService {
     }
   }
 
+  // Fetch all sessions with their respective sess_id
+  static Future<List<Map<String, String>>> fetchSessionsWithId() async {
+    try {
+      final List<dynamic> data = await _client
+          .from('DUCMC_sessions_id')
+          .select('session, sess_id')
+          .order('session', ascending: true);
+      return data.map((row) => {
+        'session': (row['session'] ?? '').toString(),
+        'sess_id': (row['sess_id'] ?? '').toString(),
+      }).toList();
+    } catch (e) {
+      debugPrint('Error fetching sessions with ID: $e');
+      return [];
+    }
+  }
+
+  // Fetch all configured exams for a specific session
+  static Future<List<Map<String, String>>> fetchExamsForSession(String session) async {
+    try {
+      final List<dynamic> data = await _client
+          .from('DUCMC_exams_id')
+          .select('exam_id, exam_name, session')
+          .eq('session', session)
+          .order('exam_name', ascending: true);
+      return data.map((row) => {
+        'exam_id': (row['exam_id'] ?? '').toString(),
+        'exam_name': (row['exam_name'] ?? '').toString(),
+        'session': (row['session'] ?? '').toString(),
+      }).toList();
+    } catch (e) {
+      debugPrint('Error fetching exams for session $session: $e');
+      return [];
+    }
+  }
+
   // 4. Fetch all configured exams (Admin only)
   static Future<List<Map<String, String>>> fetchAllExams() async {
     try {

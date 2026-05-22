@@ -55,7 +55,17 @@ class ResultScraperService {
     }
   }
 
-  static Future<void> _scrapeSingleExam(String userId, String regNo, String examId, String sessId, String examName) async {
+  static Future<bool> scrapeAndSaveSingleResult({
+    required String userId,
+    required String regNo,
+    required String examId,
+    required String sessId,
+    required String examName,
+  }) async {
+    return await _scrapeSingleExam(userId, regNo, examId, sessId, examName);
+  }
+
+  static Future<bool> _scrapeSingleExam(String userId, String regNo, String examId, String sessId, String examName) async {
     try {
       final url = Uri.parse('$_apiBaseUrl?reg_no=$regNo&exam_id=$examId&sess_id=$sessId');
       
@@ -66,7 +76,7 @@ class ResultScraperService {
         
         if (data.containsKey('error')) {
           debugPrint('API returned error for exam $examId: ${data['error']}');
-          return;
+          return false;
         }
 
         final subjects = data['subjects'];
@@ -75,14 +85,18 @@ class ResultScraperService {
 
         if (hasGpa || hasSubjects) {
           await _saveResultToDB(userId, regNo, examId, sessId, examName, data);
+          return true;
         } else {
           debugPrint('No GPA or subjects returned for exam $examId');
+          return false;
         }
       } else {
         debugPrint('Failed to scrape exam $examId: HTTP ${response.statusCode}');
+        return false;
       }
     } catch (e) {
       debugPrint('Scrape error for Exam $examId: $e');
+      return false;
     }
   }
 

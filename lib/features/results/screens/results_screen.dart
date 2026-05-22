@@ -122,6 +122,18 @@ class _ResultsScreenState extends State<ResultsScreen> {
               ),
             ],
           ),
+          floatingActionButton: isSyncing
+              ? null
+              : FloatingActionButton.extended(
+                  onPressed: () {
+                    showDialog(
+                      context: context,
+                      builder: (context) => const _FetchSpecificResultDialog(),
+                    );
+                  },
+                  label: const Text('Fetch Specific Exam'),
+                  icon: const Icon(Icons.sync_alt),
+                ),
         );
       },
     );
@@ -666,5 +678,275 @@ class _AddEditExamDialogState extends State<_AddEditExamDialog> {
         SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
       );
     }
+  }
+}
+
+class _FetchSpecificResultDialog extends StatefulWidget {
+  const _FetchSpecificResultDialog();
+
+  @override
+  State<_FetchSpecificResultDialog> createState() => _FetchSpecificResultDialogState();
+}
+
+class _FetchSpecificResultDialogState extends State<_FetchSpecificResultDialog> {
+  List<Map<String, String>> _sessions = [];
+  Map<String, String>? _selectedSession;
+  List<Map<String, String>> _exams = [];
+  final Set<String> _selectedExamIds = {};
+  bool _isLoadingSessions = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadSessionsAndExams();
+  }
+
+  Future<void> _loadSessionsAndExams() async {
+    final sessionsFuture = ResultService.fetchSessionsWithId();
+    final examsFuture = ResultService.fetchAllExams();
+    final results = await Future.wait([sessionsFuture, examsFuture]);
+    if (mounted) {
+      setState(() {
+        _sessions = List<Map<String, String>>.from(results[0]);
+        _exams = List<Map<String, String>>.from(results[1]);
+        _isLoadingSessions = false;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+
+    return Dialog(
+      backgroundColor: colors.surface,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      child: Container(
+        width: MediaQuery.of(context).size.width * 0.9,
+        constraints: BoxConstraints(
+          maxHeight: MediaQuery.of(context).size.height * 0.8,
+        ),
+        padding: const EdgeInsets.all(20),
+        child: _isLoadingSessions
+            ? const SizedBox(
+                height: 150,
+                child: Center(child: CircularProgressIndicator()),
+              )
+            : Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(Icons.sync_alt, color: colors.primary, size: 24),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'Sync Specific Exam Results',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: colors.onSurface,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Fetch results from DUCMC portal by manually specifying session and exams. Perfect for repeating or drop-out students.',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: colors.onSurface.withValues(alpha: 0.6),
+                    ),
+                  ),
+                  const Divider(height: 24),
+                  DropdownButtonFormField<Map<String, String>>(
+                    initialValue: _selectedSession,
+                    decoration: const InputDecoration(
+                      labelText: 'Select Academic Session *',
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.all(Radius.circular(12)),
+                      ),
+                      contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    ),
+                    items: _sessions.map((sessionMap) {
+                      return DropdownMenuItem<Map<String, String>>(
+                        value: sessionMap,
+                        child: Text(sessionMap['session'] ?? ''),
+                      );
+                    }).toList(),
+                    onChanged: (val) {
+                      setState(() {
+                        _selectedSession = val;
+                        _selectedExamIds.clear();
+                      });
+                    },
+                  ),
+                  const SizedBox(height: 16),
+                  if (_selectedSession != null) ...[
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          'Available Exams (${_exams.length})',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 14,
+                            color: colors.onSurface,
+                          ),
+                        ),
+                        if (_exams.isNotEmpty)
+                          Row(
+                            children: [
+                              TextButton(
+                                onPressed: () {
+                                  setState(() {
+                                    _selectedExamIds.addAll(_exams.map((e) => e['exam_id'] ?? ''));
+                                  });
+                                },
+                                style: TextButton.styleFrom(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                                  minimumSize: Size.zero,
+                                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                ),
+                                child: const Text('Select All', style: TextStyle(fontSize: 12)),
+                              ),
+                              const SizedBox(width: 8),
+                              TextButton(
+                                onPressed: () {
+                                  setState(() {
+                                    _selectedExamIds.clear();
+                                  });
+                                },
+                                style: TextButton.styleFrom(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                                  minimumSize: Size.zero,
+                                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                ),
+                                child: const Text('Clear All', style: TextStyle(fontSize: 12)),
+                              ),
+                            ],
+                          ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Expanded(
+                      child: _exams.isEmpty
+                          ? Center(
+                              child: Text(
+                                'No exams configured for this session.',
+                                style: TextStyle(
+                                  color: colors.onSurface.withValues(alpha: 0.6),
+                                  fontSize: 14,
+                                ),
+                              ),
+                            )
+                          : Container(
+                              decoration: BoxDecoration(
+                                border: Border.all(color: colors.outline.withValues(alpha: 0.2)),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(12),
+                                child: ListView.separated(
+                                  shrinkWrap: true,
+                                  itemCount: _exams.length,
+                                  separatorBuilder: (context, index) => Divider(
+                                    height: 1,
+                                    color: colors.outline.withValues(alpha: 0.1),
+                                  ),
+                                  itemBuilder: (context, index) {
+                                    final exam = _exams[index];
+                                    final examId = exam['exam_id'] ?? '';
+                                    final examName = exam['exam_name'] ?? '';
+                                    final isChecked = _selectedExamIds.contains(examId);
+
+                                    return CheckboxListTile(
+                                      title: Text(
+                                        examName,
+                                        style: TextStyle(
+                                          fontSize: 14,
+                                          color: colors.onSurface,
+                                          fontWeight: isChecked ? FontWeight.bold : FontWeight.normal,
+                                        ),
+                                      ),
+                                      subtitle: Text(
+                                        'ID: $examId',
+                                        style: TextStyle(
+                                          fontSize: 11,
+                                          color: colors.onSurface.withValues(alpha: 0.5),
+                                        ),
+                                      ),
+                                      value: isChecked,
+                                      controlAffinity: ListTileControlAffinity.leading,
+                                      onChanged: (val) {
+                                        setState(() {
+                                          if (val == true) {
+                                            _selectedExamIds.add(examId);
+                                          } else {
+                                            _selectedExamIds.remove(examId);
+                                          }
+                                        });
+                                      },
+                                    );
+                                  },
+                                ),
+                              ),
+                            ),
+                    ),
+                  ] else
+                    Expanded(
+                      child: Center(
+                        child: Text(
+                          'Please select an academic session to load exams.',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            color: colors.onSurface.withValues(alpha: 0.5),
+                            fontSize: 14,
+                          ),
+                        ),
+                      ),
+                    ),
+                  const SizedBox(height: 16),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      TextButton(
+                        onPressed: () => Navigator.pop(context),
+                        child: const Text('Cancel'),
+                      ),
+                      const SizedBox(width: 8),
+                      ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        onPressed: _selectedSession == null || _selectedExamIds.isEmpty
+                            ? null
+                            : () {
+                                final selectedExams = _exams
+                                    .where((e) => _selectedExamIds.contains(e['exam_id']))
+                                    .toList();
+                                
+                                context.read<ResultBloc>().add(
+                                  FetchSpecificResultsRequested(
+                                    session: _selectedSession!['session'] ?? '',
+                                    sessId: _selectedSession!['sess_id'] ?? '',
+                                    exams: selectedExams,
+                                  ),
+                                );
+                                Navigator.pop(context);
+                              },
+                        child: const Text('Sync Results'),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+      ),
+    );
   }
 }
