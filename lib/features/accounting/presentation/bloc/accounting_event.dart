@@ -45,15 +45,17 @@ class AddExpenseSubmitted extends AccountingEvent {
   final String description;
   final String? eventName;
   final String? remarks;
+  final DateTime expenseDate;
 
   const AddExpenseSubmitted({
     required this.amount,
     required this.category,
     required this.description,
+    required this.expenseDate,
     this.eventName,
     this.remarks,
   });
 
   @override
-  List<Object?> get props => [amount, category, description, eventName, remarks];
+  List<Object?> get props => [amount, category, description, eventName, remarks, expenseDate];
 }

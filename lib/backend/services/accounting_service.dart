@@ -303,6 +303,7 @@ class AccountingService {
     required String description,
     String? eventName,
     String? remarks,
+    required DateTime expenseDate,
   }) async {
     try {
       final currentUserId = _client.auth.currentUser?.id;
@@ -315,6 +316,7 @@ class AccountingService {
         'event_name': eventName,
         'remarks': remarks,
         'recorded_by': currentUserId,
+        'expense_date': expenseDate.toIso8601String(),
       });
     } catch (e) {
       debugPrint('Error adding club expense: $e');

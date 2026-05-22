@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:intl/intl.dart';
 import '../../../../backend/services/auth_service.dart';
 import '../../../../core/utils/validation_rules.dart';
 import '../../../profile/models/profile_state.dart';
@@ -331,12 +332,41 @@ class _AddPaymentDialogState extends State<AddPaymentDialog> {
                                 ),
                                 const SizedBox(height: 8),
                                 DropdownButtonFormField<String>(
-                                  value: _paymentType,
+                                  isExpanded: true,
+                                  initialValue: _paymentType,
                                   items: const [
-                                    DropdownMenuItem(value: 'monthly', child: Text('Monthly Fee')),
-                                    DropdownMenuItem(value: 'event', child: Text('Event Fee')),
-                                    DropdownMenuItem(value: 'admission', child: Text('Admission Fee')),
-                                    DropdownMenuItem(value: 'others', child: Text('Others')),
+                                    DropdownMenuItem(
+                                      value: 'monthly',
+                                      child: Text(
+                                        'Monthly Fee',
+                                        overflow: TextOverflow.ellipsis,
+                                        maxLines: 1,
+                                      ),
+                                    ),
+                                    DropdownMenuItem(
+                                      value: 'event',
+                                      child: Text(
+                                        'Event Fee',
+                                        overflow: TextOverflow.ellipsis,
+                                        maxLines: 1,
+                                      ),
+                                    ),
+                                    DropdownMenuItem(
+                                      value: 'admission',
+                                      child: Text(
+                                        'Admission Fee',
+                                        overflow: TextOverflow.ellipsis,
+                                        maxLines: 1,
+                                      ),
+                                    ),
+                                    DropdownMenuItem(
+                                      value: 'others',
+                                      child: Text(
+                                        'Others',
+                                        overflow: TextOverflow.ellipsis,
+                                        maxLines: 1,
+                                      ),
+                                    ),
                                   ],
                                   decoration: InputDecoration(
                                     border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
@@ -368,8 +398,18 @@ class _AddPaymentDialogState extends State<AddPaymentDialog> {
                                 ),
                                 const SizedBox(height: 8),
                                 DropdownButtonFormField<String>(
-                                  value: _selectedMonthName,
-                                  items: _monthsList.map((m) => DropdownMenuItem(value: m, child: Text(m))).toList(),
+                                  isExpanded: true,
+                                  initialValue: _selectedMonthName,
+                                  items: _monthsList
+                                      .map((m) => DropdownMenuItem(
+                                            value: m,
+                                            child: Text(
+                                              m,
+                                              overflow: TextOverflow.ellipsis,
+                                              maxLines: 1,
+                                            ),
+                                          ))
+                                      .toList(),
                                   decoration: InputDecoration(
                                     border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
                                     contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
@@ -394,8 +434,18 @@ class _AddPaymentDialogState extends State<AddPaymentDialog> {
                                 ),
                                 const SizedBox(height: 8),
                                 DropdownButtonFormField<String>(
-                                  value: _selectedYear,
-                                  items: _getYearsList().map((y) => DropdownMenuItem(value: y, child: Text(y))).toList(),
+                                  isExpanded: true,
+                                  initialValue: _selectedYear,
+                                  items: _getYearsList()
+                                      .map((y) => DropdownMenuItem(
+                                            value: y,
+                                            child: Text(
+                                              y,
+                                              overflow: TextOverflow.ellipsis,
+                                              maxLines: 1,
+                                            ),
+                                          ))
+                                      .toList(),
                                   decoration: InputDecoration(
                                     border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
                                     contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
@@ -514,6 +564,32 @@ class _AddExpenseDialogState extends State<AddExpenseDialog> {
   final _remarksController = TextEditingController();
 
   String _category = 'monthly';
+  DateTime _selectedDate = DateTime.now();
+
+  Future<void> _selectDate(BuildContext context) async {
+    final DateTime? picked = await showDatePicker(
+      context: context,
+      initialDate: _selectedDate,
+      firstDate: DateTime(2020),
+      lastDate: DateTime.now().add(const Duration(days: 30)),
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: Theme.of(context).colorScheme.copyWith(
+                  primary: Theme.of(context).colorScheme.primary,
+                  onPrimary: Colors.white,
+                ),
+          ),
+          child: child!,
+        );
+      },
+    );
+    if (picked != null && picked != _selectedDate) {
+      setState(() {
+        _selectedDate = picked;
+      });
+    }
+  }
 
   @override
   void dispose() {
@@ -564,6 +640,31 @@ class _AddExpenseDialogState extends State<AddExpenseDialog> {
                 ),
                 const Divider(thickness: 0.5, height: 16),
 
+                // Visual indicator of who is recording the expense
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: colors.primary.withValues(alpha: 0.08),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: colors.primary.withValues(alpha: 0.2)),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.admin_panel_settings, size: 16, color: colors.primary),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Recorded By: ',
+                        style: TextStyle(fontSize: 11, color: colors.onSurfaceVariant, fontWeight: FontWeight.w500),
+                      ),
+                      Text(
+                        currentProfile.value.name,
+                        style: TextStyle(fontSize: 11, color: colors.primary, fontWeight: FontWeight.bold),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 16),
+
                 // 1. Amount
                 Text(
                   'Amount (Taka) *',
@@ -581,29 +682,113 @@ class _AddExpenseDialogState extends State<AddExpenseDialog> {
                 ),
                 const SizedBox(height: 16),
 
-                // 2. Category
-                Text(
-                  'Category *',
-                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: colors.primary),
-                ),
-                const SizedBox(height: 8),
-                DropdownButtonFormField<String>(
-                  value: _category,
-                  items: const [
-                    DropdownMenuItem(value: 'monthly', child: Text('Monthly Expenses')),
-                    DropdownMenuItem(value: 'event', child: Text('Event Expenses')),
-                    DropdownMenuItem(value: 'yearly', child: Text('Yearly Expenses')),
-                    DropdownMenuItem(value: 'others', child: Text('Others')),
+                // 2. Category & Date Row
+                Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Category *',
+                            style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: colors.primary),
+                          ),
+                          const SizedBox(height: 8),
+                          DropdownButtonFormField<String>(
+                            isExpanded: true,
+                            initialValue: _category,
+                            items: const [
+                              DropdownMenuItem(
+                                value: 'monthly',
+                                child: Text(
+                                  'Monthly Expenses',
+                                  overflow: TextOverflow.ellipsis,
+                                  maxLines: 1,
+                                ),
+                              ),
+                              DropdownMenuItem(
+                                value: 'event',
+                                child: Text(
+                                  'Event Expenses',
+                                  overflow: TextOverflow.ellipsis,
+                                  maxLines: 1,
+                                ),
+                              ),
+                              DropdownMenuItem(
+                                value: 'yearly',
+                                child: Text(
+                                  'Yearly Expenses',
+                                  overflow: TextOverflow.ellipsis,
+                                  maxLines: 1,
+                                ),
+                              ),
+                              DropdownMenuItem(
+                                value: 'others',
+                                child: Text(
+                                  'Others',
+                                  overflow: TextOverflow.ellipsis,
+                                  maxLines: 1,
+                                ),
+                              ),
+                            ],
+                            decoration: InputDecoration(
+                              border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                              contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
+                            ),
+                            onChanged: (val) {
+                              if (val != null) {
+                                setState(() => _category = val);
+                              }
+                            },
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Expense Date *',
+                            style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: colors.primary),
+                          ),
+                          const SizedBox(height: 8),
+                          InkWell(
+                            onTap: () => _selectDate(context),
+                            borderRadius: BorderRadius.circular(10),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                              decoration: BoxDecoration(
+                                border: Border.all(color: colors.outline.withValues(alpha: 0.5)),
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Expanded(
+                                    child: Text(
+                                      DateFormat('d MMM, yyyy').format(_selectedDate),
+                                      style: TextStyle(
+                                        fontSize: 14,
+                                        color: colors.onSurface,
+                                      ),
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                  Icon(
+                                    Icons.calendar_today,
+                                    size: 18,
+                                    color: colors.primary,
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                   ],
-                  decoration: InputDecoration(
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
-                  ),
-                  onChanged: (val) {
-                    if (val != null) {
-                      setState(() => _category = val);
-                    }
-                  },
                 ),
                 const SizedBox(height: 16),
 
@@ -681,6 +866,7 @@ class _AddExpenseDialogState extends State<AddExpenseDialog> {
                                   amount: amount,
                                   category: _category,
                                   description: _descriptionController.text.trim(),
+                                  expenseDate: _selectedDate,
                                   eventName: _category == 'event' ? _eventNameController.text.trim() : null,
                                   remarks: _remarksController.text.trim().isNotEmpty
                                       ? _remarksController.text.trim()

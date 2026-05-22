@@ -89,13 +89,14 @@ class _AccountingDashboardScreenState extends State<AccountingDashboardScreen> {
             ),
           ),
           body: BlocBuilder<AccountingBloc, AccountingState>(
-            buildWhen: (previous, current) =>
-                current is AccountingLoading ||
-                current is AccountingDataLoaded ||
-                current is AccountingDuesLoaded ||
-                current is AccountingError,
+            buildWhen: (previous, current) {
+              if (current is AccountingLoading) {
+                return previous is AccountingInitial;
+              }
+              return current is AccountingDataLoaded || current is AccountingError;
+            },
             builder: (context, state) {
-              if (state is AccountingLoading) {
+              if (state is AccountingLoading || state is AccountingInitial) {
                 return const Center(child: CircularProgressIndicator());
               }
               

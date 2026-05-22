@@ -69,6 +69,7 @@ class AccountingBloc extends Bloc<AccountingEvent, AccountingState> {
         description: event.description,
         eventName: event.eventName,
         remarks: event.remarks,
+        expenseDate: event.expenseDate,
       );
       emit(const AccountingActionSuccess('Club expense logged successfully!', isExpenseAdded: true));
     } catch (e) {

@@ -19,6 +19,9 @@ class DuesTrackerTab extends StatefulWidget {
 
 class _DuesTrackerTabState extends State<DuesTrackerTab> {
   late DateTime _selectedDuesMonth;
+  List<MemberDuesStatus>? _duesList;
+  bool _isDuesLoading = false;
+  String? _duesError;
 
   bool get _isAdmin {
     final designation = currentProfile.value.designation;
@@ -31,26 +34,46 @@ class _DuesTrackerTabState extends State<DuesTrackerTab> {
   void initState() {
     super.initState();
     _selectedDuesMonth = DateTime.now();
-    _loadDues();
+    _loadDuesLocal();
   }
 
-  void _loadDues() {
-    final monthStr = DateFormat('yyyy-MM').format(_selectedDuesMonth);
-    context.read<AccountingBloc>().add(FetchDuesStatusRequested(monthStr));
+  Future<void> _loadDuesLocal() async {
+    if (!mounted) return;
+    setState(() {
+      _isDuesLoading = true;
+      _duesError = null;
+    });
+    try {
+      final monthStr = DateFormat('yyyy-MM').format(_selectedDuesMonth);
+      final dues = await AccountingService.fetchDuesStatus(monthStr);
+      if (mounted) {
+        setState(() {
+          _duesList = dues;
+          _isDuesLoading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _duesError = e.toString();
+          _isDuesLoading = false;
+        });
+      }
+    }
   }
 
   void _previousMonth() {
     setState(() {
       _selectedDuesMonth = DateTime(_selectedDuesMonth.year, _selectedDuesMonth.month - 1);
     });
-    _loadDues();
+    _loadDuesLocal();
   }
 
   void _nextMonth() {
     setState(() {
       _selectedDuesMonth = DateTime(_selectedDuesMonth.year, _selectedDuesMonth.month + 1);
     });
-    _loadDues();
+    _loadDuesLocal();
   }
 
   void _showAddPaymentDialog(BuildContext context, {ProfileData? member, String? month}) {
@@ -72,15 +95,21 @@ class _DuesTrackerTabState extends State<DuesTrackerTab> {
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
-    final state = context.watch<AccountingBloc>().state;
-    final hasDues = state is AccountingDuesLoaded;
-    final duesList = hasDues ? state.dues : <MemberDuesStatus>[];
+    final hasDues = _duesList != null;
+    final duesList = _duesList ?? <MemberDuesStatus>[];
 
     // Stats calculations
     final paidCount = duesList.where((d) => d.isPaid).length;
     final unpaidCount = duesList.length - paidCount;
 
-    return Scaffold(
+    return BlocListener<AccountingBloc, AccountingState>(
+      listenWhen: (previous, current) => current is AccountingActionSuccess,
+      listener: (context, state) {
+        if (state is AccountingActionSuccess && state.isPaymentAdded) {
+          _loadDuesLocal();
+        }
+      },
+      child: Scaffold(
       body: Column(
         children: [
           // 1. Month Chevron Switcher Row
@@ -158,10 +187,26 @@ class _DuesTrackerTabState extends State<DuesTrackerTab> {
 
           // 3. Members Dues List
           Expanded(
-            child: !hasDues
+            child: _isDuesLoading
                 ? const Center(child: CircularProgressIndicator())
-                : duesList.isEmpty
-                    ? const Center(child: Text('No club members found.'))
+                : _duesError != null
+                    ? Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text('Error: $_duesError', style: TextStyle(color: colors.error)),
+                            const SizedBox(height: 12),
+                            ElevatedButton(
+                              onPressed: _loadDuesLocal,
+                              child: const Text('Retry'),
+                            ),
+                          ],
+                        ),
+                      )
+                    : !hasDues
+                        ? const Center(child: CircularProgressIndicator())
+                        : duesList.isEmpty
+                            ? const Center(child: Text('No club members found.'))
                     : ListView.builder(
                         itemCount: duesList.length,
                         padding: const EdgeInsets.symmetric(horizontal: 12),
@@ -256,6 +301,7 @@ class _DuesTrackerTabState extends State<DuesTrackerTab> {
           ),
         ],
       ),
-    );
-  }
+    ),
+  );
+}
 }
