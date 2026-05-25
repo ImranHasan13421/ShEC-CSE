@@ -1,0 +1,471 @@
+import 'dart:ui' as ui;
+import 'package:flutter/material.dart';
+import '../models/result_state.dart';
+
+class CgpaPredictionChart extends StatefulWidget {
+  final List<ExamResult> results;
+
+  const CgpaPredictionChart({super.key, required this.results});
+
+  @override
+  State<CgpaPredictionChart> createState() => _CgpaPredictionChartState();
+}
+
+class _CgpaPredictionChartState extends State<CgpaPredictionChart> {
+  double _targetFutureGpa = 3.50; // Default expected GPA for future semesters
+
+  // Map exam names to semesters 1-8 based on DU conventions
+  int _parseSemesterNumber(String examName) {
+    final name = examName.toLowerCase();
+    if (name.contains('1st year 1st') || name.contains('1st sem') || name.contains('1-1') || (name.contains('1st year') && name.contains('1st'))) return 1;
+    if (name.contains('1st year 2nd') || name.contains('2nd sem') || name.contains('1-2') || (name.contains('1st year') && name.contains('2nd'))) return 2;
+    if (name.contains('2nd year 1st') || name.contains('3rd sem') || name.contains('2-1') || (name.contains('2nd year') && name.contains('1st'))) return 3;
+    if (name.contains('2nd year 2nd') || name.contains('4th sem') || name.contains('2-2') || (name.contains('2nd year') && name.contains('2nd'))) return 4;
+    if (name.contains('3rd year 1st') || name.contains('5th sem') || name.contains('3-1') || (name.contains('3rd year') && name.contains('1st'))) return 5;
+    if (name.contains('3rd year 2nd') || name.contains('6th sem') || name.contains('3-2') || (name.contains('3rd year') && name.contains('2nd'))) return 6;
+    if (name.contains('4th year 1st') || name.contains('7th sem') || name.contains('4-1') || (name.contains('4th year') && name.contains('1st'))) return 7;
+    if (name.contains('4th year 2nd') || name.contains('8th sem') || name.contains('4-2') || (name.contains('4th year') && name.contains('2nd'))) return 8;
+
+    // Fallbacks
+    if (name.contains('1st')) return 1;
+    if (name.contains('2nd')) return 2;
+    if (name.contains('3rd')) return 3;
+    if (name.contains('4th')) return 4;
+    if (name.contains('5th')) return 5;
+    if (name.contains('6th')) return 6;
+    if (name.contains('7th')) return 7;
+    if (name.contains('8th')) return 8;
+
+    return 1;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+
+    // 1. Group actual GPAs by semester
+    final Map<int, double> completedGpas = {};
+    for (var r in widget.results) {
+      final sem = r.semester ?? _parseSemesterNumber(r.examName);
+      final gpaVal = double.tryParse(r.gpa) ?? 0.0;
+      if (gpaVal > 0.0) {
+        completedGpas[sem] = gpaVal;
+      }
+    }
+
+    // 2. Find highest completed semester
+    final K = completedGpas.keys.isEmpty 
+        ? 0 
+        : completedGpas.keys.reduce((max, key) => key > max ? key : max);
+
+    // 3. Compute actual and projected CGPAs for semesters 1-8
+    final List<double?> actualCgpas = List.filled(8, null);
+    final List<double> projectedCgpas = List.filled(8, 0.0);
+
+    double actualSum = 0.0;
+    int actualCount = 0;
+
+    for (int s = 1; s <= 8; s++) {
+      if (completedGpas.containsKey(s)) {
+        actualSum += completedGpas[s]!;
+        actualCount++;
+        final cgpaVal = actualSum / actualCount;
+        actualCgpas[s - 1] = cgpaVal;
+        projectedCgpas[s - 1] = cgpaVal;
+      } else {
+        if (s > K && K > 0) {
+          // Future semester
+          actualSum += _targetFutureGpa;
+          actualCount++;
+          projectedCgpas[s - 1] = actualSum / actualCount;
+        } else {
+          // Missing intermediate semester, or no results at all
+          if (K > 0) {
+            final currentAvg = actualCount > 0 ? actualSum / actualCount : 3.00;
+            actualSum += currentAvg;
+            actualCount++;
+            projectedCgpas[s - 1] = actualSum / actualCount;
+          } else {
+            projectedCgpas[s - 1] = _targetFutureGpa;
+          }
+        }
+      }
+    }
+
+    // Latest actual CGPA
+    final currentCgpa = K > 0 && actualCgpas[K - 1] != null 
+        ? actualCgpas[K - 1]! 
+        : 0.0;
+    final predictedFinalCgpa = projectedCgpas[7];
+
+    return Card(
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: BorderSide(color: colors.outline.withValues(alpha: 0.15)),
+      ),
+      color: colors.surface,
+      child: Padding(
+        padding: const EdgeInsets.all(20.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // Header stats
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Present CGPA',
+                      style: TextStyle(fontSize: 12, color: colors.onSurface.withValues(alpha: 0.6), fontWeight: FontWeight.w500),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      currentCgpa > 0 ? currentCgpa.toStringAsFixed(2) : 'N/A',
+                      style: const TextStyle(fontSize: 26, fontWeight: FontWeight.bold, letterSpacing: -0.5),
+                    ),
+                  ],
+                ),
+                Container(
+                  height: 40,
+                  width: 1,
+                  color: colors.outline.withValues(alpha: 0.2),
+                ),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Text(
+                      'Projected Final CGPA',
+                      style: TextStyle(fontSize: 12, color: colors.onSurface.withValues(alpha: 0.6), fontWeight: FontWeight.w500),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      predictedFinalCgpa.toStringAsFixed(2),
+                      style: TextStyle(fontSize: 26, fontWeight: FontWeight.bold, color: colors.primary, letterSpacing: -0.5),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+            const SizedBox(height: 24),
+
+            // Chart area
+            AspectRatio(
+              aspectRatio: 1.8,
+              child: CustomPaint(
+                painter: CgpaLineChartPainter(
+                  actualCgpas: actualCgpas,
+                  projectedCgpas: projectedCgpas,
+                  lastActualIndex: K - 1,
+                  themeColors: colors,
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+
+            // Target Slider (Visible only if there are future semesters to predict)
+            if (K < 8) ...[
+              const Divider(),
+              const SizedBox(height: 8),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Expected Future GPA',
+                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          'Set expected GPA for remaining ${8 - K} semesters',
+                          style: TextStyle(fontSize: 11, color: colors.onSurface.withValues(alpha: 0.5)),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: colors.primaryContainer.withValues(alpha: 0.5),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: colors.primary.withValues(alpha: 0.2)),
+                    ),
+                    child: Text(
+                      _targetFutureGpa.toStringAsFixed(2),
+                      style: TextStyle(color: colors.primary, fontWeight: FontWeight.bold, fontSize: 16),
+                    ),
+                  ),
+                ],
+              ),
+              SliderTheme(
+                data: SliderThemeData(
+                  activeTrackColor: colors.primary,
+                  inactiveTrackColor: colors.primary.withValues(alpha: 0.15),
+                  thumbColor: colors.primary,
+                  overlayColor: colors.primary.withValues(alpha: 0.1),
+                  trackHeight: 4,
+                ),
+                child: Slider(
+                  value: _targetFutureGpa,
+                  min: 2.00,
+                  max: 4.00,
+                  divisions: 40,
+                  onChanged: (val) {
+                    setState(() => _targetFutureGpa = val);
+                  },
+                ),
+              ),
+            ] else ...[
+              const SizedBox(height: 8),
+              Center(
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: Colors.green.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.green.withValues(alpha: 0.2)),
+                  ),
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.check_circle, color: Colors.green, size: 16),
+                      SizedBox(width: 8),
+                      Text(
+                        'Congratulations! All 8 semesters completed.',
+                        style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold, fontSize: 12),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class CgpaLineChartPainter extends CustomPainter {
+  final List<double?> actualCgpas;
+  final List<double> projectedCgpas;
+  final int lastActualIndex; // -1 means none completed
+  final ColorScheme themeColors;
+
+  CgpaLineChartPainter({
+    required this.actualCgpas,
+    required this.projectedCgpas,
+    required this.lastActualIndex,
+    required this.themeColors,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final double paddingLeft = 32.0;
+    final double paddingRight = 16.0;
+    final double paddingTop = 20.0;
+    final double paddingBottom = 20.0;
+
+    final double chartWidth = size.width - paddingLeft - paddingRight;
+    final double chartHeight = size.height - paddingTop - paddingBottom;
+
+    final Paint gridPaint = Paint()
+      ..color = themeColors.outline.withValues(alpha: 0.08)
+      ..strokeWidth = 1
+      ..style = PaintingStyle.stroke;
+
+    final TextPainter textPainter = TextPainter(
+      textDirection: TextDirection.ltr,
+      textAlign: TextAlign.right,
+    );
+
+    // 1. Draw horizontal grid lines and y-axis labels
+    final List<double> yValues = [2.00, 2.50, 3.00, 3.50, 4.00];
+    for (var yVal in yValues) {
+      // Normalize y: 2.0 is bottom, 4.0 is top
+      final double normalizedY = (yVal - 2.0) / 2.0;
+      final double yPos = size.height - paddingBottom - (normalizedY * chartHeight);
+
+      // Draw grid line
+      canvas.drawLine(
+        Offset(paddingLeft, yPos),
+        Offset(size.width - paddingRight, yPos),
+        gridPaint,
+      );
+
+      // Draw y label
+      textPainter.text = TextSpan(
+        text: yVal.toStringAsFixed(2),
+        style: TextStyle(
+          color: themeColors.onSurface.withValues(alpha: 0.4),
+          fontSize: 10,
+          fontWeight: FontWeight.bold,
+        ),
+      );
+      textPainter.layout();
+      textPainter.paint(
+        canvas,
+        Offset(paddingLeft - textPainter.width - 6, yPos - textPainter.height / 2),
+      );
+    }
+
+    // 2. Draw x-axis labels
+    final double xStep = chartWidth / 7.0;
+    for (int i = 0; i < 8; i++) {
+      final double xPos = paddingLeft + (i * xStep);
+
+      textPainter.text = TextSpan(
+        text: 'S${i + 1}',
+        style: TextStyle(
+          color: themeColors.onSurface.withValues(alpha: 0.5),
+          fontSize: 10,
+          fontWeight: FontWeight.bold,
+        ),
+      );
+      textPainter.layout();
+      textPainter.paint(
+        canvas,
+        Offset(xPos - textPainter.width / 2, size.height - paddingBottom + 6),
+      );
+    }
+
+    // Draw chart elements only if data is present
+    final List<Offset> actualPoints = [];
+    final List<Offset> projectedPoints = [];
+
+    for (int i = 0; i < 8; i++) {
+      final double xPos = paddingLeft + (i * xStep);
+      
+      // Actual CGPA plotting
+      if (i <= lastActualIndex && actualCgpas[i] != null) {
+        final double normalizedY = (actualCgpas[i]! - 2.0) / 2.0;
+        final double yPos = size.height - paddingBottom - (normalizedY.clamp(0.0, 1.0) * chartHeight);
+        actualPoints.add(Offset(xPos, yPos));
+      }
+
+      // Projected CGPA plotting
+      final double normalizedProjY = (projectedCgpas[i] - 2.0) / 2.0;
+      final double yProjPos = size.height - paddingBottom - (normalizedProjY.clamp(0.0, 1.0) * chartHeight);
+      projectedPoints.add(Offset(xPos, yProjPos));
+    }
+
+    // 3. Draw Projected Line (Dashed)
+    if (projectedPoints.length > 1) {
+      final Paint projectedPaint = Paint()
+        ..color = themeColors.primary.withValues(alpha: 0.4)
+        ..strokeWidth = 3
+        ..style = PaintingStyle.stroke;
+
+      // Custom dashed line implementation
+      final Path path = Path();
+      path.moveTo(projectedPoints[0].dx, projectedPoints[0].dy);
+      for (int i = 1; i < projectedPoints.length; i++) {
+        path.lineTo(projectedPoints[i].dx, projectedPoints[i].dy);
+      }
+
+      _drawDashedPath(canvas, path, projectedPaint, [8, 6]);
+    }
+
+    // 4. Draw Actual Line (Gradient & Solid)
+    if (actualPoints.isNotEmpty) {
+      final Paint actualPaint = Paint()
+        ..shader = ui.Gradient.linear(
+          actualPoints.first,
+          actualPoints.last,
+          [themeColors.primary, themeColors.primary.withRed(150)],
+        )
+        ..strokeWidth = 4
+        ..style = PaintingStyle.stroke
+        ..strokeCap = StrokeCap.round;
+
+      final Path actualPath = Path();
+      actualPath.moveTo(actualPoints[0].dx, actualPoints[0].dy);
+      for (int i = 1; i < actualPoints.length; i++) {
+        actualPath.lineTo(actualPoints[i].dx, actualPoints[i].dy);
+      }
+      canvas.drawPath(actualPath, actualPaint);
+
+      // Gradient area fill under actual line
+      final Path fillPath = Path()
+        ..moveTo(actualPoints[0].dx, size.height - paddingBottom)
+        ..lineTo(actualPoints[0].dx, actualPoints[0].dy);
+      for (int i = 1; i < actualPoints.length; i++) {
+        fillPath.lineTo(actualPoints[i].dx, actualPoints[i].dy);
+      }
+      fillPath.lineTo(actualPoints.last.dx, size.height - paddingBottom);
+      fillPath.close();
+
+      final Paint fillPaint = Paint()
+        ..shader = ui.Gradient.linear(
+          Offset(0, paddingTop),
+          Offset(0, size.height - paddingBottom),
+          [themeColors.primary.withValues(alpha: 0.18), themeColors.primary.withValues(alpha: 0.0)],
+        )
+        ..style = PaintingStyle.fill;
+      
+      canvas.drawPath(fillPath, fillPaint);
+    }
+
+    // 5. Draw dots
+    final Paint activeDotPaint = Paint()
+      ..color = themeColors.primary
+      ..style = PaintingStyle.fill;
+
+    final Paint borderDotPaint = Paint()
+      ..color = themeColors.surface
+      ..strokeWidth = 2
+      ..style = PaintingStyle.stroke;
+
+    final Paint projectedDotPaint = Paint()
+      ..color = themeColors.primary.withValues(alpha: 0.6)
+      ..strokeWidth = 2
+      ..style = PaintingStyle.stroke;
+
+    for (int i = 0; i < 8; i++) {
+      final Offset pt = projectedPoints[i];
+      if (i <= lastActualIndex) {
+        // Actual dot (Solid)
+        canvas.drawCircle(pt, 5.5, activeDotPaint);
+        canvas.drawCircle(pt, 5.5, borderDotPaint);
+      } else {
+        // Projected dot (Hollow)
+        canvas.drawCircle(pt, 4.5, Paint()..color = themeColors.surface..style = PaintingStyle.fill);
+        canvas.drawCircle(pt, 4.5, projectedDotPaint);
+      }
+    }
+  }
+
+  // Dashed path helper
+  void _drawDashedPath(Canvas canvas, Path path, Paint paint, List<double> dashArray) {
+    final Path dest = Path();
+    for (final ui.PathMetric metric in path.computeMetrics()) {
+      double distance = 0.0;
+      bool draw = true;
+      while (distance < metric.length) {
+        final double len = dashArray[draw ? 0 : 1];
+        if (draw) {
+          dest.addPath(
+            metric.extractPath(distance, (distance + len).clamp(0.0, metric.length)),
+            Offset.zero,
+          );
+        }
+        distance += len;
+        draw = !draw;
+      }
+    }
+    canvas.drawPath(dest, paint);
+  }
+
+  @override
+  bool shouldRepaint(covariant CgpaLineChartPainter oldDelegate) {
+    return oldDelegate.actualCgpas != actualCgpas ||
+        oldDelegate.projectedCgpas != projectedCgpas ||
+        oldDelegate.lastActualIndex != lastActualIndex ||
+        oldDelegate.themeColors != themeColors;
+  }
+}

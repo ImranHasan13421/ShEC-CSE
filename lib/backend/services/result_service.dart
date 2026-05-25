@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../features/profile/models/profile_state.dart';
 import '../../features/results/models/result_state.dart';
+import '../../features/results/models/batch_member_result.dart';
 import 'result_scraper_service.dart';
 
 class ResultService {
@@ -20,7 +21,7 @@ class ResultService {
       // Fetch results and matching subject_results in a single query
       final resultsResponse = await _client
           .from('results')
-          .select('*, subject_results(*)')
+          .select('*, DUCMC_exams_id(semester), subject_results(*)')
           .eq('user_id', profile.id)
           .order('created_at', ascending: false);
       
@@ -41,6 +42,88 @@ class ResultService {
     } catch (e) {
       debugPrint('Error loading results: $e');
       rethrow;
+    }
+  }
+
+  // 1b. Load results for all members of a batch (session)
+  static Future<List<BatchMemberResult>> loadBatchResults(String session) async {
+    try {
+      debugPrint('Loading batch results for session: $session');
+      // Fetch profiles in the same session
+      final profilesResponse = await _client
+          .from('profiles')
+          .select()
+          .eq('session', session);
+
+      final List<ProfileData> profiles = [];
+      for (var p in profilesResponse) {
+        UserRole parsedRole;
+        switch (p['role']) {
+          case 'superuser': parsedRole = UserRole.superUser; break;
+          case 'committee': parsedRole = UserRole.committeeMember; break;
+          default: parsedRole = UserRole.student; break;
+        }
+
+        profiles.add(ProfileData(
+          id: p['id'] ?? '',
+          firstName: p['first_name'] ?? '',
+          lastName: p['last_name'] ?? '',
+          name: '${p['first_name'] ?? ''} ${p['last_name'] ?? ''}'.trim().isEmpty 
+              ? (p['email'] ?? 'Student') 
+              : '${p['first_name'] ?? ''} ${p['last_name'] ?? ''}'.trim(),
+          email: p['email'] ?? '',
+          universityId: p['university_id'] ?? '',
+          classRoll: p['class_roll'] ?? '',
+          duRegNo: p['du_reg'] ?? '',
+          session: p['session'] ?? '',
+          batch: p['batch'] ?? '',
+          phone: p['phone'] ?? '',
+          imagePath: p['profile_pic'],
+          role: parsedRole,
+          designation: p['designation'] ?? 'Student',
+          isApproved: p['is_approved'] ?? false,
+          isAlumni: p['is_alumni'] ?? false,
+        ));
+      }
+
+      if (profiles.isEmpty) {
+        debugPrint('No profiles found for session: $session');
+        return [];
+      }
+
+      final List<String> userIds = profiles.map((p) => p.id).toList();
+
+      // Fetch all results for these users
+      final resultsResponse = await _client
+          .from('results')
+          .select('*, DUCMC_exams_id(semester), subject_results(*)')
+          .inFilter('user_id', userIds)
+          .order('created_at', ascending: false);
+
+      debugPrint('Found ${resultsResponse.length} batch exam results in DB');
+
+      final List<BatchMemberResult> batchResults = [];
+      for (var resultRow in resultsResponse) {
+        final userId = resultRow['user_id'];
+        final profile = profiles.firstWhere((p) => p.id == userId, orElse: () => currentProfile.value);
+        if (profile.id.isEmpty || profile.id == currentProfile.value.id) {
+          // If profile is not found or it's the current user (wait, let's keep current user as well,
+          // so they can see all batch members including themselves, which is excellent!)
+        }
+
+        final List<dynamic> subjectsRaw = resultRow['subject_results'] ?? [];
+        final List<SubjectResult> subjects = subjectsRaw
+            .map((s) => SubjectResult.fromJson(s as Map<String, dynamic>))
+            .toList();
+
+        final examResult = ExamResult.fromDB(resultRow, subjects);
+        batchResults.add(BatchMemberResult(profile: profile, result: examResult));
+      }
+
+      return batchResults;
+    } catch (e) {
+      debugPrint('Error loading batch results: $e');
+      return [];
     }
   }
 
@@ -104,13 +187,14 @@ class ResultService {
     try {
       final List<dynamic> data = await _client
           .from('DUCMC_exams_id')
-          .select('exam_id, exam_name, session')
+          .select('exam_id, exam_name, session, semester')
           .eq('session', session)
           .order('exam_name', ascending: true);
       return data.map((row) => {
         'exam_id': (row['exam_id'] ?? '').toString(),
         'exam_name': (row['exam_name'] ?? '').toString(),
         'session': (row['session'] ?? '').toString(),
+        'semester': (row['semester'] ?? '').toString(),
       }).toList();
     } catch (e) {
       debugPrint('Error fetching exams for session $session: $e');
@@ -123,12 +207,13 @@ class ResultService {
     try {
       final List<dynamic> data = await _client
           .from('DUCMC_exams_id')
-          .select('exam_id, exam_name, session')
+          .select('exam_id, exam_name, session, semester')
           .order('exam_name', ascending: true);
       return data.map((row) => {
         'exam_id': (row['exam_id'] ?? '').toString(),
         'exam_name': (row['exam_name'] ?? '').toString(),
         'session': (row['session'] ?? '').toString(),
+        'semester': (row['semester'] ?? '').toString(),
       }).toList();
     } catch (e) {
       debugPrint('Error fetching exams: $e');
@@ -150,11 +235,12 @@ class ResultService {
   }
 
   // 7. Add new exam ID (Admin only)
-  static Future<void> addExamId(String examName, String examId, String session) async {
+  static Future<void> addExamId(String examName, String examId, String session, int semester) async {
     await _client.from('DUCMC_exams_id').upsert({
       'exam_name': examName,
       'exam_id': examId,
       'session': session,
+      'semester': semester,
     });
   }
 }

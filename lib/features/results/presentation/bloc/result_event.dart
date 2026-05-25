@@ -25,3 +25,12 @@ class FetchSpecificResultsRequested extends ResultEvent {
   @override
   List<Object?> get props => [session, sessId, exams];
 }
+
+class LoadBatchResultsRequested extends ResultEvent {
+  final String session;
+
+  const LoadBatchResultsRequested({required this.session});
+
+  @override
+  List<Object?> get props => [session];
+}

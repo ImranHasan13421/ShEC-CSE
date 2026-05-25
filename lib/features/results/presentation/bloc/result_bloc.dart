@@ -7,22 +7,29 @@ import 'result_event.dart';
 import 'result_state.dart';
 
 class ResultBloc extends Bloc<ResultEvent, ResultState> {
-  ResultBloc() : super(ResultInitial()) {
+  ResultBloc() : super(const ResultState()) {
     on<LoadResultsRequested>(_onLoadResultsRequested);
     on<SyncResultsRequested>(_onSyncResultsRequested);
     on<FetchSpecificResultsRequested>(_onFetchSpecificResultsRequested);
+    on<LoadBatchResultsRequested>(_onLoadBatchResultsRequested);
   }
 
   Future<void> _onLoadResultsRequested(
     LoadResultsRequested event,
     Emitter<ResultState> emit,
   ) async {
-    emit(ResultLoading());
+    emit(state.copyWith(isOwnLoading: true, clearError: true));
     try {
       final results = await ResultService.loadResultsFromDB();
-      emit(ResultsLoaded(results: results));
+      emit(state.copyWith(
+        isOwnLoading: false,
+        ownResults: results,
+      ));
     } catch (e) {
-      emit(ResultError(message: e.toString()));
+      emit(state.copyWith(
+        isOwnLoading: false,
+        errorMessage: e.toString(),
+      ));
     }
   }
 
@@ -30,13 +37,18 @@ class ResultBloc extends Bloc<ResultEvent, ResultState> {
     SyncResultsRequested event,
     Emitter<ResultState> emit,
   ) async {
-    final currentResults = state is ResultsLoaded ? (state as ResultsLoaded).results : <ExamResult>[];
-    emit(ResultSyncInProgress(results: currentResults));
+    emit(state.copyWith(isSyncing: true, clearError: true));
     try {
       final results = await ResultService.syncResults();
-      emit(ResultsLoaded(results: results));
+      emit(state.copyWith(
+        isSyncing: false,
+        ownResults: results,
+      ));
     } catch (e) {
-      emit(ResultError(message: e.toString()));
+      emit(state.copyWith(
+        isSyncing: false,
+        errorMessage: e.toString(),
+      ));
     }
   }
 
@@ -44,8 +56,7 @@ class ResultBloc extends Bloc<ResultEvent, ResultState> {
     FetchSpecificResultsRequested event,
     Emitter<ResultState> emit,
   ) async {
-    final currentResults = state is ResultsLoaded ? (state as ResultsLoaded).results : <ExamResult>[];
-    emit(ResultSyncInProgress(results: currentResults));
+    emit(state.copyWith(isSyncing: true, clearError: true));
     try {
       final profile = currentProfile.value;
       if (profile.id.isEmpty || profile.duRegNo.isEmpty) {
@@ -73,10 +84,35 @@ class ResultBloc extends Bloc<ResultEvent, ResultState> {
 
       // Reload results from DB after scraping finishes
       final freshResults = await ResultService.loadResultsFromDB();
-      emit(ResultsLoaded(results: freshResults));
+      emit(state.copyWith(
+        isSyncing: false,
+        ownResults: freshResults,
+      ));
     } catch (e) {
-      emit(ResultError(message: e.toString()));
-      emit(ResultsLoaded(results: currentResults));
+      emit(state.copyWith(
+        isSyncing: false,
+        errorMessage: e.toString(),
+      ));
+    }
+  }
+
+  Future<void> _onLoadBatchResultsRequested(
+    LoadBatchResultsRequested event,
+    Emitter<ResultState> emit,
+  ) async {
+    emit(state.copyWith(isBatchLoading: true, clearError: true));
+    try {
+      final batchResults = await ResultService.loadBatchResults(event.session);
+      emit(state.copyWith(
+        isBatchLoading: false,
+        batchResults: batchResults,
+        selectedSession: event.session,
+      ));
+    } catch (e) {
+      emit(state.copyWith(
+        isBatchLoading: false,
+        errorMessage: e.toString(),
+      ));
     }
   }
 }

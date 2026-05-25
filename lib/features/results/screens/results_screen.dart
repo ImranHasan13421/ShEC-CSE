@@ -6,6 +6,8 @@ import '../../../backend/services/result_service.dart';
 import '../presentation/bloc/result_bloc.dart';
 import '../presentation/bloc/result_event.dart';
 import '../presentation/bloc/result_state.dart';
+import 'cgpa_prediction_chart.dart';
+import 'batch_results_tab.dart';
 
 class ResultsScreen extends StatefulWidget {
   const ResultsScreen({super.key});
@@ -14,13 +16,35 @@ class ResultsScreen extends StatefulWidget {
   State<ResultsScreen> createState() => _ResultsScreenState();
 }
 
-class _ResultsScreenState extends State<ResultsScreen> {
+class _ResultsScreenState extends State<ResultsScreen> with SingleTickerProviderStateMixin {
+  late TabController _tabController;
   bool _isSyncing = false;
 
   @override
   void initState() {
     super.initState();
+    _tabController = TabController(length: 2, vsync: this);
+    _tabController.addListener(_handleTabSelection);
+
+    // Initial load for own results
     context.read<ResultBloc>().add(LoadResultsRequested());
+  }
+
+  void _handleTabSelection() {
+    if (_tabController.indexIsChanging) return;
+
+    if (_tabController.index == 0) {
+      context.read<ResultBloc>().add(LoadResultsRequested());
+    } else {
+      context.read<ResultBloc>().add(LoadBatchResultsRequested(session: currentProfile.value.session));
+    }
+  }
+
+  @override
+  void dispose() {
+    _tabController.removeListener(_handleTabSelection);
+    _tabController.dispose();
+    super.dispose();
   }
 
   @override
@@ -48,7 +72,7 @@ class _ResultsScreenState extends State<ResultsScreen> {
 
         return Scaffold(
           appBar: AppBar(
-            title: const Text('My Results'),
+            title: const Text('Academic Results'),
             actions: [
               if (isSyncing)
                 const Padding(
@@ -66,7 +90,11 @@ class _ResultsScreenState extends State<ResultsScreen> {
                   icon: const Icon(Icons.sync),
                   tooltip: 'Sync Results',
                   onPressed: () {
-                    context.read<ResultBloc>().add(SyncResultsRequested());
+                    if (_tabController.index == 0) {
+                      context.read<ResultBloc>().add(SyncResultsRequested());
+                    } else {
+                      context.read<ResultBloc>().add(LoadBatchResultsRequested(session: currentProfile.value.session));
+                    }
                   },
                 ),
                 if (currentProfile.value.role == UserRole.superUser || 
@@ -92,37 +120,51 @@ class _ResultsScreenState extends State<ResultsScreen> {
                   ),
               ],
             ],
+            bottom: TabBar(
+              controller: _tabController,
+              tabs: const [
+                Tab(text: 'My Dashboard', icon: Icon(Icons.dashboard_outlined)),
+                Tab(text: 'Batch Directory', icon: Icon(Icons.group_outlined)),
+              ],
+            ),
           ),
-          body: Column(
+          body: TabBarView(
+            controller: _tabController,
             children: [
-              // 1. Progress Bar at the Top
-              if (isSyncing)
-                Column(
-                  children: [
-                    const LinearProgressIndicator(),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 8.0),
-                      child: Text(
-                        'Syncing academic results... please wait',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: colors.primary,
-                          fontWeight: FontWeight.w500,
+              // Tab 1: My Dashboard
+              Column(
+                children: [
+                  // Progress Bar at the Top
+                  if (isSyncing)
+                    Column(
+                      children: [
+                        const LinearProgressIndicator(),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 8.0),
+                          child: Text(
+                            'Syncing academic results... please wait',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: colors.primary,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
                         ),
-                      ),
-                    ),
-                  ],
-                )
-              else
-                const SizedBox(height: 4), // Spacer when not syncing
-              
-              // 2. Main Content
-              Expanded(
-                child: _buildMainContent(context, state, colors),
+                      ],
+                    )
+                  else
+                    const SizedBox(height: 4), // Spacer when not syncing
+                  
+                  Expanded(
+                    child: _buildOwnDashboard(context, state, colors),
+                  ),
+                ],
               ),
+              // Tab 2: Batch Directory
+              const BatchResultsTab(),
             ],
           ),
-          floatingActionButton: isSyncing
+          floatingActionButton: isSyncing || _tabController.index == 1
               ? null
               : FloatingActionButton.extended(
                   onPressed: () {
@@ -139,7 +181,7 @@ class _ResultsScreenState extends State<ResultsScreen> {
     );
   }
 
-  Widget _buildMainContent(BuildContext context, ResultState state, ColorScheme colors) {
+  Widget _buildOwnDashboard(BuildContext context, ResultState state, ColorScheme colors) {
     if (state is ResultLoading) {
       return const Center(
         child: CircularProgressIndicator(),
@@ -178,13 +220,32 @@ class _ResultsScreenState extends State<ResultsScreen> {
       );
     }
 
-    return ListView.builder(
+    return ListView(
       padding: const EdgeInsets.all(16.0),
-      itemCount: results.length,
-      itemBuilder: (context, index) {
-        final result = results[index];
-        return _buildResultCard(context, result);
-      },
+      children: [
+        // 1. CGPA Prediction Chart Card
+        CgpaPredictionChart(results: results),
+        const SizedBox(height: 20),
+
+        // 2. Header
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 4.0, vertical: 8.0),
+          child: Row(
+            children: [
+              Icon(Icons.format_list_bulleted, size: 18, color: colors.primary),
+              const SizedBox(width: 8),
+              const Text(
+                'Semester Breakdown',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 8),
+
+        // 3. Semester results cards
+        ...results.map((result) => _buildResultCard(context, result)),
+      ],
     );
   }
 
