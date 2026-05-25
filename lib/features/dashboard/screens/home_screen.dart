@@ -25,6 +25,7 @@ import 'package:ShEC_CSE/features/gallery/presentation/bloc/gallery_event.dart';
 import 'package:ShEC_CSE/features/gallery/presentation/bloc/gallery_state.dart';
 
 import '../../jobs/screens/jobs_screen.dart';
+import 'package:ShEC_CSE/features/profile/models/profile_state.dart';
 
 class DashboardScreen extends StatefulWidget {
   final Function(int)? onNavigateToTab;
@@ -97,7 +98,38 @@ class _DashboardScreenState extends State<DashboardScreen> {
     return ListView(
       padding: const EdgeInsets.all(16.0),
       children: [
-        const Text('Welcome Back!', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+        ValueListenableBuilder<ProfileData>(
+          valueListenable: currentProfile,
+          builder: (context, profile, _) {
+            final hour = DateTime.now().hour;
+            String greeting;
+            String emoji;
+            if (hour >= 5 && hour < 12) {
+              greeting = 'Good Morning';
+              emoji = '☀️';
+            } else if (hour >= 12 && hour < 17) {
+              greeting = 'Good Afternoon';
+              emoji = '🌤️';
+            } else if (hour >= 17 && hour < 21) {
+              greeting = 'Good Evening';
+              emoji = '🌇';
+            } else {
+              greeting = 'Good Night';
+              emoji = '🌙';
+            }
+
+            final name = profile.firstName.isNotEmpty
+                ? profile.firstName
+                : (profile.name.isNotEmpty && profile.name != 'Guest' ? profile.name : '');
+
+            final displayStr = name.isNotEmpty ? '$greeting, $name $emoji' : '$greeting $emoji';
+
+            return Text(
+              displayStr,
+              style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+            );
+          },
+        ),
         const SizedBox(height: 4),
         Text('Stay updated with departmental & club activities.', style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6))),
         const SizedBox(height: 24),
