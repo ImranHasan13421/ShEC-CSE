@@ -5,6 +5,7 @@ import '../../features/profile/models/profile_state.dart';
 import '../../core/services/storage_service.dart';
 import '../../core/services/database_helper.dart';
 import '../../core/services/connectivity_service.dart';
+import 'package:ShEC_CSE/features/permissions/services/permissions_service.dart';
 
 class AuthService {
   static final SupabaseClient _client = Supabase.instance.client;
@@ -82,6 +83,7 @@ class AuthService {
       throw Exception('Network connection required');
     }
     await _client.auth.signOut();
+    PermissionsService.currentPermissions.value = null;
   }
 
   static Future<void> fetchCurrentUserProfile() async {
@@ -96,6 +98,7 @@ class AuthService {
         try {
           final decoded = json.decode(cachedProfileStr);
           currentProfile.value = ProfileData.fromJson(decoded);
+          await PermissionsService.loadCurrentPermissions(currentProfile.value);
           debugPrint('Successfully loaded user profile from local SQLite database.');
           return;
         } catch (e) {
@@ -138,6 +141,7 @@ class AuthService {
       );
 
       currentProfile.value = profile;
+      await PermissionsService.loadCurrentPermissions(profile);
 
       // Cache this profile string in SQLite
       await DatabaseHelper.instance.saveCache(
@@ -152,6 +156,7 @@ class AuthService {
         try {
           final decoded = json.decode(cachedProfileStr);
           currentProfile.value = ProfileData.fromJson(decoded);
+          await PermissionsService.loadCurrentPermissions(currentProfile.value);
         } catch (_) {}
       }
     }

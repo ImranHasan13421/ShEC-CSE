@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:ShEC_CSE/features/profile/models/profile_state.dart';
+import 'package:ShEC_CSE/features/permissions/services/permissions_service.dart';
+import 'package:ShEC_CSE/features/permissions/models/committee_permission.dart';
 import 'package:ShEC_CSE/features/auth/presentation/bloc/auth_bloc.dart';
 import 'package:ShEC_CSE/features/auth/presentation/bloc/auth_state.dart';
 import 'package:ShEC_CSE/features/notices/presentation/bloc/notice_bloc.dart';
@@ -332,19 +334,29 @@ class _NoticesScreenState extends State<NoticesScreen> {
             },
           ),
         ),
-        floatingActionButton: BlocBuilder<AuthBloc, AuthState>(
-          builder: (context, authState) {
-            final profile = authState is AuthAuthenticated ? authState.profile : currentProfile.value;
-            if (profile.role != UserRole.student) {
-              return FloatingActionButton(
-                onPressed: () {
-                  final currentTab = DefaultTabController.of(context).index;
-                  _showNoticeForm(context, currentTab == 0 ? 'club' : 'department');
-                },
-                child: const Icon(Icons.add),
-              );
-            }
-            return const SizedBox.shrink();
+        floatingActionButton: ValueListenableBuilder<CommitteePermission?>(
+          valueListenable: PermissionsService.currentPermissions,
+          builder: (context, currentPerms, _) {
+            return BlocBuilder<AuthBloc, AuthState>(
+              builder: (context, authState) {
+                final profile = authState is AuthAuthenticated ? authState.profile : currentProfile.value;
+                final hasNoticePermission = profile.role == UserRole.superUser ||
+                    (profile.role == UserRole.committeeMember && (currentPerms?.canManageNotices ?? false)) ||
+                    profile.designation == 'President' ||
+                    profile.designation == 'Vice President';
+                
+                if (hasNoticePermission) {
+                  return FloatingActionButton(
+                    onPressed: () {
+                      final currentTab = DefaultTabController.of(context).index;
+                      _showNoticeForm(context, currentTab == 0 ? 'club' : 'department');
+                    },
+                    child: const Icon(Icons.add),
+                  );
+                }
+                return const SizedBox.shrink();
+              },
+            );
           },
         ),
       ),
@@ -384,8 +396,11 @@ class _NoticesScreenState extends State<NoticesScreen> {
   Widget _buildNoticeList(List<NoticeItem> notices, String category) {
     final authState = context.read<AuthBloc>().state;
     final profile = authState is AuthAuthenticated ? authState.profile : currentProfile.value;
-    final isAdmin = profile.role != UserRole.student;
-    final isSuperUser = profile.designation == 'President' || profile.designation == 'Vice President';
+    final isAdmin = profile.role == UserRole.superUser ||
+        (profile.role == UserRole.committeeMember && (PermissionsService.currentPermissions.value?.canManageNotices ?? false)) ||
+        profile.designation == 'President' ||
+        profile.designation == 'Vice President';
+    final isSuperUser = profile.designation == 'President' || profile.designation == 'Vice President' || profile.role == UserRole.superUser;
 
     var filtered = notices.where((n) {
       if (!isAdmin && (!n.isApproved || !n.isVisible)) return false;

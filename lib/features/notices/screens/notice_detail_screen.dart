@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../models/notice_state.dart';
 import 'package:ShEC_CSE/features/profile/models/profile_state.dart';
+import 'package:ShEC_CSE/features/permissions/services/permissions_service.dart';
 
 class NoticeDetailScreen extends StatelessWidget {
   final NoticeItem notice;
@@ -10,7 +11,11 @@ class NoticeDetailScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
-    final isAdmin = currentProfile.value.role != UserRole.student;
+    final profile = currentProfile.value;
+    final isAdmin = profile.role == UserRole.superUser ||
+        (profile.role == UserRole.committeeMember && (PermissionsService.currentPermissions.value?.canManageNotices ?? false)) ||
+        profile.designation == 'President' ||
+        profile.designation == 'Vice President';
     const defaultColor = Colors.blue;
 
     return Scaffold(

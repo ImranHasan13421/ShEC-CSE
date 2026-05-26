@@ -6,6 +6,7 @@ import '../bloc/accounting_bloc.dart';
 import '../bloc/accounting_state.dart';
 import '../bloc/accounting_event.dart';
 import '../../../profile/models/profile_state.dart';
+import 'package:ShEC_CSE/features/permissions/services/permissions_service.dart';
 import 'payment_dialogs.dart';
 
 class ExpenseLoggerTab extends StatefulWidget {
@@ -19,10 +20,12 @@ class _ExpenseLoggerTabState extends State<ExpenseLoggerTab> {
   String _expenseFilter = 'all';
 
   bool get _isAdmin {
-    final designation = currentProfile.value.designation;
-    return designation == 'Treasurer' ||
-        designation == 'President' ||
-        designation == 'Vice President';
+    final profile = currentProfile.value;
+    return profile.role == UserRole.superUser ||
+        (profile.role == UserRole.committeeMember && (PermissionsService.currentPermissions.value?.canManageAccounting ?? false)) ||
+        profile.designation == 'Treasurer' ||
+        profile.designation == 'President' ||
+        profile.designation == 'Vice President';
   }
 
   bool _isCreator(ClubExpense expense) {

@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:ShEC_CSE/features/dashboard/presentation/widgets/ambient_background.dart';
 import 'package:ShEC_CSE/features/profile/models/profile_state.dart';
+import 'package:ShEC_CSE/features/permissions/services/permissions_service.dart';
+import 'package:ShEC_CSE/features/permissions/models/committee_permission.dart';
 import 'package:ShEC_CSE/core/services/tour_service.dart';
 import 'package:ShEC_CSE/features/dashboard/presentation/widgets/guided_tour_overlay.dart';
 import '../models/job_state.dart';
@@ -272,117 +274,120 @@ class _JobsScreenState extends State<JobsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final profile = currentProfile.value;
-    final isStaff = profile.role == UserRole.committeeMember || profile.role == UserRole.superUser;
+    return ValueListenableBuilder<CommitteePermission?>(
+      valueListenable: PermissionsService.currentPermissions,
+      builder: (context, currentPerms, _) {
+        final profile = currentProfile.value;
+        final isStaff = profile.role == UserRole.superUser ||
+            (profile.role == UserRole.committeeMember && (currentPerms?.canManageJobs ?? false)) ||
+            profile.designation == 'President' ||
+            profile.designation == 'Vice President';
 
-    return Stack(
-      children: [
-        AmbientTimeBackground(
-          child: Scaffold(
-            backgroundColor: Colors.transparent,
-            appBar: AppBar(
-              backgroundColor: Colors.transparent,
-              elevation: 0,
-              title: Text('Job Board', key: _jobsHeaderKey),
-            ),
-            body: BlocListener<JobBloc, bloc_state.JobState>(
-            listener: (context, state) {
-              if (state is bloc_state.JobError) {
-                _showToast(context, state.message, isError: true);
-              } else if (state is bloc_state.JobOperationSuccess) {
-                _showToast(context, 'Operation successful!', isError: false);
-              }
-            },
-            child: RefreshIndicator(
-              onRefresh: () async {
-                context.read<JobBloc>().add(const FetchJobsRequested(forceRefresh: true));
-              },
-              child: BlocBuilder<JobBloc, bloc_state.JobState>(
-                builder: (context, state) {
-                  List<JobItem> jobs = [];
-                  if (state is bloc_state.JobLoading && jobs.isEmpty) {
-                    if (JobService.jobItems.isNotEmpty) {
-                      jobs = JobService.jobItems;
-                    } else {
-                      return const Center(child: CircularProgressIndicator());
-                    }
-                  } else if (state is bloc_state.JobLoaded) {
-                    jobs = state.items;
-                  } else if (state is bloc_state.JobError) {
-                    if (JobService.jobItems.isNotEmpty) {
-                      jobs = JobService.jobItems;
-                    } else {
-                      return Center(child: Text('Error loading jobs: ${state.message}'));
-                    }
+        return Stack(
+          children: [
+            AmbientTimeBackground(
+              child: Scaffold(
+                backgroundColor: Colors.transparent,
+                appBar: AppBar(
+                  backgroundColor: Colors.transparent,
+                  elevation: 0,
+                  title: Text('Job Board', key: _jobsHeaderKey),
+                ),
+                body: BlocListener<JobBloc, bloc_state.JobState>(
+                listener: (context, state) {
+                  if (state is bloc_state.JobError) {
+                    _showToast(context, state.message, isError: true);
+                  } else if (state is bloc_state.JobOperationSuccess) {
+                    _showToast(context, 'Operation successful!', isError: false);
                   }
-    
-                  final isAdmin = profile.role != UserRole.student;
-                  final visibleJobs = jobs.where((j) {
-                    if (isAdmin) return true;
-                    return j.isApproved && j.isVisible;
-                  }).toList();
-    
-                  if (visibleJobs.isEmpty) {
-                    return const Center(child: Text('No jobs posted yet.'));
-                  }
-    
-                  return ListView.builder(
-                    padding: const EdgeInsets.all(16),
-                    itemCount: visibleJobs.length,
-                    itemBuilder: (context, index) => _buildJobCard(visibleJobs[index]),
-                  );
                 },
+                child: RefreshIndicator(
+                  onRefresh: () async {
+                    context.read<JobBloc>().add(const FetchJobsRequested(forceRefresh: true));
+                  },
+                  child: BlocBuilder<JobBloc, bloc_state.JobState>(
+                    builder: (context, state) {
+                      List<JobItem> jobs = [];
+                      if (state is bloc_state.JobLoading && jobs.isEmpty) {
+                        if (JobService.jobItems.isNotEmpty) {
+                          jobs = JobService.jobItems;
+                        } else {
+                          return const Center(child: CircularProgressIndicator());
+                        }
+                      } else if (state is bloc_state.JobLoaded) {
+                        jobs = state.items;
+                      } else if (state is bloc_state.JobError) {
+                        if (JobService.jobItems.isNotEmpty) {
+                          jobs = JobService.jobItems;
+                        } else {
+                          return Center(child: Text('Error loading jobs: ${state.message}'));
+                        }
+                      }
+        
+                      final visibleJobs = jobs.where((j) {
+                        if (isStaff) return true;
+                        return j.isApproved && j.isVisible;
+                      }).toList();
+        
+                      if (visibleJobs.isEmpty) {
+                        return const Center(child: Text('No jobs posted yet.'));
+                      }
+        
+                      return ListView.builder(
+                        padding: const EdgeInsets.all(16),
+                        itemCount: visibleJobs.length,
+                        itemBuilder: (context, index) => _buildJobCard(visibleJobs[index]),
+                      );
+                    },
+                  ),
+                ),
               ),
+              floatingActionButton: isStaff
+                  ? FloatingActionButton(
+                      key: _addJobFabKey,
+                      tooltip: 'Post a new job',
+                      onPressed: () => _showJobForm(context),
+                      child: const Icon(Icons.add),
+                    )
+                  : const SizedBox.shrink(),
             ),
           ),
-          floatingActionButton: ValueListenableBuilder<ProfileData>(
-            valueListenable: currentProfile,
-            builder: (context, profile, _) {
-              if (profile.role == UserRole.committeeMember || profile.role == UserRole.superUser) {
-                return FloatingActionButton(
-                  key: _addJobFabKey,
-                  tooltip: 'Post a new job',
-                  onPressed: () => _showJobForm(context),
-                  child: const Icon(Icons.add),
-                );
-              }
-              return const SizedBox.shrink();
-            },
-          ),
-        ),
-      ),
-      if (_showTour)
-        GuidedTourOverlay(
-          steps: [
-            TourStep(
-              targetKey: _jobsHeaderKey,
-              title: 'CSE Job & Career Board',
-              description: 'Find exciting internship opportunities, fresh graduate jobs, and corporate hiring posts relevant to CSE candidates here.',
+          if (_showTour)
+            GuidedTourOverlay(
+              steps: [
+                TourStep(
+                  targetKey: _jobsHeaderKey,
+                  title: 'CSE Job & Career Board',
+                  description: 'Find exciting internship opportunities, fresh graduate jobs, and corporate hiring posts relevant to CSE candidates here.',
+                ),
+                if (isStaff)
+                  TourStep(
+                    targetKey: _addJobFabKey,
+                    title: 'Add Job Listing',
+                    description: 'Tapping this button allows committee members and admins to instantly post a new career listing, with editable descriptions and deadlines.',
+                  ),
+              ],
+              onComplete: () {
+                setState(() => _showTour = false);
+                TourService.instance.completeScreenTour('jobs');
+              },
+              onSkip: () {
+                setState(() => _showTour = false);
+                TourService.instance.completeScreenTour('jobs');
+              },
             ),
-            if (isStaff)
-              TourStep(
-                targetKey: _addJobFabKey,
-                title: 'Add Job Listing',
-                description: 'Tapping this button allows committee members and admins to instantly post a new career listing, with editable descriptions and deadlines.',
-              ),
-          ],
-          onComplete: () {
-            setState(() => _showTour = false);
-            TourService.instance.completeScreenTour('jobs');
-          },
-          onSkip: () {
-            setState(() => _showTour = false);
-            TourService.instance.completeScreenTour('jobs');
-          },
-        ),
-    ],
-  );
-}
+        ],
+      );
+    });
+  }
 
   Widget _buildJobCard(JobItem job) {
     final colors = Theme.of(context).colorScheme;
     final profile = currentProfile.value;
-    final isAdmin = profile.role == UserRole.committeeMember || profile.role == UserRole.superUser;
+    final isAdmin = profile.role == UserRole.superUser ||
+        (profile.role == UserRole.committeeMember && (PermissionsService.currentPermissions.value?.canManageJobs ?? false)) ||
+        profile.designation == 'President' ||
+        profile.designation == 'Vice President';
     const iconColor = Colors.blue;
     const typeColor = Colors.teal;
 

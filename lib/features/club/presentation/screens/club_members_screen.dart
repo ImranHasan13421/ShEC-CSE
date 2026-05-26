@@ -5,6 +5,7 @@ import 'package:ShEC_CSE/core/services/tour_service.dart';
 import 'package:ShEC_CSE/features/dashboard/presentation/widgets/guided_tour_overlay.dart';
 import '../../../../backend/services/auth_service.dart';
 import '../../../profile/models/profile_state.dart';
+import 'package:ShEC_CSE/features/permissions/services/permissions_service.dart';
 import '../widgets/member_card.dart';
 import '../widgets/member_details_sheet.dart';
 import '../widgets/role_management_dialog.dart';
@@ -379,9 +380,12 @@ class _ClubMembersScreenState extends State<ClubMembersScreen> with SingleTicker
 
   void _showMemberDetails(ProfileData member) {
     final currentP = currentProfile.value;
-    final isSuperuser = currentP.designation == 'President' || currentP.designation == 'Vice President';
-    final isCommittee = currentP.role == UserRole.committeeMember;
-    final canManage = isSuperuser || isCommittee;
+    final isSuperuser = currentP.role == UserRole.superUser ||
+        currentP.designation == 'President' ||
+        currentP.designation == 'Vice President';
+    // Committee members need explicit canApproveMembers permission to manage
+    final hasApprovePermission = PermissionsService.currentPermissions.value?.canApproveMembers ?? false;
+    final canManage = isSuperuser || (currentP.role == UserRole.committeeMember && hasApprovePermission);
 
     showModalBottomSheet(
       context: context,

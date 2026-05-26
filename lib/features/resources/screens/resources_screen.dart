@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:ShEC_CSE/features/profile/models/profile_state.dart';
+import 'package:ShEC_CSE/features/permissions/services/permissions_service.dart';
+import 'package:ShEC_CSE/features/permissions/models/committee_permission.dart';
 import '../models/resource_state.dart';
 import '../presentation/bloc/resource_bloc.dart';
 import '../presentation/bloc/resource_event.dart';
@@ -570,10 +572,16 @@ class _PdfsScreenState extends State<PdfsScreen> {
                             ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Opening resource link...')));
                           },
                         ),
-                        ValueListenableBuilder<ProfileData>(
-                          valueListenable: currentProfile,
-                          builder: (context, profile, _) {
-                            if (profile.role == UserRole.committeeMember || profile.role == UserRole.superUser) {
+                        ValueListenableBuilder<CommitteePermission?>(
+                          valueListenable: PermissionsService.currentPermissions,
+                          builder: (context, currentPerms, _) {
+                            final profile = currentProfile.value;
+                            final canManage = profile.role == UserRole.superUser ||
+                                (profile.role == UserRole.committeeMember && (currentPerms?.canManageResources ?? false)) ||
+                                profile.designation == 'President' ||
+                                profile.designation == 'Vice President';
+
+                            if (canManage) {
                               return Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
@@ -602,10 +610,16 @@ class _PdfsScreenState extends State<PdfsScreen> {
           },
         ),
       ),
-      floatingActionButton: ValueListenableBuilder<ProfileData>(
-        valueListenable: currentProfile,
-        builder: (context, profile, _) {
-          if (profile.role == UserRole.committeeMember || profile.role == UserRole.superUser) {
+      floatingActionButton: ValueListenableBuilder<CommitteePermission?>(
+        valueListenable: PermissionsService.currentPermissions,
+        builder: (context, currentPerms, _) {
+          final profile = currentProfile.value;
+          final canManage = profile.role == UserRole.superUser ||
+              (profile.role == UserRole.committeeMember && (currentPerms?.canManageResources ?? false)) ||
+              profile.designation == 'President' ||
+              profile.designation == 'Vice President';
+
+          if (canManage) {
             return FloatingActionButton.extended(
               backgroundColor: widget.color,
               foregroundColor: Colors.white,

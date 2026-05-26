@@ -5,6 +5,7 @@ import 'package:ShEC_CSE/features/dashboard/screens/main_screen.dart';
 import 'package:ShEC_CSE/features/auth/screens/auth_animated_screen.dart';
 import 'package:ShEC_CSE/features/auth/screens/pending_approval_screen.dart';
 import 'package:ShEC_CSE/features/profile/models/profile_state.dart';
+import 'package:ShEC_CSE/features/permissions/services/permissions_service.dart';
 
 import '../../../backend/services/auth_service.dart';
 
@@ -39,6 +40,12 @@ class _SplashScreenState extends State<SplashScreen> {
         await AuthService.fetchCurrentUserProfile();
       } catch (e) {
         debugPrint('Splash profile fetch error: $e');
+      }
+    } else if (widget.isLoggedIn && currentProfile.value.id.isNotEmpty) {
+      try {
+        await PermissionsService.loadCurrentPermissions(currentProfile.value);
+      } catch (e) {
+        debugPrint('Splash permissions fetch error: $e');
       }
     }
 

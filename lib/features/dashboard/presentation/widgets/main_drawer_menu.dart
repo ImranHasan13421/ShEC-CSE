@@ -22,6 +22,7 @@ import 'package:ShEC_CSE/features/about/screens/contributors_screen.dart';
 import 'package:ShEC_CSE/features/alumni/screens/alumni_screen.dart';
 import 'package:ShEC_CSE/features/accounting/presentation/screens/accounting_dashboard_screen.dart';
 import 'package:ShEC_CSE/features/dashboard/screens/aesthetics_settings_screen.dart';
+import 'package:ShEC_CSE/features/permissions/screens/committee_permissions_screen.dart';
 
 class MainDrawerMenu extends StatelessWidget {
   final ColorScheme colors;
@@ -159,6 +160,34 @@ class MainDrawerMenu extends StatelessWidget {
                           const Padding(
                             padding: EdgeInsets.symmetric(vertical: 8.0),
                             child: Divider(color: Colors.grey, thickness: 0.1),
+                          ),
+                          ValueListenableBuilder<ProfileData>(
+                            valueListenable: currentProfile,
+                            builder: (context, profile, _) {
+                              final isCommitteeOrAdmin = profile.role == UserRole.committeeMember ||
+                                  profile.role == UserRole.superUser ||
+                                  profile.designation == 'President' ||
+                                  profile.designation == 'Vice President';
+
+                              if (!isCommitteeOrAdmin) return const SizedBox.shrink();
+
+                              return Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  _menuItem(
+                                    context,
+                                    controller,
+                                    icon: Icons.shield_outlined,
+                                    title: 'Committee Permissions',
+                                    destination: const CommitteePermissionsScreen(),
+                                  ),
+                                  const Padding(
+                                    padding: EdgeInsets.symmetric(vertical: 8.0),
+                                    child: Divider(color: Colors.grey, thickness: 0.1),
+                                  ),
+                                ],
+                              );
+                            },
                           ),
                           _menuSectionHeader('Abouts'),
                           _menuItem(
