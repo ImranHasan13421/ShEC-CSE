@@ -8,6 +8,9 @@ final ValueNotifier<double> ambientAnimationSpeed = ValueNotifier(1.0); // Range
 final ValueNotifier<int> ambientSparkleDensity = ValueNotifier(65); // Ranges from 10 to 150 particles
 final ValueNotifier<bool> ambientBackgroundEnabled = ValueNotifier(true); // Toggle to completely turn off the ambient background
 final ValueNotifier<String> ambientStyle = ValueNotifier('aurora'); // Options: aurora, cyberpunk, cosmic, ocean, autumn
+final ValueNotifier<String> ambientPattern = ValueNotifier('none'); // Options: none, dots, grid, waves, stripes
+final ValueNotifier<bool> ambientAuroraEnabled = ValueNotifier(true); // Toggle on/off for aesthetic dynamic blobs
+final ValueNotifier<String> ambientWallpaper = ValueNotifier('none'); // Options: none, starry, geometric, wave, tech_grid
 
 class AmbientSettings {
   static Future<void> init() async {
@@ -17,6 +20,9 @@ class AmbientSettings {
       ambientSparkleDensity.value = prefs.getInt('ambient_sparkle_density') ?? 65;
       ambientBackgroundEnabled.value = prefs.getBool('ambient_background_enabled') ?? true;
       ambientStyle.value = prefs.getString('ambient_style') ?? 'aurora';
+      ambientPattern.value = prefs.getString('ambient_pattern') ?? 'none';
+      ambientAuroraEnabled.value = prefs.getBool('ambient_aurora_enabled') ?? true;
+      ambientWallpaper.value = prefs.getString('ambient_wallpaper') ?? 'none';
     } catch (e) {
       debugPrint('Error loading ambient background settings: $e');
     }
@@ -37,6 +43,18 @@ class AmbientSettings {
     ambientStyle.addListener(() async {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('ambient_style', ambientStyle.value);
+    });
+    ambientPattern.addListener(() async {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('ambient_pattern', ambientPattern.value);
+    });
+    ambientAuroraEnabled.addListener(() async {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool('ambient_aurora_enabled', ambientAuroraEnabled.value);
+    });
+    ambientWallpaper.addListener(() async {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('ambient_wallpaper', ambientWallpaper.value);
     });
   }
 }
@@ -85,6 +103,9 @@ class AmbientTimeBackground extends StatefulWidget {
   final int? overrideDensity;
   final String? overrideStyle;
   final ColorScheme? overrideColorScheme;
+  final String? overridePattern;
+  final bool? overrideAuroraEnabled;
+  final String? overrideWallpaper;
 
   const AmbientTimeBackground({
     super.key,
@@ -95,6 +116,9 @@ class AmbientTimeBackground extends StatefulWidget {
     this.overrideDensity,
     this.overrideStyle,
     this.overrideColorScheme,
+    this.overridePattern,
+    this.overrideAuroraEnabled,
+    this.overrideWallpaper,
   });
 
   @override
@@ -217,14 +241,22 @@ class _AmbientTimeBackgroundState extends State<AmbientTimeBackground> with Sing
         ambientSparkleDensity,
         ambientBackgroundEnabled,
         ambientStyle,
+        ambientPattern,
+        ambientAuroraEnabled,
+        ambientWallpaper,
       ]),
       builder: (context, _) {
         final speedFactor = widget.overrideSpeed ?? ambientAnimationSpeed.value;
         final densityCount = widget.overrideDensity ?? ambientSparkleDensity.value;
-        final isEnabled = widget.overrideEnabled ?? ambientBackgroundEnabled.value;
+        final isSparklesEnabled = widget.overrideEnabled ?? ambientBackgroundEnabled.value;
         final currentStyle = widget.overrideStyle ?? ambientStyle.value;
+        final currentPattern = widget.overridePattern ?? ambientPattern.value;
+        final isAuroraEnabled = widget.overrideAuroraEnabled ?? ambientAuroraEnabled.value;
+        final currentWallpaper = widget.overrideWallpaper ?? ambientWallpaper.value;
+        final isDark = Theme.of(context).brightness == Brightness.dark;
 
-        if (!isEnabled) {
+        // Draw flat container only if absolutely nothing is enabled (no sparkles, no auroras, no patterns, no custom wallpapers)
+        if (!isSparklesEnabled && !isAuroraEnabled && currentPattern == 'none' && currentWallpaper == 'none') {
           return Container(
             color: colors.baseBackground,
             child: widget.useSafeArea ? SafeArea(child: widget.child) : widget.child,
@@ -233,7 +265,7 @@ class _AmbientTimeBackgroundState extends State<AmbientTimeBackground> with Sing
 
         return Stack(
           children: [
-            // 1. Slow Aurora Mesh Blobs
+            // 1. Slow Aurora Mesh Blobs / Wallpapers / Patterns Layer
             Positioned.fill(
               child: RepaintBoundary(
                 child: CustomPaint(
@@ -241,32 +273,38 @@ class _AmbientTimeBackgroundState extends State<AmbientTimeBackground> with Sing
                     animationValue: _animationController.value,
                     colors: colors,
                     style: currentStyle,
+                    pattern: currentPattern,
+                    auroraEnabled: isAuroraEnabled,
+                    wallpaper: currentWallpaper,
+                    isDark: isDark,
                   ),
                 ),
               ),
             ),
-            // 2. High-Performance Gaussian Soft Blur
-            Positioned.fill(
-              child: BackdropFilter(
-                filter: ImageFilter.blur(sigmaX: 35, sigmaY: 35),
-                child: Container(color: Colors.transparent),
+            // 2. High-Performance Gaussian Soft Blur (Only rendered when dynamic auroras are enabled to diffuse colors)
+            if (isAuroraEnabled)
+              Positioned.fill(
+                child: BackdropFilter(
+                  filter: ImageFilter.blur(sigmaX: 35, sigmaY: 35),
+                  child: Container(color: Colors.transparent),
+                ),
               ),
-            ),
-            // 3. Crisp, High-Density Sparkles floating over the blurred backdrop
-            Positioned.fill(
-              child: RepaintBoundary(
-                child: CustomPaint(
-                  painter: SparklesPainter(
-                    animationValue: _animationController.value,
-                    particles: _particles,
-                    sparkleColor: colors.sparkleColor,
-                    speedFactor: speedFactor,
-                    density: densityCount,
-                    style: currentStyle,
+            // 3. Crisp, High-Density Sparkles floating over the blurred backdrop (Only rendered when sparkles are enabled)
+            if (isSparklesEnabled)
+              Positioned.fill(
+                child: RepaintBoundary(
+                  child: CustomPaint(
+                    painter: SparklesPainter(
+                      animationValue: _animationController.value,
+                      particles: _particles,
+                      sparkleColor: colors.sparkleColor,
+                      speedFactor: speedFactor,
+                      density: densityCount,
+                      style: currentStyle,
+                    ),
                   ),
                 ),
               ),
-            ),
             // 4. Child Content Layer
             Positioned.fill(
               child: widget.useSafeArea ? SafeArea(child: widget.child) : widget.child,
@@ -282,11 +320,19 @@ class AuroraBlobsPainter extends CustomPainter {
   final double animationValue;
   final AmbientColors colors;
   final String style;
+  final String pattern;
+  final bool auroraEnabled;
+  final String wallpaper;
+  final bool isDark;
 
   AuroraBlobsPainter({
     required this.animationValue,
     required this.colors,
     required this.style,
+    required this.pattern,
+    required this.auroraEnabled,
+    required this.wallpaper,
+    required this.isDark,
   });
 
   @override
@@ -295,20 +341,130 @@ class AuroraBlobsPainter extends CustomPainter {
 
     // Background color determination
     Color baseBg = colors.baseBackground;
-    if (style == 'cyberpunk') {
-      baseBg = const Color(0xFF0C0B10); // Extremely dark cyber slate
-    } else if (style == 'cosmic') {
-      baseBg = const Color(0xFF03020A); // Deep void black
-    } else if (style == 'ocean') {
-      baseBg = const Color(0xFF08121E); // Deep ocean abyssal navy
-    } else if (style == 'autumn') {
-      baseBg = const Color(0xFF1B110B); // Warm forest bark brown
+    
+    if (wallpaper == 'starry') {
+      baseBg = const Color(0xFF02020A); // Very deep starry space void
+    } else if (wallpaper == 'geometric') {
+      baseBg = isDark ? const Color(0xFF0C0B12) : const Color(0xFFF3F5F9);
+    } else if (wallpaper == 'wave') {
+      baseBg = isDark ? const Color(0xFF06060E) : const Color(0xFFF9FAFD);
+    } else if (wallpaper == 'tech_grid') {
+      baseBg = isDark ? const Color(0xFF07090F) : const Color(0xFFEFF1F6);
+    } else {
+      // Standard style background fallback
+      if (style == 'cyberpunk' && auroraEnabled) {
+        baseBg = const Color(0xFF0C0B10); // Extremely dark cyber slate
+      } else if (style == 'cosmic' && auroraEnabled) {
+        baseBg = const Color(0xFF03020A); // Deep void black
+      } else if (style == 'ocean' && auroraEnabled) {
+        baseBg = const Color(0xFF08121E); // Deep ocean abyssal navy
+      } else if (style == 'autumn' && auroraEnabled) {
+        baseBg = const Color(0xFF1B110B); // Warm forest bark brown
+      }
     }
+    
     paint.color = baseBg;
     canvas.drawRect(Offset.zero & size, paint);
 
+    // Render wallpaper designs if active
+    if (wallpaper != 'none') {
+      if (wallpaper == 'starry') {
+        // Draw static constellation lines
+        final linePaint = Paint()
+          ..color = isDark ? Colors.white.withValues(alpha: 0.08) : Colors.black.withValues(alpha: 0.06)
+          ..strokeWidth = 1.0
+          ..style = PaintingStyle.stroke;
+        
+        // Draw constellations
+        canvas.drawLine(Offset(size.width * 0.15, size.height * 0.2), Offset(size.width * 0.35, size.height * 0.15), linePaint);
+        canvas.drawLine(Offset(size.width * 0.35, size.height * 0.15), Offset(size.width * 0.45, size.height * 0.3), linePaint);
+        canvas.drawLine(Offset(size.width * 0.45, size.height * 0.3), Offset(size.width * 0.25, size.height * 0.35), linePaint);
+        canvas.drawLine(Offset(size.width * 0.25, size.height * 0.35), Offset(size.width * 0.15, size.height * 0.2), linePaint);
+        
+        canvas.drawLine(Offset(size.width * 0.65, size.height * 0.6), Offset(size.width * 0.8, size.height * 0.55), linePaint);
+        canvas.drawLine(Offset(size.width * 0.8, size.height * 0.55), Offset(size.width * 0.9, size.height * 0.72), linePaint);
+        canvas.drawLine(Offset(size.width * 0.9, size.height * 0.72), Offset(size.width * 0.7, size.height * 0.78), linePaint);
+        canvas.drawLine(Offset(size.width * 0.7, size.height * 0.78), Offset(size.width * 0.65, size.height * 0.6), linePaint);
+
+        // Glowing star dots
+        final starPaint = Paint()..color = isDark ? Colors.white.withValues(alpha: 0.35) : Colors.black.withValues(alpha: 0.25);
+        canvas.drawCircle(Offset(size.width * 0.15, size.height * 0.2), 2.5, starPaint);
+        canvas.drawCircle(Offset(size.width * 0.35, size.height * 0.15), 3.2, starPaint);
+        canvas.drawCircle(Offset(size.width * 0.45, size.height * 0.3), 2.0, starPaint);
+        canvas.drawCircle(Offset(size.width * 0.25, size.height * 0.35), 2.5, starPaint);
+        canvas.drawCircle(Offset(size.width * 0.65, size.height * 0.6), 3.0, starPaint);
+        canvas.drawCircle(Offset(size.width * 0.8, size.height * 0.55), 2.0, starPaint);
+        canvas.drawCircle(Offset(size.width * 0.9, size.height * 0.72), 3.5, starPaint);
+        canvas.drawCircle(Offset(size.width * 0.7, size.height * 0.78), 2.5, starPaint);
+      } else if (wallpaper == 'geometric') {
+        final shapePaint = Paint()
+          ..style = PaintingStyle.fill
+          ..color = colors.color1.withValues(alpha: isDark ? 0.045 : 0.035);
+        
+        // Drawing overlapping circles and large diamond shapes
+        canvas.drawCircle(Offset(size.width * 0.15, size.height * 0.28), size.width * 0.38, shapePaint);
+        shapePaint.color = colors.color2.withValues(alpha: isDark ? 0.035 : 0.025);
+        canvas.drawCircle(Offset(size.width * 0.85, size.height * 0.72), size.width * 0.42, shapePaint);
+        
+        shapePaint.color = colors.color3.withValues(alpha: isDark ? 0.025 : 0.015);
+        final Path diamond = Path()
+          ..moveTo(size.width * 0.5, size.height * 0.22)
+          ..lineTo(size.width * 0.78, size.height * 0.42)
+          ..lineTo(size.width * 0.5, size.height * 0.62)
+          ..lineTo(size.width * 0.22, size.height * 0.42)
+          ..close();
+        canvas.drawPath(diamond, shapePaint);
+      } else if (wallpaper == 'wave') {
+        final wavePaint = Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 1.6;
+        
+        for (int i = 0; i < 3; i++) {
+          wavePaint.color = (i == 0 
+              ? colors.color1 
+              : i == 1 
+                  ? colors.color2 
+                  : colors.color3).withValues(alpha: isDark ? 0.08 : 0.05);
+          final Path path = Path();
+          final double startY = size.height * (0.3 + i * 0.22);
+          path.moveTo(0, startY);
+          for (double x = 0; x <= size.width; x += 10) {
+            final double y = startY + math.sin(x / 45 + i) * 16;
+            path.lineTo(x, y);
+          }
+          canvas.drawPath(path, wavePaint);
+        }
+      } else if (wallpaper == 'tech_grid') {
+        final gridPaint = Paint()
+          ..color = colors.color1.withValues(alpha: isDark ? 0.03 : 0.02)
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 0.8;
+
+        // Grid lines
+        const double spacing = 48.0;
+        for (double x = 0; x < size.width; x += spacing) {
+          canvas.drawLine(Offset(x, 0), Offset(x, size.height), gridPaint);
+        }
+        for (double y = 0; y < size.height; y += spacing) {
+          canvas.drawLine(Offset(0, y), Offset(size.width, y), gridPaint);
+        }
+
+        // Concentric technology crosshairs/dots
+        final markPaint = Paint()
+          ..color = colors.color2.withValues(alpha: isDark ? 0.06 : 0.04)
+          ..style = PaintingStyle.fill;
+        
+        for (double x = 0; x < size.width; x += spacing * 2) {
+          for (double y = 0; y < size.height; y += spacing * 2) {
+            canvas.drawCircle(Offset(x, y), 1.8, markPaint);
+          }
+        }
+      }
+    }
+
     // Dynamic style blobs
-    if (style == 'cyberpunk') {
+    if (auroraEnabled) {
+      if (style == 'cyberpunk') {
       // 1. Neon Cyber Grids (Draw standard lines with opacity for digital feel)
       final gridPaint = Paint()
         ..color = colors.color1.withValues(alpha: 0.05)
@@ -442,12 +598,60 @@ class AuroraBlobsPainter extends CustomPainter {
     }
   }
 
-  @override
-  bool shouldRepaint(covariant AuroraBlobsPainter oldDelegate) {
-    return oldDelegate.animationValue != animationValue ||
-        oldDelegate.colors != colors ||
-        oldDelegate.style != style;
+  // Draw static background patterns
+  if (pattern != 'none') {
+    final patternPaint = Paint()
+      ..color = isDark ? Colors.white.withValues(alpha: 0.035) : Colors.black.withValues(alpha: 0.025)
+      ..style = PaintingStyle.stroke;
+
+    if (pattern == 'dots') {
+      patternPaint.style = PaintingStyle.fill;
+      const double spacing = 24.0;
+      for (double x = spacing / 2; x < size.width; x += spacing) {
+        for (double y = spacing / 2; y < size.height; y += spacing) {
+          canvas.drawCircle(Offset(x, y), 1.2, patternPaint);
+        }
+      }
+    } else if (pattern == 'grid') {
+      patternPaint.strokeWidth = 0.8;
+      const double spacing = 32.0;
+      for (double x = 0; x < size.width; x += spacing) {
+        canvas.drawLine(Offset(x, 0), Offset(x, size.height), patternPaint);
+      }
+      for (double y = 0; y < size.height; y += spacing) {
+        canvas.drawLine(Offset(0, y), Offset(size.width, y), patternPaint);
+      }
+    } else if (pattern == 'waves') {
+      patternPaint.strokeWidth = 1.0;
+      const double spacing = 40.0;
+      for (double y = spacing; y < size.height; y += spacing) {
+        final Path path = Path();
+        path.moveTo(0, y);
+        for (double x = 0; x < size.width; x += 12) {
+          path.lineTo(x, y + math.sin(x / 30) * 4);
+        }
+        canvas.drawPath(path, patternPaint);
+      }
+    } else if (pattern == 'stripes') {
+      patternPaint.strokeWidth = 1.2;
+      const double spacing = 45.0;
+      for (double i = -size.height; i < size.width; i += spacing) {
+        canvas.drawLine(Offset(i, 0), Offset(i + size.height, size.height), patternPaint);
+      }
+    }
   }
+}
+
+@override
+bool shouldRepaint(covariant AuroraBlobsPainter oldDelegate) {
+  return oldDelegate.animationValue != animationValue ||
+      oldDelegate.colors != colors ||
+      oldDelegate.style != style ||
+      oldDelegate.pattern != pattern ||
+      oldDelegate.auroraEnabled != auroraEnabled ||
+      oldDelegate.wallpaper != wallpaper ||
+      oldDelegate.isDark != isDark;
+}
 }
 
 class SparklesPainter extends CustomPainter {
