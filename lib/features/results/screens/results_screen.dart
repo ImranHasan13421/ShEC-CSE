@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:ShEC_CSE/features/dashboard/presentation/widgets/ambient_background.dart';
+import 'package:ShEC_CSE/core/services/tour_service.dart';
+import 'package:ShEC_CSE/features/dashboard/presentation/widgets/guided_tour_overlay.dart';
 import '../../profile/models/profile_state.dart';
 import '../models/result_state.dart';
 import '../../../backend/services/result_service.dart';
@@ -21,6 +23,13 @@ class _ResultsScreenState extends State<ResultsScreen> with SingleTickerProvider
   late TabController _tabController;
   bool _isSyncing = false;
 
+  // Guided Tour keys and control state
+  final GlobalKey _syncButtonKey = GlobalKey();
+  final GlobalKey _tabBarKey = GlobalKey();
+  final GlobalKey _chartKey = GlobalKey();
+  final GlobalKey _fabKey = GlobalKey();
+  bool _showTour = false;
+
   @override
   void initState() {
     super.initState();
@@ -29,6 +38,21 @@ class _ResultsScreenState extends State<ResultsScreen> with SingleTickerProvider
 
     // Initial load for own results
     context.read<ResultBloc>().add(LoadResultsRequested());
+
+    // Trigger onboarding guided tour
+    TourService.instance.hasCompletedScreenTour('results_tour').then((completed) {
+      if (!completed) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          Future.delayed(const Duration(milliseconds: 1000), () {
+            if (mounted) {
+              setState(() {
+                _showTour = true;
+              });
+            }
+          });
+        });
+      }
+    });
   }
 
   void _handleTabSelection() {
@@ -71,117 +95,157 @@ class _ResultsScreenState extends State<ResultsScreen> with SingleTickerProvider
       builder: (context, state) {
         final isSyncing = state.isSyncing;
 
-        return AmbientTimeBackground(
-          child: Scaffold(
-            backgroundColor: Colors.transparent,
-            appBar: AppBar(
-              backgroundColor: Colors.transparent,
-              elevation: 0,
-              title: const Text('Academic Results'),
-            actions: [
-              if (isSyncing)
-                const Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 20.0),
-                  child: Center(
-                    child: SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    ),
-                  ),
-                )
-              else ...[
-                IconButton(
-                  icon: const Icon(Icons.sync),
-                  tooltip: 'Sync Results',
-                  onPressed: () {
-                    if (_tabController.index == 0) {
-                      context.read<ResultBloc>().add(SyncResultsRequested());
-                    } else {
-                      context.read<ResultBloc>().add(LoadBatchResultsRequested(session: currentProfile.value.session));
-                    }
-                  },
-                ),
-                if (currentProfile.value.role == UserRole.superUser || 
-                    currentProfile.value.designation == 'President' || 
-                    currentProfile.value.designation == 'Vice President')
-                  PopupMenuButton<String>(
-                    icon: const Icon(Icons.admin_panel_settings),
-                    onSelected: (val) {
-                      if (val == 'session') {
-                        _showAdminIdDialog('Session');
-                      }
-                      if (val == 'exam') {
-                        showDialog(
-                          context: context,
-                          builder: (context) => const _ManageExamsDialog(),
-                        );
-                      }
-                    },
-                    itemBuilder: (context) => [
-                      const PopupMenuItem(value: 'session', child: Text('Manage Session IDs')),
-                      const PopupMenuItem(value: 'exam', child: Text('Manage Exam IDs')),
-                    ],
-                  ),
-              ],
-            ],
-            bottom: TabBar(
-              controller: _tabController,
-              tabs: const [
-                Tab(text: 'My Dashboard', icon: Icon(Icons.dashboard_outlined)),
-                Tab(text: 'Batch Directory', icon: Icon(Icons.group_outlined)),
-              ],
-            ),
-          ),
-          body: TabBarView(
-            controller: _tabController,
-            children: [
-              // Tab 1: My Dashboard
-              Column(
-                children: [
-                  // Progress Bar at the Top
-                  if (isSyncing)
-                    Column(
-                      children: [
-                        const LinearProgressIndicator(),
-                        Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 8.0),
-                          child: Text(
-                            'Syncing academic results... please wait',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: colors.primary,
-                              fontWeight: FontWeight.w500,
-                            ),
+        return Stack(
+          children: [
+            AmbientTimeBackground(
+              child: Scaffold(
+                backgroundColor: Colors.transparent,
+                appBar: AppBar(
+                  backgroundColor: Colors.transparent,
+                  elevation: 0,
+                  title: const Text('Academic Results'),
+                  actions: [
+                    if (isSyncing)
+                      const Padding(
+                        padding: EdgeInsets.symmetric(horizontal: 20.0),
+                        child: Center(
+                          child: SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(strokeWidth: 2),
                           ),
                         ),
+                      )
+                    else ...[
+                      IconButton(
+                        key: _syncButtonKey,
+                        icon: const Icon(Icons.sync),
+                        tooltip: 'Sync Results',
+                        onPressed: () {
+                          if (_tabController.index == 0) {
+                            context.read<ResultBloc>().add(SyncResultsRequested());
+                          } else {
+                            context.read<ResultBloc>().add(LoadBatchResultsRequested(session: currentProfile.value.session));
+                          }
+                        },
+                      ),
+                      if (currentProfile.value.role == UserRole.superUser || 
+                          currentProfile.value.designation == 'President' || 
+                          currentProfile.value.designation == 'Vice President')
+                        PopupMenuButton<String>(
+                          icon: const Icon(Icons.admin_panel_settings),
+                          onSelected: (val) {
+                            if (val == 'session') {
+                              _showAdminIdDialog('Session');
+                            }
+                            if (val == 'exam') {
+                              showDialog(
+                                context: context,
+                                builder: (context) => const _ManageExamsDialog(),
+                              );
+                            }
+                          },
+                          itemBuilder: (context) => [
+                            const PopupMenuItem(value: 'session', child: Text('Manage Session IDs')),
+                            const PopupMenuItem(value: 'exam', child: Text('Manage Exam IDs')),
+                          ],
+                        ),
+                    ],
+                  ],
+                  bottom: TabBar(
+                    key: _tabBarKey,
+                    controller: _tabController,
+                    tabs: const [
+                      Tab(text: 'My Dashboard', icon: Icon(Icons.dashboard_outlined)),
+                      Tab(text: 'Batch Directory', icon: Icon(Icons.group_outlined)),
+                    ],
+                  ),
+                ),
+                body: TabBarView(
+                  controller: _tabController,
+                  children: [
+                    // Tab 1: My Dashboard
+                    Column(
+                      children: [
+                        // Progress Bar at the Top
+                        if (isSyncing)
+                          Column(
+                            children: [
+                              const LinearProgressIndicator(),
+                              Padding(
+                                padding: const EdgeInsets.symmetric(vertical: 8.0),
+                                child: Text(
+                                  'Syncing academic results... please wait',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: colors.primary,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          )
+                        else
+                          const SizedBox(height: 4), // Spacer when not syncing
+                        
+                        Expanded(
+                          child: _buildOwnDashboard(context, state, colors),
+                        ),
                       ],
-                    )
-                  else
-                    const SizedBox(height: 4), // Spacer when not syncing
-                  
-                  Expanded(
-                    child: _buildOwnDashboard(context, state, colors),
+                    ),
+                    // Tab 2: Batch Directory
+                    const BatchResultsTab(),
+                  ],
+                ),
+                floatingActionButton: isSyncing || _tabController.index == 1
+                    ? null
+                    : FloatingActionButton.extended(
+                        key: _fabKey,
+                        onPressed: () {
+                          showDialog(
+                            context: context,
+                            builder: (context) => const _FetchSpecificResultDialog(),
+                          );
+                        },
+                        label: const Text('Fetch Specific Exam'),
+                        icon: const Icon(Icons.sync_alt),
+                      ),
+              ),
+            ),
+            if (_showTour)
+              GuidedTourOverlay(
+                steps: [
+                  TourStep(
+                    targetKey: _syncButtonKey,
+                    title: 'Sync Academic Results',
+                    description: 'Tap this icon to securely fetch and synchronize your official exam results from the DUCMC portal.',
+                  ),
+                  TourStep(
+                    targetKey: _tabBarKey,
+                    title: 'Personal vs Batch Directories',
+                    description: 'Toggle between "My Dashboard" for your results and "Batch Directory" to view/search session results.',
+                  ),
+                  TourStep(
+                    targetKey: _chartKey,
+                    title: 'CGPA Prediction & Metrics',
+                    description: 'Visualize your academic path with an interactive forecasting chart. Slide predictions to see how future GPA targets affect your final graduation grade!',
+                  ),
+                  TourStep(
+                    targetKey: _fabKey,
+                    title: 'Manual Exam Fetcher',
+                    description: 'Use the floating manual query builder to search, select, and pull specific academic sessions/exams.',
                   ),
                 ],
+                onComplete: () {
+                  setState(() => _showTour = false);
+                  TourService.instance.completeScreenTour('results_tour');
+                },
+                onSkip: () {
+                  setState(() => _showTour = false);
+                  TourService.instance.completeScreenTour('results_tour');
+                },
               ),
-              // Tab 2: Batch Directory
-              const BatchResultsTab(),
-            ],
-          ),
-          floatingActionButton: isSyncing || _tabController.index == 1
-              ? null
-              : FloatingActionButton.extended(
-                  onPressed: () {
-                    showDialog(
-                      context: context,
-                      builder: (context) => const _FetchSpecificResultDialog(),
-                    );
-                  },
-                  label: const Text('Fetch Specific Exam'),
-                  icon: const Icon(Icons.sync_alt),
-                ),
-          ),
+          ],
         );
       },
     );
@@ -201,6 +265,7 @@ class _ResultsScreenState extends State<ResultsScreen> with SingleTickerProvider
         child: Padding(
           padding: const EdgeInsets.all(32.0),
           child: Column(
+            key: _chartKey,
             mainAxisSize: MainAxisSize.min,
             children: [
               Icon(Icons.assignment_late, size: 64, color: colors.onSurface.withValues(alpha: 0.3)),
@@ -225,7 +290,7 @@ class _ResultsScreenState extends State<ResultsScreen> with SingleTickerProvider
       padding: const EdgeInsets.all(16.0),
       children: [
         // 1. CGPA Prediction Chart Card
-        CgpaPredictionChart(results: results),
+        CgpaPredictionChart(key: _chartKey, results: results),
         const SizedBox(height: 20),
 
         // 2. Header

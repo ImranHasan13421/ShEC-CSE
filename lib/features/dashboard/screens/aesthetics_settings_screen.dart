@@ -2,6 +2,8 @@
 import 'package:flutter/material.dart';
 import 'package:ShEC_CSE/features/dashboard/presentation/widgets/ambient_background.dart';
 import 'package:ShEC_CSE/core/services/theme_service.dart';
+import 'package:ShEC_CSE/core/services/tour_service.dart';
+import 'package:ShEC_CSE/features/dashboard/presentation/widgets/guided_tour_overlay.dart';
 
 class AestheticsSettingsScreen extends StatefulWidget {
   const AestheticsSettingsScreen({super.key});
@@ -19,6 +21,13 @@ class _AestheticsSettingsScreenState extends State<AestheticsSettingsScreen> {
   late AppColorTheme _localColorTheme;
   late AppThemeMode _localThemeMode;
   late int _localCustomColorValue;
+
+  final GlobalKey _previewCardKey = GlobalKey();
+  final GlobalKey _ambientSwitchKey = GlobalKey();
+  final GlobalKey _styleSelectorKey = GlobalKey();
+  final GlobalKey _colorGridKey = GlobalKey();
+  final GlobalKey _saveButtonKey = GlobalKey();
+  bool _showTour = false;
 
   // HSL Color Pick state
   late double _hueValue; // Hue value ranges from 0.0 to 360.0 degrees
@@ -41,6 +50,20 @@ class _AestheticsSettingsScreenState extends State<AestheticsSettingsScreen> {
     final Color currentCustomColor = Color(_localCustomColorValue);
     final HSVColor hsv = HSVColor.fromColor(currentCustomColor);
     _hueValue = hsv.hue;
+
+    TourService.instance.hasCompletedScreenTour('aesthetics_settings').then((completed) {
+      if (!completed) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          Future.delayed(const Duration(milliseconds: 1000), () {
+            if (mounted) {
+              setState(() {
+                _showTour = true;
+              });
+            }
+          });
+        });
+      }
+    });
   }
 
   // Generate a local ColorScheme representation to pass into the mockup preview card
@@ -132,245 +155,295 @@ class _AestheticsSettingsScreenState extends State<AestheticsSettingsScreen> {
     final currentThemeScheme = Theme.of(context).colorScheme;
     final ColorScheme previewScheme = _getLocalColorScheme();
 
-    return AmbientTimeBackground(
-      // Keep background constant while configuring
-      child: Scaffold(
-        backgroundColor: Colors.transparent,
-        appBar: AppBar(
-          backgroundColor: Colors.transparent,
-          elevation: 0,
-          title: const Text(
-            'Aesthetics & Themes',
-            style: TextStyle(fontWeight: FontWeight.bold),
-          ),
-        ),
-        body: Column(
-          children: [
-            Expanded(
-              child: SingleChildScrollView(
-                physics: const BouncingScrollPhysics(),
-                padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 10.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    // 1. Live Preview Panel (decopled - reads only local _local variables)
-                    _buildLivePreviewCard(previewScheme),
-                    const SizedBox(height: 20),
-
-                    // 2. Ambient Background Switch Control
-                    _buildGlassCard(
-                      child: SwitchListTile(
-                        activeColor: previewScheme.primary,
-                        title: Row(
-                          children: [
-                            Icon(Icons.auto_awesome, color: previewScheme.primary),
-                            const SizedBox(width: 12),
-                            const Text(
-                              'Ambient Background',
-                              style: TextStyle(fontWeight: FontWeight.bold),
-                            ),
-                          ],
-                        ),
-                        subtitle: const Padding(
-                          padding: EdgeInsets.only(top: 4.0),
-                          child: Text(
-                            'Enable live, time-based drifting aurora meshes, soft blurs, and sparkling particles. Disabling this is helpful for battery savings or solid readability.',
-                            style: TextStyle(fontSize: 12),
-                          ),
-                        ),
-                        value: _localEnabled,
-                        onChanged: (val) {
-                          setState(() => _localEnabled = val);
-                        },
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-
-                    // 3. Aesthetic Styles Selector ( Aurora, Cyberpunk, Cosmic, Ocean, Autumn )
-                    AnimatedOpacity(
-                      duration: const Duration(milliseconds: 250),
-                      opacity: _localEnabled ? 1.0 : 0.4,
-                      child: AbsorbPointer(
-                        absorbing: !_localEnabled,
-                        child: _buildGlassCard(
-                          child: Padding(
-                            padding: const EdgeInsets.all(16.0),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  'AESTHETIC STYLE',
-                                  style: TextStyle(
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.w800,
-                                    letterSpacing: 1.2,
-                                    color: previewScheme.primary,
-                                  ),
-                                ),
-                                const SizedBox(height: 16),
-                                _buildStyleSelectionGrid(previewScheme),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-
-                    // 4. Ambient Sliders (Density and Speed) - decoupled
-                    AnimatedOpacity(
-                      duration: const Duration(milliseconds: 250),
-                      opacity: _localEnabled ? 1.0 : 0.4,
-                      child: AbsorbPointer(
-                        absorbing: !_localEnabled,
-                        child: _buildGlassCard(
-                          child: Padding(
-                            padding: const EdgeInsets.all(16.0),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  'ANIMATION PREFERENCES',
-                                  style: TextStyle(
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.w800,
-                                    letterSpacing: 1.2,
-                                    color: previewScheme.primary,
-                                  ),
-                                ),
-                                const SizedBox(height: 16),
-                                // Density Slider
-                                Row(
-                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                  children: [
-                                    const Text('Sparkle Density', style: TextStyle(fontWeight: FontWeight.bold)),
-                                    Text('$_localDensity particles',
-                                        style: TextStyle(color: previewScheme.primary, fontWeight: FontWeight.bold)),
-                                  ],
-                                ),
-                                Slider(
-                                  value: _localDensity.toDouble(),
-                                  min: 10.0,
-                                  max: 150.0,
-                                  divisions: 14,
-                                  activeColor: previewScheme.primary,
-                                  inactiveColor: previewScheme.primary.withOpacity(0.2),
-                                  onChanged: (val) {
-                                    setState(() => _localDensity = val.toInt());
-                                  },
-                                ),
-                                const SizedBox(height: 12),
-                                // Speed Slider
-                                Row(
-                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                  children: [
-                                    const Text('Drift Speed', style: TextStyle(fontWeight: FontWeight.bold)),
-                                    Text('${_localSpeed.toStringAsFixed(1)}x',
-                                        style: TextStyle(color: previewScheme.primary, fontWeight: FontWeight.bold)),
-                                  ],
-                                ),
-                                Slider(
-                                  value: _localSpeed,
-                                  min: 0.2,
-                                  max: 3.0,
-                                  divisions: 28,
-                                  activeColor: previewScheme.primary,
-                                  inactiveColor: previewScheme.primary.withOpacity(0.2),
-                                  onChanged: (val) {
-                                    setState(() => _localSpeed = val);
-                                  },
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-
-                    // 5. Theme Selection (Theme Mode Grid) - decoupled
-                    _buildGlassCard(
-                      child: Padding(
-                        padding: const EdgeInsets.all(16.0),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'THEME MODE',
-                              style: TextStyle(
-                                fontSize: 11,
-                                fontWeight: FontWeight.w800,
-                                letterSpacing: 1.2,
-                                color: previewScheme.primary,
-                              ),
-                            ),
-                            const SizedBox(height: 16),
-                            Row(
-                              children: [
-                                _buildThemeModeItem(AppThemeMode.system, 'System', Icons.brightness_auto, previewScheme),
-                                const SizedBox(width: 8),
-                                _buildThemeModeItem(AppThemeMode.light, 'Light', Icons.light_mode, previewScheme),
-                              ],
-                            ),
-                            const SizedBox(height: 8),
-                            Row(
-                              children: [
-                                _buildThemeModeItem(AppThemeMode.dark, 'Dark', Icons.dark_mode, previewScheme),
-                                const SizedBox(width: 8),
-                                _buildThemeModeItem(AppThemeMode.night, 'Night', Icons.nights_stay, previewScheme),
-                              ],
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-
-                    // 6. Color Scheme Palette Selector - decoupled
-                    _buildGlassCard(
-                      child: Padding(
-                        padding: const EdgeInsets.all(16.0),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'COLOR SCHEME',
-                              style: TextStyle(
-                                fontSize: 11,
-                                fontWeight: FontWeight.w800,
-                                letterSpacing: 1.2,
-                                color: previewScheme.primary,
-                              ),
-                            ),
-                            const SizedBox(height: 16),
-                            _buildColorGrid(previewScheme),
-                            
-                            // Rainbow HSL custom color picker (displays if _localColorTheme is custom)
-                            if (_localColorTheme == AppColorTheme.custom) ...[
-                              const Divider(height: 32),
-                              _buildCustomColorPicker(previewScheme),
-                            ],
-                          ],
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 40),
-                  ],
-                ),
+    return Stack(
+      children: [
+        AmbientTimeBackground(
+          overrideEnabled: _localEnabled,
+          overrideSpeed: _localSpeed,
+          overrideDensity: _localDensity,
+          overrideStyle: _localStyle,
+          overrideColorScheme: previewScheme,
+          child: Scaffold(
+            backgroundColor: Colors.transparent,
+            appBar: AppBar(
+              backgroundColor: Colors.transparent,
+              elevation: 0,
+              title: const Text(
+                'Aesthetics & Themes',
+                style: TextStyle(fontWeight: FontWeight.bold),
               ),
             ),
-            
-            // Fixed bottom Apply Settings panel
-            _buildBottomActionBar(currentThemeScheme, previewScheme),
-          ],
+            body: Column(
+              children: [
+                Expanded(
+                  child: SingleChildScrollView(
+                    physics: const BouncingScrollPhysics(),
+                    padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 10.0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        // 1. Live Preview Panel (decopled - reads only local _local variables)
+                        _buildLivePreviewCard(previewScheme),
+                        const SizedBox(height: 20),
+    
+                        // 2. Ambient Background Switch Control
+                        _buildGlassCard(
+                          key: _ambientSwitchKey,
+                          child: SwitchListTile(
+                            activeColor: previewScheme.primary,
+                            title: Row(
+                              children: [
+                                Icon(Icons.auto_awesome, color: previewScheme.primary),
+                                const SizedBox(width: 12),
+                                const Text(
+                                  'Ambient Background',
+                                  style: TextStyle(fontWeight: FontWeight.bold),
+                                ),
+                              ],
+                            ),
+                            subtitle: const Padding(
+                              padding: EdgeInsets.only(top: 4.0),
+                              child: Text(
+                                'Enable live, time-based drifting aurora meshes, soft blurs, and sparkling particles. Disabling this is helpful for battery savings or solid readability.',
+                                style: TextStyle(fontSize: 12),
+                              ),
+                            ),
+                            value: _localEnabled,
+                            onChanged: (val) {
+                              setState(() => _localEnabled = val);
+                            },
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+    
+                        // 3. Aesthetic Styles Selector ( Aurora, Cyberpunk, Cosmic, Ocean, Autumn )
+                        AnimatedOpacity(
+                          duration: const Duration(milliseconds: 250),
+                          opacity: _localEnabled ? 1.0 : 0.4,
+                          child: AbsorbPointer(
+                            absorbing: !_localEnabled,
+                            child: _buildGlassCard(
+                              key: _styleSelectorKey,
+                              child: Padding(
+                                padding: const EdgeInsets.all(16.0),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'AESTHETIC STYLE',
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w800,
+                                        letterSpacing: 1.2,
+                                        color: previewScheme.primary,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 16),
+                                    _buildStyleSelectionGrid(previewScheme),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+    
+                        // 4. Ambient Sliders (Density and Speed) - decoupled
+                        AnimatedOpacity(
+                          duration: const Duration(milliseconds: 250),
+                          opacity: _localEnabled ? 1.0 : 0.4,
+                          child: AbsorbPointer(
+                            absorbing: !_localEnabled,
+                            child: _buildGlassCard(
+                              child: Padding(
+                                padding: const EdgeInsets.all(16.0),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'ANIMATION PREFERENCES',
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w800,
+                                        letterSpacing: 1.2,
+                                        color: previewScheme.primary,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 16),
+                                    // Density Slider
+                                    Row(
+                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                      children: [
+                                        const Text('Sparkle Density', style: TextStyle(fontWeight: FontWeight.bold)),
+                                        Text('$_localDensity particles',
+                                            style: TextStyle(color: previewScheme.primary, fontWeight: FontWeight.bold)),
+                                      ],
+                                    ),
+                                    Slider(
+                                      value: _localDensity.toDouble(),
+                                      min: 10.0,
+                                      max: 150.0,
+                                      divisions: 14,
+                                      activeColor: previewScheme.primary,
+                                      inactiveColor: previewScheme.primary.withOpacity(0.2),
+                                      onChanged: (val) {
+                                        setState(() => _localDensity = val.toInt());
+                                      },
+                                    ),
+                                    const SizedBox(height: 12),
+                                    // Speed Slider
+                                    Row(
+                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                      children: [
+                                        const Text('Drift Speed', style: TextStyle(fontWeight: FontWeight.bold)),
+                                        Text('${_localSpeed.toStringAsFixed(1)}x',
+                                            style: TextStyle(color: previewScheme.primary, fontWeight: FontWeight.bold)),
+                                      ],
+                                    ),
+                                    Slider(
+                                      value: _localSpeed,
+                                      min: 0.2,
+                                      max: 3.0,
+                                      divisions: 28,
+                                      activeColor: previewScheme.primary,
+                                      inactiveColor: previewScheme.primary.withOpacity(0.2),
+                                      onChanged: (val) {
+                                        setState(() => _localSpeed = val);
+                                      },
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+    
+                        // 5. Theme Selection (Theme Mode Grid) - decoupled
+                        _buildGlassCard(
+                          child: Padding(
+                            padding: const EdgeInsets.all(16.0),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'THEME MODE',
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w800,
+                                    letterSpacing: 1.2,
+                                    color: previewScheme.primary,
+                                  ),
+                                ),
+                                const SizedBox(height: 16),
+                                Row(
+                                  children: [
+                                    _buildThemeModeItem(AppThemeMode.system, 'System', Icons.brightness_auto, previewScheme),
+                                    const SizedBox(width: 8),
+                                    _buildThemeModeItem(AppThemeMode.light, 'Light', Icons.light_mode, previewScheme),
+                                  ],
+                                ),
+                                const SizedBox(height: 8),
+                                Row(
+                                  children: [
+                                    _buildThemeModeItem(AppThemeMode.dark, 'Dark', Icons.dark_mode, previewScheme),
+                                    const SizedBox(width: 8),
+                                    _buildThemeModeItem(AppThemeMode.night, 'Night', Icons.nights_stay, previewScheme),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+    
+                        // 6. Color Scheme Palette Selector - decoupled
+                        _buildGlassCard(
+                          key: _colorGridKey,
+                          child: Padding(
+                            padding: const EdgeInsets.all(16.0),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'COLOR SCHEME',
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w800,
+                                    letterSpacing: 1.2,
+                                    color: previewScheme.primary,
+                                  ),
+                                ),
+                                const SizedBox(height: 16),
+                                _buildColorGrid(previewScheme),
+                                
+                                // Rainbow HSL custom color picker (displays if _localColorTheme is custom)
+                                if (_localColorTheme == AppColorTheme.custom) ...[
+                                  const Divider(height: 32),
+                                  _buildCustomColorPicker(previewScheme),
+                                ],
+                              ],
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 40),
+                      ],
+                    ),
+                  ),
+                ),
+                
+                // Fixed bottom Apply Settings panel
+                _buildBottomActionBar(currentThemeScheme, previewScheme),
+              ],
+            ),
+          ),
         ),
-      ),
+        if (_showTour)
+          GuidedTourOverlay(
+            steps: [
+              TourStep(
+                targetKey: _previewCardKey,
+                title: 'Aesthetics Preview Canvas',
+                description: 'This interactive canvas immediately previews your custom style, color selections, sparkle density, and animation speeds in real-time.',
+              ),
+              TourStep(
+                targetKey: _ambientSwitchKey,
+                title: 'Ambient Toggle',
+                description: 'Toggle this switch to turn off the drifting animations completely for a clean look and maximum battery savings.',
+              ),
+              TourStep(
+                targetKey: _styleSelectorKey,
+                title: 'Drift Styles',
+                description: 'Pick between premium visual engines: Time-based Aurora, cyberpunk grids, starry nebulae, gentle waves, or autumn leaf diamond falls.',
+              ),
+              TourStep(
+                targetKey: _colorGridKey,
+                title: 'Dynamic Palette Seeds',
+                description: 'Select a theme color scheme or seed a vibrant HSL customized color directly from the custom picker wheel.',
+              ),
+              TourStep(
+                targetKey: _saveButtonKey,
+                title: 'Commit Aesthetics Globally',
+                description: 'Satisfied with your styling adjustments? Tapping Apply immediately saves and deploys your custom configurations globally across the entire app.',
+              ),
+            ],
+            onComplete: () {
+              setState(() => _showTour = false);
+              TourService.instance.completeScreenTour('aesthetics_settings');
+            },
+            onSkip: () {
+              setState(() => _showTour = false);
+              TourService.instance.completeScreenTour('aesthetics_settings');
+            },
+          ),
+      ],
     );
   }
 
-  Widget _buildGlassCard({required Widget child}) {
+  Widget _buildGlassCard({Key? key, required Widget child}) {
     final colors = Theme.of(context).colorScheme;
     return Card(
+      key: key,
       elevation: 0,
       color: colors.surfaceContainer.withOpacity(0.7),
       shape: RoundedRectangleBorder(
@@ -383,6 +456,7 @@ class _AestheticsSettingsScreenState extends State<AestheticsSettingsScreen> {
 
   Widget _buildLivePreviewCard(ColorScheme previewScheme) {
     return Container(
+      key: _previewCardKey,
       height: 150,
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(24),
@@ -865,6 +939,7 @@ class _AestheticsSettingsScreenState extends State<AestheticsSettingsScreen> {
             const SizedBox(width: 12),
             Expanded(
               child: ElevatedButton(
+                key: _saveButtonKey,
                 onPressed: _applySettingsGlobally,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: previewScheme.primary,

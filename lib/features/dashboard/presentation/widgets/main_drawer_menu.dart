@@ -3,6 +3,7 @@ import 'package:hidden_drawer_menu/hidden_drawer_menu.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:ShEC_CSE/core/services/theme_service.dart';
 import 'package:ShEC_CSE/features/profile/models/profile_state.dart';
+import 'package:ShEC_CSE/core/services/tour_service.dart';
 import 'package:ShEC_CSE/features/department/presentation/screens/department_screen.dart';
 import 'package:ShEC_CSE/features/auth/screens/auth_animated_screen.dart';
 import 'package:ShEC_CSE/backend/services/auth_service.dart';
@@ -201,13 +202,23 @@ class MainDrawerMenu extends StatelessWidget {
                             padding: EdgeInsets.symmetric(vertical: 8.0),
                             child: Divider(color: Colors.grey, thickness: 0.1),
                           ),
-                          _menuSectionHeader('Appearance'),
+                          _menuSectionHeader('Appearance & Help'),
                           _menuItem(
                             context,
                             controller,
                             icon: Icons.palette_outlined,
                             title: 'Aesthetics & Themes',
                             destination: const AestheticsSettingsScreen(),
+                          ),
+                          _menuItem(
+                            context,
+                            controller,
+                            icon: Icons.map_outlined,
+                            title: 'Show Guided Tour',
+                            onTap: () async {
+                              await TourService.instance.resetAllScreenTours();
+                              TourService.instance.startTour();
+                            },
                           ),
                           const SizedBox(height: 20),
                         ],

@@ -3,6 +3,8 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../../profile/models/profile_state.dart';
 import 'package:ShEC_CSE/features/dashboard/presentation/widgets/ambient_background.dart';
 import '../../../../backend/services/auth_service.dart';
+import 'package:ShEC_CSE/core/services/tour_service.dart';
+import 'package:ShEC_CSE/features/dashboard/presentation/widgets/guided_tour_overlay.dart';
 
 class ClubScreen extends StatefulWidget {
   const ClubScreen({super.key});
@@ -15,10 +17,28 @@ class _ClubScreenState extends State<ClubScreen> {
   List<ProfileData> _committeeMembers = [];
   bool _isLoading = true;
 
+  final GlobalKey _aboutCardKey = GlobalKey();
+  final GlobalKey _activitiesCardKey = GlobalKey();
+  final GlobalKey _committeeCardKey = GlobalKey();
+  bool _showTour = false;
+
   @override
   void initState() {
     super.initState();
     _fetchCommittee();
+    TourService.instance.hasCompletedScreenTour('programming_club').then((completed) {
+      if (!completed) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          Future.delayed(const Duration(milliseconds: 1000), () {
+            if (mounted) {
+              setState(() {
+                _showTour = true;
+              });
+            }
+          });
+        });
+      }
+    });
   }
 
   Future<void> _fetchCommittee() async {
@@ -51,34 +71,66 @@ class _ClubScreenState extends State<ClubScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return AmbientTimeBackground(
-      child: Scaffold(
-        backgroundColor: Colors.transparent,
-        appBar: AppBar(
-          backgroundColor: Colors.transparent,
-          elevation: 0,
-          title: const Text('Programming Club'),
-        ),
-        body: RefreshIndicator(
-        onRefresh: _fetchCommittee,
-        child: ListView(
-          padding: const EdgeInsets.all(16.0),
-          children: [
-            _buildAboutCard(context),
-            const SizedBox(height: 16),
-            _buildMissionVisionCard(context),
-            const SizedBox(height: 16),
-            _buildSectionTitle(context, 'Club Activities'),
-            _buildActivitiesCard(context),
-            const SizedBox(height: 16),
-            _buildSectionTitle(context, 'Committee Members 2026'),
-            _isLoading 
-              ? const Center(child: Padding(padding: EdgeInsets.all(20), child: CircularProgressIndicator()))
-              : _buildCommitteeCard(context),
-          ],
+    return Stack(
+      children: [
+        AmbientTimeBackground(
+          child: Scaffold(
+            backgroundColor: Colors.transparent,
+            appBar: AppBar(
+              backgroundColor: Colors.transparent,
+              elevation: 0,
+              title: const Text('Programming Club'),
+            ),
+            body: RefreshIndicator(
+            onRefresh: _fetchCommittee,
+            child: ListView(
+              padding: const EdgeInsets.all(16.0),
+              children: [
+                Container(key: _aboutCardKey, child: _buildAboutCard(context)),
+                const SizedBox(height: 16),
+                _buildMissionVisionCard(context),
+                const SizedBox(height: 16),
+                _buildSectionTitle(context, 'Club Activities'),
+                Container(key: _activitiesCardKey, child: _buildActivitiesCard(context)),
+                const SizedBox(height: 16),
+                _buildSectionTitle(context, 'Committee Members 2026'),
+                _isLoading 
+                  ? const Center(child: Padding(padding: EdgeInsets.all(20), child: CircularProgressIndicator()))
+                  : Container(key: _committeeCardKey, child: _buildCommitteeCard(context)),
+              ],
+            ),
+          ),
         ),
       ),
-    ),
+      if (_showTour)
+        GuidedTourOverlay(
+          steps: [
+            TourStep(
+              targetKey: _aboutCardKey,
+              title: 'CSE Programming Club',
+              description: 'Our primary student hub to foster competitive programming, solve complex problems, and organize hackathons.',
+            ),
+            TourStep(
+              targetKey: _activitiesCardKey,
+              title: 'Club Activities & Events',
+              description: 'Check active events, upcoming workshops, coding bootcamps, and platform integrations here.',
+            ),
+            TourStep(
+              targetKey: _committeeCardKey,
+              title: 'Programming Club Committee',
+              description: 'Meet our dedicated mentors, executive leads, and student representatives running the club.',
+            ),
+          ],
+          onComplete: () {
+            setState(() => _showTour = false);
+            TourService.instance.completeScreenTour('programming_club');
+          },
+          onSkip: () {
+            setState(() => _showTour = false);
+            TourService.instance.completeScreenTour('programming_club');
+          },
+        ),
+    ],
   );
 }
 

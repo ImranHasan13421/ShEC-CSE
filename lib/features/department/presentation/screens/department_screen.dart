@@ -1,9 +1,39 @@
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:ShEC_CSE/features/dashboard/presentation/widgets/ambient_background.dart';
+import 'package:ShEC_CSE/core/services/tour_service.dart';
+import 'package:ShEC_CSE/features/dashboard/presentation/widgets/guided_tour_overlay.dart';
 
-class DepartmentScreen extends StatelessWidget {
+class DepartmentScreen extends StatefulWidget {
   const DepartmentScreen({super.key});
+
+  @override
+  State<DepartmentScreen> createState() => _DepartmentScreenState();
+}
+
+class _DepartmentScreenState extends State<DepartmentScreen> {
+  final GlobalKey _aboutCardKey = GlobalKey();
+  final GlobalKey _courseInfoCardKey = GlobalKey();
+  final GlobalKey _contactInfoCardKey = GlobalKey();
+  bool _showTour = false;
+
+  @override
+  void initState() {
+    super.initState();
+    TourService.instance.hasCompletedScreenTour('department_info').then((completed) {
+      if (!completed) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          Future.delayed(const Duration(milliseconds: 1000), () {
+            if (mounted) {
+              setState(() {
+                _showTour = true;
+              });
+            }
+          });
+        });
+      }
+    });
+  }
 
   Future<void> _launchURL(String urlString) async {
     final Uri url = Uri.parse(urlString);
@@ -14,40 +44,81 @@ class DepartmentScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return AmbientTimeBackground(
-      child: Scaffold(
-        backgroundColor: Colors.transparent,
-        appBar: AppBar(
-          backgroundColor: Colors.transparent,
-          elevation: 0,
-          title: const Text('CSE Department'),
-        ),
-        body: ListView(
-        padding: const EdgeInsets.all(16.0),
-        children: [
-          _buildCard(context, 'About CSE Department',
-              'The CSE department offers a four-year undergraduate program in Computer Science & Engineering. Our courses are designed to provide students with a perfect balance of theoretical knowledge and practical skills, preparing them for the highly competitive workplace.\n\nBesides the undergraduate program, the department successfully runs Post-Graduate Diploma in Information Technology, Certificate in Computer Application, and CISCO Certified Network Program.'
+    return Stack(
+      children: [
+        AmbientTimeBackground(
+          child: Scaffold(
+            backgroundColor: Colors.transparent,
+            appBar: AppBar(
+              backgroundColor: Colors.transparent,
+              elevation: 0,
+              title: const Text('CSE Department'),
+            ),
+            body: ListView(
+              padding: const EdgeInsets.all(16.0),
+              children: [
+                Container(
+                  key: _aboutCardKey,
+                  child: _buildCard(context, 'About CSE Department',
+                      'The CSE department offers a four-year undergraduate program in Computer Science & Engineering. Our courses are designed to provide students with a perfect balance of theoretical knowledge and practical skills, preparing them for the highly competitive workplace.\n\nBesides the undergraduate program, the department successfully runs Post-Graduate Diploma in Information Technology, Certificate in Computer Application, and CISCO Certified Network Program.'
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Container(
+                  key: _courseInfoCardKey,
+                  child: _buildInfoCard(context, 'Course Information', [
+                    _InfoRow(Icons.timer, 'Duration:', '4 Years (8 Semesters)'),
+                    _InfoRow(Icons.account_balance, 'Certification:', 'University of Dhaka'),
+                    _InfoRow(Icons.event_seat, 'Seats:', '50 per year'),
+                    _InfoRow(Icons.library_books, 'Total Credits:', '160.50'),
+                    _InfoRow(Icons.menu_book_rounded, 'Syllabus:', 'Official Syllabus', url: 'https://drive.google.com/file/d/1qto0ELdWgFXq05M-lHLNnnICP0rlPYQa/view'),
+                  ]),
+                ),
+                const SizedBox(height: 16),
+                Container(
+                  key: _contactInfoCardKey,
+                  child: _buildInfoCard(context, 'Contact Information', [
+                    _InfoRow(Icons.mail, 'Email:', 'shec.ac.bd@gmail.com'),
+                    _InfoRow(Icons.phone, 'Phone:', '+8801907485801'),
+                    _InfoRow(Icons.location_on, 'Address:', 'House # 10, Road # 01, Chand Uddan, Mohammadpur, Dhaka'),
+                    _InfoRow(Icons.link, 'Website:', 'ShEC CSE Department', url: 'https://shec.ac.bd/cse-department.html'),
+                  ]),
+                ),
+              ],
+            ),
           ),
-          const SizedBox(height: 16),
-          _buildInfoCard(context, 'Course Information', [
-            _InfoRow(Icons.timer, 'Duration:', '4 Years (8 Semesters)'),
-            _InfoRow(Icons.account_balance, 'Certification:', 'University of Dhaka'),
-            _InfoRow(Icons.event_seat, 'Seats:', '50 per year'),
-            _InfoRow(Icons.library_books, 'Total Credits:', '160.50'),
-            _InfoRow(Icons.menu_book_rounded, 'Syllabus:', 'Official Syllabus', url: 'https://drive.google.com/file/d/1qto0ELdWgFXq05M-lHLNnnICP0rlPYQa/view'),
-          ]),
-          const SizedBox(height: 16),
-          _buildInfoCard(context, 'Contact Information', [
-            _InfoRow(Icons.mail, 'Email:', 'shec.ac.bd@gmail.com'),
-            _InfoRow(Icons.phone, 'Phone:', '+8801907485801'),
-            _InfoRow(Icons.location_on, 'Address:', 'House # 10, Road # 01, Chand Uddan, Mohammadpur, Dhaka'),
-            _InfoRow(Icons.link, 'Website:', 'ShEC CSE Department', url: 'https://shec.ac.bd/cse-department.html'),
-          ]),
-        ],
-      ),
-    ),
-  );
-}
+        ),
+        if (_showTour)
+          GuidedTourOverlay(
+            steps: [
+              TourStep(
+                targetKey: _aboutCardKey,
+                title: 'CSE Department Overview',
+                description: 'Read the detailed history, current course structures, and career offerings of the ShEC CSE department.',
+              ),
+              TourStep(
+                targetKey: _courseInfoCardKey,
+                title: 'Course & Syllabus Info',
+                description: 'Verify seat counts, total course credits, and directly download the official department syllabus.',
+              ),
+              TourStep(
+                targetKey: _contactInfoCardKey,
+                title: 'Contact & Official Sites',
+                description: 'Find physical addresses, email contacts, phone support, or open the official department website instantly.',
+              ),
+            ],
+            onComplete: () {
+              setState(() => _showTour = false);
+              TourService.instance.completeScreenTour('department_info');
+            },
+            onSkip: () {
+              setState(() => _showTour = false);
+              TourService.instance.completeScreenTour('department_info');
+            },
+          ),
+      ],
+    );
+  }
 
   Widget _buildCard(BuildContext context, String title, String body) {
     final colors = Theme.of(context).colorScheme;

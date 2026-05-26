@@ -11,44 +11,106 @@ import 'package:ShEC_CSE/core/utils/validation_rules.dart';
 // ==========================================
 // 1. YEARS SCREEN
 // ==========================================
-class YearsScreen extends StatelessWidget {
+import 'package:ShEC_CSE/core/services/tour_service.dart';
+import 'package:ShEC_CSE/features/dashboard/presentation/widgets/guided_tour_overlay.dart';
+
+// ==========================================
+// 1. YEARS SCREEN
+// ==========================================
+class YearsScreen extends StatefulWidget {
   const YearsScreen({super.key});
 
   @override
+  State<YearsScreen> createState() => _YearsScreenState();
+}
+
+class _YearsScreenState extends State<YearsScreen> {
+  final GlobalKey _headerKey = GlobalKey();
+  final GlobalKey _yearCardKey = GlobalKey();
+  bool _showTour = false;
+
+  @override
+  void initState() {
+    super.initState();
+    TourService.instance.hasCompletedScreenTour('resources_years').then((completed) {
+      if (!completed) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          Future.delayed(const Duration(milliseconds: 1000), () {
+            if (mounted) {
+              setState(() {
+                _showTour = true;
+              });
+            }
+          });
+        });
+      }
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Academic Resources')),
-      body: ListView(
-        padding: const EdgeInsets.all(16.0),
-        children: [
-          const Padding(
-            padding: EdgeInsets.only(bottom: 20.0, left: 4.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Select Academic Year',
-                  style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+    return Stack(
+      children: [
+        Scaffold(
+          appBar: AppBar(title: const Text('Academic Resources')),
+          body: ListView(
+            padding: const EdgeInsets.all(16.0),
+            children: [
+              Padding(
+                key: _headerKey,
+                padding: const EdgeInsets.only(bottom: 20.0, left: 4.0),
+                child: const Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Select Academic Year',
+                      style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+                    ),
+                    Text(
+                      'Find question papers, notes and more',
+                      style: TextStyle(fontSize: 14, color: Colors.grey),
+                    ),
+                  ],
                 ),
-                Text(
-                  'Find question papers, notes and more',
-                  style: TextStyle(fontSize: 14, color: Colors.grey),
-                ),
-              ],
-            ),
+              ),
+              _buildYearCard(context, 1, '1st Year', Colors.blue, 'Semesters 1 & 2', key: _yearCardKey),
+              _buildYearCard(context, 2, '2nd Year', Colors.teal, 'Semesters 3 & 4'),
+              _buildYearCard(context, 3, '3rd Year', Colors.indigo, 'Semesters 5 & 6'),
+              _buildYearCard(context, 4, '4th Year', Colors.orange, 'Semesters 7 & 8'),
+            ],
           ),
-          _buildYearCard(context, 1, '1st Year', Colors.blue, 'Semesters 1 & 2'),
-          _buildYearCard(context, 2, '2nd Year', Colors.teal, 'Semesters 3 & 4'),
-          _buildYearCard(context, 3, '3rd Year', Colors.indigo, 'Semesters 5 & 6'),
-          _buildYearCard(context, 4, '4th Year', Colors.orange, 'Semesters 7 & 8'),
-        ],
-      ),
+        ),
+        if (_showTour)
+          GuidedTourOverlay(
+            steps: [
+              TourStep(
+                targetKey: _headerKey,
+                title: 'Academic Resources Portal',
+                description: 'Welcome! This portal contains curated previous year questions, lecture notes, syllabus updates, and course guides.',
+              ),
+              TourStep(
+                targetKey: _yearCardKey,
+                title: 'Year-Specific Directories',
+                description: 'Tap on any academic year to explore session folders, choose your specific semester, and view the file listing.',
+              ),
+            ],
+            onComplete: () {
+              setState(() => _showTour = false);
+              TourService.instance.completeScreenTour('resources_years');
+            },
+            onSkip: () {
+              setState(() => _showTour = false);
+              TourService.instance.completeScreenTour('resources_years');
+            },
+          ),
+      ],
     );
   }
 
-  Widget _buildYearCard(BuildContext context, int yearIndex, String title, Color color, String subtitle) {
+  Widget _buildYearCard(BuildContext context, int yearIndex, String title, Color color, String subtitle, {Key? key}) {
     final colors = Theme.of(context).colorScheme;
     return Card(
+      key: key,
       margin: const EdgeInsets.only(bottom: 16),
       elevation: 0,
       color: colors.surface,

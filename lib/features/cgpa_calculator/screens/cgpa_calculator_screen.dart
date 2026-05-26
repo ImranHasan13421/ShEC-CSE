@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart'; // Required for making the link clickable
 import 'package:ShEC_CSE/features/dashboard/presentation/widgets/ambient_background.dart';
+import 'package:ShEC_CSE/core/services/tour_service.dart';
+import 'package:ShEC_CSE/features/dashboard/presentation/widgets/guided_tour_overlay.dart';
 
 // --- Data Models ---
 class CourseData {
@@ -40,10 +42,33 @@ class CGPACalculatorScreen extends StatefulWidget {
 }
 
 class _CGPACalculatorScreenState extends State<CGPACalculatorScreen> {
+  final GlobalKey _cgpaHeaderKey = GlobalKey();
+  final GlobalKey _resultButtonKey = GlobalKey();
+  final GlobalKey _addSemesterKey = GlobalKey();
+  bool _showTour = false;
+
   // Initialize with one semester and one course
   List<SemesterData> semesters = [
     SemesterData(name: 'Semester 1', courses: [CourseData(name: 'Course 1')])
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    TourService.instance.hasCompletedScreenTour('cgpa_calculator').then((completed) {
+      if (!completed) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          Future.delayed(const Duration(milliseconds: 1000), () {
+            if (mounted) {
+              setState(() {
+                _showTour = true;
+              });
+            }
+          });
+        });
+      }
+    });
+  }
 
   // Standard UGC Grading Scale for Dropdowns
   final Map<String, double> gradeScale = {
@@ -119,77 +144,112 @@ class _CGPACalculatorScreenState extends State<CGPACalculatorScreen> {
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
 
-    return AmbientTimeBackground(
-      child: Scaffold(
-        backgroundColor: Colors.transparent,
-        appBar: AppBar(
-          backgroundColor: Colors.transparent,
-          elevation: 0,
-          title: const Text('CGPA Calculator'),
-        ),
-      body: Column(
-        children: [
-          // Sticky Header for Overall Result
-          Container(
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              color: colors.primary,
-              boxShadow: [
-                BoxShadow(
-                  color: colors.primary.withValues(alpha: 0.3),
-                  blurRadius: 10,
-                  offset: const Offset(0, 4),
-                )
-              ],
+    return Stack(
+      children: [
+        AmbientTimeBackground(
+          child: Scaffold(
+            backgroundColor: Colors.transparent,
+            appBar: AppBar(
+              backgroundColor: Colors.transparent,
+              elevation: 0,
+              title: const Text('CGPA Calculator'),
             ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
+            body: Column(
               children: [
-                Column(
-                  children: [
-                    Text('Total Credits', style: TextStyle(color: Colors.white.withValues(alpha: 0.8), fontSize: 14)),
-                    const SizedBox(height: 4),
-                    Text(overallCredits.toStringAsFixed(2), style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold)),
-                  ],
+                // Sticky Header for Overall Result
+                Container(
+                  key: _cgpaHeaderKey,
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    color: colors.primary,
+                    boxShadow: [
+                      BoxShadow(
+                        color: colors.primary.withValues(alpha: 0.3),
+                        blurRadius: 10,
+                        offset: const Offset(0, 4),
+                      )
+                    ],
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceAround,
+                    children: [
+                      Column(
+                        children: [
+                          Text('Total Credits', style: TextStyle(color: Colors.white.withValues(alpha: 0.8), fontSize: 14)),
+                          const SizedBox(height: 4),
+                          Text(overallCredits.toStringAsFixed(2), style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold)),
+                        ],
+                      ),
+                      Container(width: 1, height: 40, color: Colors.white30),
+                      Column(
+                        children: [
+                          Text('Cumulative GPA', style: TextStyle(color: Colors.white.withValues(alpha: 0.8), fontSize: 14)),
+                          const SizedBox(height: 4),
+                          Text(overallCGPA.toStringAsFixed(2), style: const TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.w900)),
+                        ],
+                      ),
+                    ],
+                  ),
                 ),
-                Container(width: 1, height: 40, color: Colors.white30),
-                Column(
-                  children: [
-                    Text('Cumulative GPA', style: TextStyle(color: Colors.white.withValues(alpha: 0.8), fontSize: 14)),
-                    const SizedBox(height: 4),
-                    Text(overallCGPA.toStringAsFixed(2), style: const TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.w900)),
-                  ],
+        
+                // --- NEW: Check Result Button Banner ---
+                Padding(
+                  key: _resultButtonKey,
+                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+                  child: _buildResultButton(context),
+                ),
+        
+                // List of Semesters
+                Expanded(
+                  child: ListView.builder(
+                    padding: const EdgeInsets.all(16),
+                    itemCount: semesters.length,
+                    itemBuilder: (context, semIndex) {
+                      return _buildSemesterCard(context, semIndex, colors);
+                    },
+                  ),
                 ),
               ],
             ),
-          ),
-
-          // --- NEW: Check Result Button Banner ---
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
-            child: _buildResultButton(context),
-          ),
-
-          // List of Semesters
-          Expanded(
-            child: ListView.builder(
-              padding: const EdgeInsets.all(16),
-              itemCount: semesters.length,
-              itemBuilder: (context, semIndex) {
-                return _buildSemesterCard(context, semIndex, colors);
-              },
+            floatingActionButton: FloatingActionButton.extended(
+              key: _addSemesterKey,
+              onPressed: _addSemester,
+              backgroundColor: colors.primary,
+              foregroundColor: Colors.white,
+              icon: const Icon(Icons.add),
+              label: const Text('Add Semester'),
             ),
           ),
-        ],
-      ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: _addSemester,
-        backgroundColor: colors.primary,
-        foregroundColor: Colors.white,
-        icon: const Icon(Icons.add),
-        label: const Text('Add Semester'),
-      ),
-      ),
+        ),
+        if (_showTour)
+          GuidedTourOverlay(
+            steps: [
+              TourStep(
+                targetKey: _cgpaHeaderKey,
+                title: 'Cumulative GPA Dashboard',
+                description: 'Your real-time total credits and cumulative grade point average (CGPA) will automatically compute and update here.',
+              ),
+              TourStep(
+                targetKey: _resultButtonKey,
+                title: 'Official Result Portal',
+                description: 'Tap here to instantly open the DU affiliated colleges student portal in your external browser to view your official semester grades.',
+              ),
+              TourStep(
+                targetKey: _addSemesterKey,
+                title: 'Add Semester',
+                description: 'Tapping this button appends a new semester block below to input more grades and customize course configurations.',
+              ),
+            ],
+            onComplete: () {
+              setState(() => _showTour = false);
+              TourService.instance.completeScreenTour('cgpa_calculator');
+            },
+            onSkip: () {
+              setState(() => _showTour = false);
+              TourService.instance.completeScreenTour('cgpa_calculator');
+            },
+          ),
+      ],
     );
   }
 

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:ShEC_CSE/core/services/tour_service.dart';
+import 'package:ShEC_CSE/features/dashboard/presentation/widgets/guided_tour_overlay.dart';
 import '../../../../backend/services/auth_service.dart';
 import '../../../profile/models/profile_state.dart';
 import '../widgets/member_card.dart';
@@ -21,6 +23,12 @@ class _ClubMembersScreenState extends State<ClubMembersScreen> with SingleTicker
   String _searchQuery = '';
   bool _isLoading = true;
 
+  // Guided Tour keys and control state
+  final GlobalKey _searchBarKey = GlobalKey();
+  final GlobalKey _tabBarKey = GlobalKey();
+  final GlobalKey _firstMemberCardKey = GlobalKey();
+  bool _showTour = false;
+
   bool get isAdmin => currentProfile.value.role != UserRole.student;
 
   @override
@@ -29,6 +37,21 @@ class _ClubMembersScreenState extends State<ClubMembersScreen> with SingleTicker
     int tabCount = currentProfile.value.role != UserRole.student ? 3 : 2;
     _tabController = TabController(length: tabCount, vsync: this);
     _fetchMembers();
+
+    // Trigger onboarding guided tour
+    TourService.instance.hasCompletedScreenTour('club_members_tour').then((completed) {
+      if (!completed) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          Future.delayed(const Duration(milliseconds: 1000), () {
+            if (mounted) {
+              setState(() {
+                _showTour = true;
+              });
+            }
+          });
+        });
+      }
+    });
   }
 
   @override
@@ -431,6 +454,7 @@ class _ClubMembersScreenState extends State<ClubMembersScreen> with SingleTicker
       itemBuilder: (context, index) {
         final member = list[index];
         return MemberCard(
+          key: index == 0 ? _firstMemberCardKey : null,
           member: member,
           isPendingList: isPendingList,
           onTap: () => _showMemberDetails(member),
@@ -458,71 +482,105 @@ class _ClubMembersScreenState extends State<ClubMembersScreen> with SingleTicker
     final committees = filteredAll.where((m) => (m.role == UserRole.committeeMember || m.role == UserRole.superUser) && m.isApproved).toList();
     final pending = filteredAll.where((m) => !m.isApproved).toList();
 
-    return AmbientTimeBackground(
-      child: Scaffold(
-        backgroundColor: Colors.transparent,
-        appBar: AppBar(
-          backgroundColor: Colors.transparent,
-          elevation: 0,
-          title: const Text('Club Directory'),
-        bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(110),
-          child: Column(
-            children: [
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                child: TextField(
-                  decoration: InputDecoration(
-                    hintText: 'Search members...',
-                    prefixIcon: const Icon(Icons.search),
-                    filled: true,
-                    fillColor: Theme.of(context).colorScheme.surfaceContainerHighest,
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-                    contentPadding: const EdgeInsets.symmetric(vertical: 0),
-                  ),
-                  onChanged: (val) => setState(() => _searchQuery = val),
-                ),
-              ),
-              TabBar(
-                controller: _tabController,
-                labelColor: tabLabelColor,
-                unselectedLabelColor: tabUnselectedColor,
-                indicatorColor: tabIndicatorColor,
-                tabs: [
-                  const Tab(text: 'Members'),
-                  const Tab(text: 'Committee'),
-                  if (isAdmin)
-                    Tab(
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Text('Pending '),
-                          if (pending.isNotEmpty)
-                            Container(
-                              padding: const EdgeInsets.all(4),
-                              decoration: const BoxDecoration(color: Colors.red, shape: BoxShape.circle),
-                              child: Text('${pending.length}', style: const TextStyle(fontSize: 10, color: Colors.white)),
-                            )
-                        ],
+    return Stack(
+      children: [
+        AmbientTimeBackground(
+          child: Scaffold(
+            backgroundColor: Colors.transparent,
+            appBar: AppBar(
+              backgroundColor: Colors.transparent,
+              elevation: 0,
+              title: const Text('Club Directory'),
+              bottom: PreferredSize(
+                preferredSize: const Size.fromHeight(110),
+                child: Column(
+                  children: [
+                    Padding(
+                      key: _searchBarKey,
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      child: TextField(
+                        decoration: InputDecoration(
+                          hintText: 'Search members...',
+                          prefixIcon: const Icon(Icons.search),
+                          filled: true,
+                          fillColor: Theme.of(context).colorScheme.surfaceContainerHighest,
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                          contentPadding: const EdgeInsets.symmetric(vertical: 0),
+                        ),
+                        onChanged: (val) => setState(() => _searchQuery = val),
                       ),
                     ),
-                ],
+                    TabBar(
+                      key: _tabBarKey,
+                      controller: _tabController,
+                      labelColor: tabLabelColor,
+                      unselectedLabelColor: tabUnselectedColor,
+                      indicatorColor: tabIndicatorColor,
+                      tabs: [
+                        const Tab(text: 'Members'),
+                        const Tab(text: 'Committee'),
+                        if (isAdmin)
+                          Tab(
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Text('Pending '),
+                                if (pending.isNotEmpty)
+                                  Container(
+                                    padding: const EdgeInsets.all(4),
+                                    decoration: const BoxDecoration(color: Colors.red, shape: BoxShape.circle),
+                                    child: Text('${pending.length}', style: const TextStyle(fontSize: 10, color: Colors.white)),
+                                  )
+                              ],
+                            ),
+                          ),
+                      ],
+                    ),
+                  ],
+                ),
               ),
-            ],
+            ),
+            body: _isLoading
+                ? const Center(child: CircularProgressIndicator())
+                : TabBarView(
+                    controller: _tabController,
+                    children: [
+                      _buildList(members),
+                      _buildList(committees),
+                      if (isAdmin) _buildList(pending, isPendingList: true),
+                    ],
+                  ),
           ),
         ),
-      ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : TabBarView(
-              controller: _tabController,
-              children: [
-                _buildList(members),
-                _buildList(committees),
-                if (isAdmin) _buildList(pending, isPendingList: true),
-              ],
-            ),
-      ),
+        if (_showTour)
+          GuidedTourOverlay(
+            steps: [
+              TourStep(
+                targetKey: _searchBarKey,
+                title: 'Search Directory',
+                description: 'Quickly find any member or committee representative by typing their name or official Student ID.',
+              ),
+              TourStep(
+                targetKey: _tabBarKey,
+                title: 'Categorized Listings',
+                description: 'Toggle tabs to filter by General Members, Executive Committee officers, or pending verification requests.',
+              ),
+              TourStep(
+                targetKey: _firstMemberCardKey,
+                title: 'Interactive Profiles',
+                description: 'Tap any card to view detailed profiles, call or email members directly, or perform administrative updates.',
+              ),
+            ],
+            onComplete: () {
+              setState(() => _showTour = false);
+              TourService.instance.completeScreenTour('club_members_tour');
+            },
+            onSkip: () {
+              setState(() => _showTour = false);
+              TourService.instance.completeScreenTour('club_members_tour');
+            },
+          ),
+      ],
     );
   }
 
