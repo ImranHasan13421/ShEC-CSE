@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:hidden_drawer_menu/hidden_drawer_menu.dart';
+import 'package:ShEC_CSE/features/auth/presentation/bloc/auth_bloc.dart';
+import 'package:ShEC_CSE/features/auth/presentation/bloc/auth_event.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:ShEC_CSE/core/services/theme_service.dart';
 import 'package:ShEC_CSE/features/profile/models/profile_state.dart';
@@ -24,442 +27,81 @@ import 'package:ShEC_CSE/features/accounting/presentation/screens/accounting_das
 import 'package:ShEC_CSE/features/dashboard/screens/aesthetics_settings_screen.dart';
 import 'package:ShEC_CSE/features/permissions/screens/committee_permissions_screen.dart';
 
-class MainDrawerMenu extends StatelessWidget {
+// ─── Custom Premium Accordion Group Widget ───────────────────────────────────
+
+class DrawerAccordionGroup extends StatefulWidget {
+  final String title;
+  final IconData icon;
+  final List<Widget> children;
+  final bool isExpanded;
+  final ValueChanged<bool> onToggle;
+
+  const DrawerAccordionGroup({
+    super.key,
+    required this.title,
+    required this.icon,
+    required this.children,
+    required this.isExpanded,
+    required this.onToggle,
+  });
+
+  @override
+  State<DrawerAccordionGroup> createState() => _DrawerAccordionGroupState();
+}
+
+class _DrawerAccordionGroupState extends State<DrawerAccordionGroup> {
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    return Column(
+      children: [
+        ListTile(
+          onTap: () => widget.onToggle(!widget.isExpanded),
+          leading: Icon(widget.icon, color: Colors.white.withValues(alpha: 0.85), size: 22),
+          title: Text(
+            widget.title,
+            style: const TextStyle(
+              fontSize: 13.5,
+              fontWeight: FontWeight.w700,
+              color: Colors.white,
+            ),
+          ),
+          trailing: AnimatedRotation(
+            turns: widget.isExpanded ? 0.5 : 0.0,
+            duration: const Duration(milliseconds: 200),
+            child: const Icon(Icons.expand_more, color: Colors.white60, size: 18),
+          ),
+        ),
+        AnimatedSize(
+          duration: const Duration(milliseconds: 250),
+          curve: Curves.easeInOut,
+          child: widget.isExpanded
+              ? Padding(
+                  padding: const EdgeInsets.only(left: 14.0),
+                  child: Column(children: widget.children),
+                )
+              : const SizedBox.shrink(),
+        ),
+      ],
+    );
+  }
+}
+
+// ─── Main Drawer Menu ─────────────────────────────────────────────────────────
+
+class MainDrawerMenu extends StatefulWidget {
   final ColorScheme colors;
 
   const MainDrawerMenu({super.key, required this.colors});
 
-  @override
-  Widget build(BuildContext context) {
-    final themeService = ThemeService.instance;
-    final isNight = themeService.themeMode == AppThemeMode.night;
-    final controller = SimpleHiddenDrawerController.of(context);
-
-    final bgGradient = LinearGradient(
-      begin: Alignment.topLeft,
-      end: Alignment.bottomRight,
-      colors: isNight
-          ? [const Color(0xFF0A0B0D), const Color(0xFF121316)]
-          : themeService.themeMode == AppThemeMode.dark
-              ? [const Color(0xFF16181F), const Color(0xFF0E1014)]
-              : [
-                  colors.primary.withValues(alpha: 0.22),
-                  const Color(0xFF101216),
-                ],
-    );
-
-    return Scaffold(
-      backgroundColor: Colors.transparent,
-      body: Container(
-        width: double.infinity,
-        height: double.infinity,
-        decoration: BoxDecoration(gradient: bgGradient),
-        child: SafeArea(
-          child: Align(
-            alignment: Alignment.centerLeft,
-            child: SizedBox(
-              width: MediaQuery.of(context).size.width * 0.55,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _buildHeader(context),
-                  Expanded(
-                    child: SingleChildScrollView(
-                      physics: const BouncingScrollPhysics(),
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          _menuSectionHeader('Academic & Career'),
-                          _menuItem(
-                            context,
-                            controller,
-                            icon: Icons.assignment_outlined,
-                            title: 'Results',
-                            destination: const ResultsScreen(),
-                          ),
-                          ValueListenableBuilder<Map<String, int>>(
-                            valueListenable: NotificationService.unreadCounts,
-                            builder: (context, unread, _) {
-                              final count = unread['jobs'] ?? 0;
-                              return _menuItem(
-                                context,
-                                controller,
-                                icon: Icons.work_outline,
-                                title: 'Job Board',
-                                destination: const JobsScreen(),
-                                badgeCount: count,
-                                onTap: () => NotificationService.clearUnread('jobs'),
-                              );
-                            },
-                          ),
-                          _menuItem(
-                            context,
-                            controller,
-                            icon: Icons.folder_copy_outlined,
-                            title: 'Previous Resources',
-                            destination: const YearsScreen(),
-                          ),
-                          const Padding(
-                            padding: EdgeInsets.symmetric(vertical: 8.0),
-                            child: Divider(color: Colors.grey, thickness: 0.1),
-                          ),
-                          _menuSectionHeader('Department & People'),
-                          _menuItem(
-                            context,
-                            controller,
-                            icon: Icons.contact_phone_outlined,
-                            title: 'Teacher Contacts',
-                            destination: const TeacherContactsScreen(),
-                          ),
-                          _menuItem(
-                            context,
-                            controller,
-                            icon: Icons.people_outline,
-                            title: 'Club Members',
-                            destination: const ClubMembersScreen(),
-                          ),
-                          _menuItem(
-                            context,
-                            controller,
-                            icon: Icons.school_outlined,
-                            title: 'Alumni',
-                            destination: const AlumniScreen(),
-                          ),
-                          const Padding(
-                            padding: EdgeInsets.symmetric(vertical: 8.0),
-                            child: Divider(color: Colors.grey, thickness: 0.1),
-                          ),
-                          _menuSectionHeader('Media & Tools'),
-                          _menuItem(
-                            context,
-                            controller,
-                            icon: Icons.photo_library_outlined,
-                            title: 'Gallery',
-                            destination: const GalleryScreen(),
-                          ),
-                          _menuItem(
-                            context,
-                            controller,
-                            icon: Icons.calculate_outlined,
-                            title: 'CGPA Calculator',
-                            destination: const CGPACalculatorScreen(),
-                          ),
-                          const Padding(
-                            padding: EdgeInsets.symmetric(vertical: 8.0),
-                            child: Divider(color: Colors.grey, thickness: 0.1),
-                          ),
-                          _menuSectionHeader('Treasury & Accounts'),
-                          _menuItem(
-                            context,
-                            controller,
-                            icon: Icons.account_balance_wallet_outlined,
-                            title: 'Club Accounts',
-                            destination: const AccountingDashboardScreen(),
-                          ),
-                          const Padding(
-                            padding: EdgeInsets.symmetric(vertical: 8.0),
-                            child: Divider(color: Colors.grey, thickness: 0.1),
-                          ),
-                          ValueListenableBuilder<ProfileData>(
-                            valueListenable: currentProfile,
-                            builder: (context, profile, _) {
-                              final isCommitteeOrAdmin = profile.role == UserRole.committeeMember ||
-                                  profile.role == UserRole.superUser ||
-                                  profile.designation == 'President' ||
-                                  profile.designation == 'Vice President';
-
-                              if (!isCommitteeOrAdmin) return const SizedBox.shrink();
-
-                              return Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  _menuItem(
-                                    context,
-                                    controller,
-                                    icon: Icons.shield_outlined,
-                                    title: 'Committee Permissions',
-                                    destination: const CommitteePermissionsScreen(),
-                                  ),
-                                  const Padding(
-                                    padding: EdgeInsets.symmetric(vertical: 8.0),
-                                    child: Divider(color: Colors.grey, thickness: 0.1),
-                                  ),
-                                ],
-                              );
-                            },
-                          ),
-                          _menuSectionHeader('Abouts'),
-                          _menuItem(
-                            context,
-                            controller,
-                            icon: Icons.account_balance_outlined,
-                            title: 'CSE Department Info',
-                            destination: const DepartmentScreen(),
-                          ),
-                          _menuItem(
-                            context,
-                            controller,
-                            icon: Icons.code,
-                            title: 'Programming Club',
-                            destination: const ClubScreen(),
-                          ),
-                          _menuItem(
-                            context,
-                            controller,
-                            icon: Icons.group_work_outlined,
-                            title: 'Contributors',
-                            destination: const ContributorsScreen(),
-                          ),
-                          ListenableBuilder(
-                            listenable: UpdateService.instance,
-                            builder: (context, _) {
-                              final hasUpdate = UpdateService.instance.hasUpdate;
-                              return _menuItem(
-                                context,
-                                controller,
-                                icon: Icons.system_update_outlined,
-                                title: 'App Update',
-                                badgeCount: hasUpdate ? -1 : 0,
-                                onTap: () {
-                                  _showUpdateDialog(context);
-                                },
-                              );
-                            },
-                          ),
-                          const Padding(
-                            padding: EdgeInsets.symmetric(vertical: 8.0),
-                            child: Divider(color: Colors.grey, thickness: 0.1),
-                          ),
-                          _menuSectionHeader('Appearance & Help'),
-                          _menuItem(
-                            context,
-                            controller,
-                            icon: Icons.palette_outlined,
-                            title: 'Aesthetics & Themes',
-                            destination: const AestheticsSettingsScreen(),
-                          ),
-                          _menuItem(
-                            context,
-                            controller,
-                            icon: Icons.map_outlined,
-                            title: 'Show Guided Tour',
-                            onTap: () async {
-                              await TourService.instance.resetAllScreenTours();
-                              TourService.instance.startTour();
-                            },
-                          ),
-                          const SizedBox(height: 20),
-                        ],
-                      ),
-                    ),
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.all(16.0),
-                    child: InkWell(
-                      onTap: () async {
-                        await AuthService.signOut();
-                        if (context.mounted) {
-                          Navigator.pushAndRemoveUntil(
-                            context,
-                            MaterialPageRoute(builder: (context) => const AuthAnimatedScreen()),
-                            (route) => false,
-                          );
-                        }
-                      },
-                      borderRadius: BorderRadius.circular(12),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                        decoration: BoxDecoration(
-                          border: Border.all(color: Colors.redAccent.withValues(alpha: 0.3)),
-                          borderRadius: BorderRadius.circular(12),
-                          color: Colors.redAccent.withValues(alpha: 0.05),
-                        ),
-                        child: const Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(Icons.logout, color: Colors.redAccent, size: 20),
-                            SizedBox(width: 12),
-                            Text(
-                              'Log Out',
-                              style: TextStyle(
-                                color: Colors.redAccent,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 14,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildHeader(BuildContext context) {
-    final controller = SimpleHiddenDrawerController.of(context);
-    return ValueListenableBuilder<ProfileData>(
-      valueListenable: currentProfile,
-      builder: (context, profile, _) {
-        return InkWell(
-          onTap: () {
-            controller.toggle();
-            Navigator.push(context, MaterialPageRoute(builder: (_) => const ProfileScreen()));
-          },
-          child: Container(
-            padding: const EdgeInsets.all(24.0),
-            child: Row(
-              children: [
-                Container(
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    boxShadow: [
-                      BoxShadow(
-                        color: colors.primary.withValues(alpha: 0.3),
-                        blurRadius: 12,
-                        offset: const Offset(0, 4),
-                      )
-                    ],
-                  ),
-                ),
-                CircleAvatar(
-                  radius: 30,
-                  backgroundColor: colors.surfaceContainer,
-                  backgroundImage: profile.imagePath != null && profile.imagePath!.startsWith('http')
-                      ? NetworkImage(profile.imagePath!) as ImageProvider
-                      : null,
-                  child: (profile.imagePath == null || !profile.imagePath!.startsWith('http'))
-                      ? Icon(Icons.person, size: 30, color: colors.primary)
-                      : null,
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        profile.name,
-                        style: const TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        profile.designation,
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.white.withValues(alpha: 0.7),
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      Text(
-                        profile.email,
-                        style: TextStyle(
-                          fontSize: 11,
-                          color: Colors.white.withValues(alpha: 0.5),
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _menuSectionHeader(String title) {
-    return Padding(
-      padding: const EdgeInsets.only(left: 8.0, top: 12.0, bottom: 8.0),
-      child: Text(
-        title.toUpperCase(),
-        style: TextStyle(
-          fontSize: 11,
-          fontWeight: FontWeight.w800,
-          letterSpacing: 1.5,
-          color: Colors.white.withValues(alpha: 0.45),
-        ),
-      ),
-    );
-  }
-
-  Widget _menuItem(
-    BuildContext context,
-    SimpleHiddenDrawerController controller, {
-    required IconData icon,
-    required String title,
-    Widget? destination,
-    int badgeCount = 0,
-    VoidCallback? onTap,
-  }) {
-    return InkWell(
-      onTap: () {
-        controller.toggle();
-        if (onTap != null) onTap();
-        if (destination != null) {
-          Navigator.push(context, MaterialPageRoute(builder: (_) => destination));
-        }
-      },
-      borderRadius: BorderRadius.circular(12),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Row(
-          children: [
-            if (badgeCount != 0)
-              Badge(
-                label: badgeCount > 0 ? Text('$badgeCount') : null,
-                child: Icon(icon, color: Colors.white.withValues(alpha: 0.75), size: 22),
-              )
-            else
-              Icon(icon, color: Colors.white.withValues(alpha: 0.75), size: 22),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Text(
-                title,
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.white.withValues(alpha: 0.85),
-                ),
-              ),
-            ),
-            Icon(
-              Icons.chevron_right,
-              size: 16,
-              color: Colors.white.withValues(alpha: 0.35),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-
-
-  void _showUpdateDialog(BuildContext parentContext) {
+  // Global static method so we can easily trigger it from anywhere (e.g. main_screen)
+  static void showUpdateDialog(BuildContext parentContext, {bool force = false}) {
+    final colors = Theme.of(parentContext).colorScheme;
     final updateService = UpdateService.instance;
 
     showDialog(
       context: parentContext,
-      barrierDismissible: true,
+      barrierDismissible: !force,
       builder: (dialogContext) {
         final versionController = TextEditingController(text: '1.0.1');
         final buildController = TextEditingController(text: '${UpdateService.currentBuildNumber + 1}');
@@ -467,12 +109,13 @@ class MainDrawerMenu extends StatelessWidget {
         final notesController = TextEditingController();
         bool isPublishTab = false;
         bool isActionLoading = false;
+        bool isMajorSelected = false;
 
         return StatefulBuilder(
           builder: (context, setDialogState) {
             final isSuperUser = currentProfile.value.role == UserRole.superUser;
 
-            return Dialog(
+            Widget dialogBody = Dialog(
               backgroundColor: colors.surface,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
               child: AnimatedContainer(
@@ -489,19 +132,20 @@ class MainDrawerMenu extends StatelessWidget {
                           const SizedBox(width: 10),
                           const Text(
                             'App Update',
-                            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                            style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
                           ),
                           const Spacer(),
-                          IconButton(
-                            icon: const Icon(Icons.close, size: 20),
-                            onPressed: () => Navigator.pop(context),
-                          ),
+                          if (!force)
+                            IconButton(
+                              icon: const Icon(Icons.close, size: 20),
+                              onPressed: () => Navigator.pop(context),
+                            ),
                         ],
                       ),
                       const Divider(thickness: 0.5),
                       const SizedBox(height: 10),
 
-                      if (isSuperUser) ...[
+                      if (isSuperUser && !force) ...[
                         Row(
                           children: [
                             Expanded(
@@ -557,7 +201,7 @@ class MainDrawerMenu extends StatelessWidget {
                         const SizedBox(height: 15),
                       ],
 
-                      if (isPublishTab && isSuperUser) ...[
+                      if (isPublishTab && isSuperUser && !force) ...[
                         _buildInputField(colors, 'Version Name', versionController, 'e.g. 1.0.1'),
                         const SizedBox(height: 10),
                         _buildInputField(colors, 'Build Number', buildController, 'e.g. 2', isNumber: true),
@@ -565,6 +209,18 @@ class MainDrawerMenu extends StatelessWidget {
                         _buildInputField(colors, 'APK Download URL', urlController, 'e.g. https://...'),
                         const SizedBox(height: 10),
                         _buildInputField(colors, 'Release Notes', notesController, 'What\'s new in this build...', maxLines: 3),
+                        const SizedBox(height: 15),
+                        Row(
+                          children: [
+                            const Text('Mark as Major Update', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                            const Spacer(),
+                            Switch.adaptive(
+                              value: isMajorSelected,
+                              activeColor: colors.primary,
+                              onChanged: (val) => setDialogState(() => isMajorSelected = val),
+                            ),
+                          ],
+                        ),
                         const SizedBox(height: 20),
                         ElevatedButton(
                           onPressed: isActionLoading
@@ -597,6 +253,7 @@ class MainDrawerMenu extends StatelessWidget {
                                       buildNumber: buildNum,
                                       downloadUrl: url,
                                       releaseNotes: notes,
+                                      isMajor: isMajorSelected,
                                     );
                                     if (context.mounted) {
                                       ScaffoldMessenger.of(parentContext).showSnackBar(
@@ -661,7 +318,7 @@ class MainDrawerMenu extends StatelessWidget {
                                             crossAxisAlignment: CrossAxisAlignment.start,
                                             children: [
                                               Text(
-                                                'New Version Available!',
+                                                force ? 'Critical Update Required!' : 'New Version Available!',
                                                 style: TextStyle(
                                                   fontWeight: FontWeight.bold,
                                                   color: colors.primary,
@@ -731,6 +388,18 @@ class MainDrawerMenu extends StatelessWidget {
                                   ),
                                   const SizedBox(height: 8),
                                   _buildGitHubButton(colors),
+                                  if (force) ...[
+                                    const SizedBox(height: 12),
+                                    Text(
+                                      'This is a major release containing critical updates. You must download it to stay up-to-date.',
+                                      textAlign: TextAlign.center,
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        fontStyle: FontStyle.italic,
+                                        color: colors.onSurface.withValues(alpha: 0.5),
+                                      ),
+                                    ),
+                                  ],
                                 ],
                               );
                             }
@@ -779,8 +448,6 @@ class MainDrawerMenu extends StatelessWidget {
                                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                                   ),
                                 ),
-                                const SizedBox(height: 8),
-                                _buildGitHubButton(colors),
                               ],
                             );
                           },
@@ -791,13 +458,21 @@ class MainDrawerMenu extends StatelessWidget {
                 ),
               ),
             );
+
+            if (force) {
+              return PopScope(
+                canPop: false,
+                child: dialogBody,
+              );
+            }
+            return dialogBody;
           },
         );
       },
     );
   }
 
-  Widget _buildInputField(
+  static Widget _buildInputField(
     ColorScheme colors,
     String label,
     TextEditingController controller,
@@ -842,7 +517,7 @@ class MainDrawerMenu extends StatelessWidget {
     );
   }
 
-  Widget _buildGitHubButton(ColorScheme colors) {
+  static Widget _buildGitHubButton(ColorScheme colors) {
     return OutlinedButton.icon(
       onPressed: () async {
         final Uri uri = Uri.parse('https://github.com/ImranHasan13421/ShEC-CSE');
@@ -861,6 +536,459 @@ class MainDrawerMenu extends StatelessWidget {
         side: BorderSide(color: colors.onSurface.withValues(alpha: 0.15)),
         minimumSize: const Size(double.infinity, 40),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      ),
+    );
+  }
+
+  @override
+  State<MainDrawerMenu> createState() => _MainDrawerMenuState();
+}
+
+class _MainDrawerMenuState extends State<MainDrawerMenu> {
+  String? _expandedGroupTitle = 'Academic Hub';
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = widget.colors;
+    final themeService = ThemeService.instance;
+    final isNight = themeService.themeMode == AppThemeMode.night;
+    final controller = SimpleHiddenDrawerController.of(context);
+
+    final bgGradient = LinearGradient(
+      begin: Alignment.topLeft,
+      end: Alignment.bottomRight,
+      colors: isNight
+          ? [const Color(0xFF0A0B0D), const Color(0xFF121316)]
+          : themeService.themeMode == AppThemeMode.dark
+              ? [const Color(0xFF16181F), const Color(0xFF0E1014)]
+              : [
+                  colors.primary.withValues(alpha: 0.22),
+                  const Color(0xFF101216),
+                ],
+    );
+
+    return Scaffold(
+      backgroundColor: Colors.transparent,
+      body: Container(
+        width: double.infinity,
+        height: double.infinity,
+        decoration: BoxDecoration(gradient: bgGradient),
+        child: SafeArea(
+          child: Align(
+            alignment: Alignment.centerLeft,
+            child: SizedBox(
+              width: MediaQuery.of(context).size.width * 0.55,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _buildHeader(context),
+                  Expanded(
+                    child: SingleChildScrollView(
+                      physics: const BouncingScrollPhysics(),
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // ── Group 1: Academic Hub ──────────────────────────────────
+                          DrawerAccordionGroup(
+                            title: 'Academic Hub',
+                            icon: Icons.school_outlined,
+                            isExpanded: _expandedGroupTitle == 'Academic Hub',
+                            onToggle: (expanded) {
+                              setState(() {
+                                _expandedGroupTitle = expanded ? 'Academic Hub' : null;
+                              });
+                            },
+                            children: [
+                              _menuItem(
+                                context,
+                                controller,
+                                icon: Icons.assignment_outlined,
+                                title: 'Results',
+                                destination: const ResultsScreen(),
+                              ),
+                              _menuItem(
+                                context,
+                                controller,
+                                icon: Icons.folder_copy_outlined,
+                                title: 'Previous Resources',
+                                destination: const YearsScreen(),
+                              ),
+                              _menuItem(
+                                context,
+                                controller,
+                                icon: Icons.calculate_outlined,
+                                title: 'CGPA Calculator',
+                                destination: const CGPACalculatorScreen(),
+                              ),
+                            ],
+                          ),
+
+                          // ── Group 2: Careers & Network ─────────────────────────────
+                          DrawerAccordionGroup(
+                            title: 'Careers & Network',
+                            icon: Icons.people_outline,
+                            isExpanded: _expandedGroupTitle == 'Careers & Network',
+                            onToggle: (expanded) {
+                              setState(() {
+                                _expandedGroupTitle = expanded ? 'Careers & Network' : null;
+                              });
+                            },
+                            children: [
+                              ValueListenableBuilder<Map<String, int>>(
+                                valueListenable: NotificationService.unreadCounts,
+                                builder: (context, unread, _) {
+                                  final count = unread['jobs'] ?? 0;
+                                  return _menuItem(
+                                    context,
+                                    controller,
+                                    icon: Icons.work_outline,
+                                    title: 'Job Board',
+                                    destination: const JobsScreen(),
+                                    badgeCount: count,
+                                    onTap: () => NotificationService.clearUnread('jobs'),
+                                  );
+                                },
+                              ),
+                              _menuItem(
+                                context,
+                                controller,
+                                icon: Icons.group_outlined,
+                                title: 'Club Members',
+                                destination: const ClubMembersScreen(),
+                              ),
+                              _menuItem(
+                                context,
+                                controller,
+                                icon: Icons.co_present_outlined,
+                                title: 'Alumni Network',
+                                destination: const AlumniScreen(),
+                              ),
+                              _menuItem(
+                                context,
+                                controller,
+                                icon: Icons.photo_library_outlined,
+                                title: 'Gallery Media',
+                                destination: const GalleryScreen(),
+                              ),
+                            ],
+                          ),
+
+                          // ── Group 3: Finance & Management ──────────────────────────
+                          DrawerAccordionGroup(
+                            title: 'Finance & Admin',
+                            icon: Icons.account_balance_wallet_outlined,
+                            isExpanded: _expandedGroupTitle == 'Finance & Admin',
+                            onToggle: (expanded) {
+                              setState(() {
+                                _expandedGroupTitle = expanded ? 'Finance & Admin' : null;
+                              });
+                            },
+                            children: [
+                              _menuItem(
+                                context,
+                                controller,
+                                icon: Icons.account_balance_wallet_outlined,
+                                title: 'Club Accounts',
+                                destination: const AccountingDashboardScreen(),
+                              ),
+                              ValueListenableBuilder<ProfileData>(
+                                valueListenable: currentProfile,
+                                builder: (context, profile, _) {
+                                  final isCommitteeOrAdmin = profile.role == UserRole.committeeMember ||
+                                      profile.role == UserRole.superUser ||
+                                      profile.designation == 'President' ||
+                                      profile.designation == 'Vice President';
+
+                                  if (!isCommitteeOrAdmin) return const SizedBox.shrink();
+
+                                  return _menuItem(
+                                    context,
+                                    controller,
+                                    icon: Icons.shield_outlined,
+                                    title: 'Permissions',
+                                    destination: const CommitteePermissionsScreen(),
+                                  );
+                                },
+                              ),
+                            ],
+                          ),
+
+                          // ── Group 4: Info & System ──────────────────────────────────
+                          DrawerAccordionGroup(
+                            title: 'Information & System',
+                            icon: Icons.info_outline,
+                            isExpanded: _expandedGroupTitle == 'Information & System',
+                            onToggle: (expanded) {
+                              setState(() {
+                                _expandedGroupTitle = expanded ? 'Information & System' : null;
+                              });
+                            },
+                            children: [
+                              _menuItem(
+                                context,
+                                controller,
+                                icon: Icons.contact_phone_outlined,
+                                title: 'Teacher Contacts',
+                                destination: const TeacherContactsScreen(),
+                              ),
+                              _menuItem(
+                                context,
+                                controller,
+                                icon: Icons.account_balance_outlined,
+                                title: 'CSE Department Info',
+                                destination: const DepartmentScreen(),
+                              ),
+                              _menuItem(
+                                context,
+                                controller,
+                                icon: Icons.code,
+                                title: 'Programming Club',
+                                destination: const ClubScreen(),
+                              ),
+                              _menuItem(
+                                context,
+                                controller,
+                                icon: Icons.group_work_outlined,
+                                title: 'Contributors',
+                                destination: const ContributorsScreen(),
+                              ),
+                              ListenableBuilder(
+                                listenable: UpdateService.instance,
+                                builder: (context, _) {
+                                  final hasUpdate = UpdateService.instance.hasUpdate;
+                                  return _menuItem(
+                                    context,
+                                    controller,
+                                    icon: Icons.system_update_outlined,
+                                    title: 'App Update',
+                                    badgeCount: hasUpdate ? -1 : 0,
+                                    onTap: () {
+                                      MainDrawerMenu.showUpdateDialog(context);
+                                    },
+                                  );
+                                },
+                              ),
+                            ],
+                          ),
+
+                          // ── Group 5: Aesthetics & Support ───────────────────────────
+                          DrawerAccordionGroup(
+                            title: 'Support & Aesthetics',
+                            icon: Icons.settings_outlined,
+                            isExpanded: _expandedGroupTitle == 'Support & Aesthetics',
+                            onToggle: (expanded) {
+                              setState(() {
+                                _expandedGroupTitle = expanded ? 'Support & Aesthetics' : null;
+                              });
+                            },
+                            children: [
+                              _menuItem(
+                                context,
+                                controller,
+                                icon: Icons.palette_outlined,
+                                title: 'Themes & Colors',
+                                destination: const AestheticsSettingsScreen(),
+                              ),
+                              _menuItem(
+                                context,
+                                controller,
+                                icon: Icons.map_outlined,
+                                title: 'Guided Screen Tour',
+                                onTap: () async {
+                                  await TourService.instance.resetAllScreenTours();
+                                  TourService.instance.startTour();
+                                },
+                              ),
+                            ],
+                          ),
+
+                          const SizedBox(height: 16),
+                          const Divider(color: Colors.grey, thickness: 0.1),
+                          const SizedBox(height: 8),
+
+                          // ── Logout ─────────────────────────────────────────
+                          _menuItem(
+                            context,
+                            controller,
+                            icon: Icons.logout_outlined,
+                            title: 'Sign Out',
+                            onTap: () async {
+                              final confirm = await showDialog<bool>(
+                                context: context,
+                                builder: (context) => AlertDialog(
+                                  backgroundColor: colors.surface,
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                                  title: const Text('Sign Out', style: TextStyle(fontWeight: FontWeight.bold)),
+                                  content: const Text('Are you sure you want to sign out of CPC App?'),
+                                  actions: [
+                                    TextButton(
+                                      onPressed: () => Navigator.pop(context, false),
+                                      child: const Text('Cancel'),
+                                    ),
+                                    ElevatedButton(
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: colors.error,
+                                        foregroundColor: Colors.white,
+                                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                      ),
+                                      onPressed: () => Navigator.pop(context, true),
+                                      child: const Text('Sign Out'),
+                                    ),
+                                  ],
+                                ),
+                              );
+
+                              if (confirm == true) {
+                                final authState = context.read<AuthBloc>();
+                                try {
+                                  await AuthService.signOut();
+                                  authState.add(AuthSignOutRequested());
+                                } catch (_) {}
+
+                                if (context.mounted) {
+                                  Navigator.pushAndRemoveUntil(
+                                    context,
+                                    MaterialPageRoute(builder: (_) => const AuthAnimatedScreen()),
+                                    (route) => false,
+                                  );
+                                }
+                              }
+                            },
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildHeader(BuildContext context) {
+    final colors = widget.colors;
+    final controller = SimpleHiddenDrawerController.of(context);
+    return ValueListenableBuilder<ProfileData>(
+      valueListenable: currentProfile,
+      builder: (context, profile, _) {
+        return InkWell(
+          onTap: () {
+            controller.toggle();
+            Navigator.push(context, MaterialPageRoute(builder: (_) => const ProfileScreen()));
+          },
+          child: Container(
+            padding: const EdgeInsets.all(24.0),
+            child: Row(
+              children: [
+                CircleAvatar(
+                  radius: 28,
+                  backgroundColor: colors.surfaceContainer,
+                  backgroundImage: profile.imagePath != null && profile.imagePath!.startsWith('http')
+                      ? NetworkImage(profile.imagePath!) as ImageProvider
+                      : null,
+                  child: (profile.imagePath == null || !profile.imagePath!.startsWith('http'))
+                      ? Icon(Icons.person, size: 28, color: colors.primary)
+                      : null,
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        profile.name,
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 3),
+                      Text(
+                        profile.designation,
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: Colors.white.withValues(alpha: 0.7),
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      Text(
+                        profile.email,
+                        style: TextStyle(
+                          fontSize: 10,
+                          color: Colors.white.withValues(alpha: 0.5),
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _menuItem(
+    BuildContext context,
+    SimpleHiddenDrawerController controller, {
+    required IconData icon,
+    required String title,
+    Widget? destination,
+    int badgeCount = 0,
+    VoidCallback? onTap,
+  }) {
+    return InkWell(
+      onTap: () {
+        controller.toggle();
+        if (onTap != null) onTap();
+        if (destination != null) {
+          Navigator.push(context, MaterialPageRoute(builder: (_) => destination));
+        }
+      },
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Row(
+          children: [
+            if (badgeCount != 0)
+              Badge(
+                label: badgeCount > 0 ? Text('$badgeCount') : null,
+                child: Icon(icon, color: Colors.white.withValues(alpha: 0.75), size: 20),
+              )
+            else
+              Icon(icon, color: Colors.white.withValues(alpha: 0.75), size: 20),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Text(
+                title,
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.white.withValues(alpha: 0.85),
+                ),
+              ),
+            ),
+            Icon(
+              Icons.chevron_right,
+              size: 14,
+              color: Colors.white.withValues(alpha: 0.35),
+            ),
+          ],
+        ),
       ),
     );
   }

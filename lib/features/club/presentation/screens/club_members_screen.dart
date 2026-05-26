@@ -30,7 +30,162 @@ class _ClubMembersScreenState extends State<ClubMembersScreen> with SingleTicker
   final GlobalKey _firstMemberCardKey = GlobalKey();
   bool _showTour = false;
 
+  String _selectedSessionFilter = 'All';
+  String _selectedDesignationFilter = 'All';
+
   bool get isAdmin => currentProfile.value.role != UserRole.student;
+
+  List<String> get _availableSessions {
+    final sessions = _allMembers
+        .map((m) => m.session)
+        .where((s) => s.isNotEmpty)
+        .toSet()
+        .toList();
+    sessions.sort((a, b) => b.compareTo(a));
+    return ['All', ...sessions];
+  }
+
+  List<String> get _availableDesignations {
+    final designations = _allMembers
+        .map((m) => m.designation)
+        .where((d) => d.isNotEmpty && d != 'Student' && d != 'Member')
+        .toSet()
+        .toList();
+    designations.sort();
+    return ['All', 'Member', ...designations];
+  }
+
+  void _showFiltersSheet() {
+    final colors = Theme.of(context).colorScheme;
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setSheetState) {
+            return Container(
+              decoration: BoxDecoration(
+                color: colors.surface,
+                borderRadius: const BorderRadius.only(
+                  topLeft: Radius.circular(24),
+                  topRight: Radius.circular(24),
+                ),
+              ),
+              padding: const EdgeInsets.all(20).copyWith(
+                bottom: MediaQuery.of(context).padding.bottom + 20,
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Center(
+                    child: Container(
+                      width: 40,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: Colors.grey.withValues(alpha: 0.3),
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text(
+                        'Filter Directory',
+                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+                      ),
+                      TextButton(
+                        onPressed: () {
+                          setSheetState(() {
+                            _selectedSessionFilter = 'All';
+                            _selectedDesignationFilter = 'All';
+                          });
+                          setState(() {});
+                        },
+                        child: const Text('Reset All'),
+                      ),
+                    ],
+                  ),
+                  const Divider(thickness: 0.5),
+                  const SizedBox(height: 12),
+                  
+                  const Text('Filter by Session', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                  const SizedBox(height: 8),
+                  SizedBox(
+                    height: 40,
+                    child: ListView(
+                      scrollDirection: Axis.horizontal,
+                      children: _availableSessions.map((session) {
+                        final isSelected = _selectedSessionFilter == session;
+                        return Padding(
+                          padding: const EdgeInsets.only(right: 8.0),
+                          child: ChoiceChip(
+                            label: Text(session),
+                            selected: isSelected,
+                            onSelected: (selected) {
+                              if (selected) {
+                                setSheetState(() => _selectedSessionFilter = session);
+                                setState(() {});
+                              }
+                            },
+                          ),
+                        );
+                      }).toList(),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+
+                  const Text('Filter by Designation', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                  const SizedBox(height: 8),
+                  SizedBox(
+                    height: 40,
+                    child: ListView(
+                      scrollDirection: Axis.horizontal,
+                      children: _availableDesignations.map((designation) {
+                        final isSelected = _selectedDesignationFilter == designation;
+                        return Padding(
+                          padding: const EdgeInsets.only(right: 8.0),
+                          child: ChoiceChip(
+                            label: Text(designation),
+                            selected: isSelected,
+                            onSelected: (selected) {
+                              if (selected) {
+                                setSheetState(() => _selectedDesignationFilter = designation);
+                                setState(() {});
+                              }
+                            },
+                          ),
+                        );
+                      }).toList(),
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+
+                  SizedBox(
+                    width: double.infinity,
+                    height: 45,
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: colors.primary,
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      ),
+                      onPressed: () => Navigator.pop(context),
+                      child: const Text('Apply Filters', style: TextStyle(fontWeight: FontWeight.bold)),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
 
   @override
   void initState() {
@@ -477,10 +632,19 @@ class _ClubMembersScreenState extends State<ClubMembersScreen> with SingleTicker
     final tabUnselectedColor = isDark ? colors.onSurface.withOpacity(0.6) : Colors.white.withOpacity(0.7);
     final tabIndicatorColor = isDark ? colors.primary : Colors.white;
 
-    final filteredAll = _allMembers.where((m) => 
-      m.name.toLowerCase().contains(_searchQuery.toLowerCase()) || 
-      m.studentFullId.contains(_searchQuery)
-    ).toList();
+    final filteredAll = _allMembers.where((m) {
+      final matchesSearch = m.name.toLowerCase().contains(_searchQuery.toLowerCase()) || 
+          m.studentFullId.contains(_searchQuery);
+      
+      final matchesSession = _selectedSessionFilter == 'All' || m.session == _selectedSessionFilter;
+      
+      final matchesDesignation = _selectedDesignationFilter == 'All' || 
+          (m.designation.toLowerCase() == _selectedDesignationFilter.toLowerCase()) ||
+          (_selectedDesignationFilter == 'Member' && m.designation == 'Student') ||
+          (_selectedDesignationFilter == 'Student' && m.designation == 'Member');
+
+      return matchesSearch && matchesSession && matchesDesignation;
+    }).toList();
 
     final members = filteredAll.where((m) => m.role == UserRole.student && m.isApproved).toList();
     final committees = filteredAll.where((m) => (m.role == UserRole.committeeMember || m.role == UserRole.superUser) && m.isApproved).toList();
@@ -495,6 +659,20 @@ class _ClubMembersScreenState extends State<ClubMembersScreen> with SingleTicker
               backgroundColor: Colors.transparent,
               elevation: 0,
               title: const Text('Club Directory'),
+              actions: [
+                IconButton(
+                  icon: Icon(
+                    (_selectedSessionFilter != 'All' || _selectedDesignationFilter != 'All')
+                        ? Icons.filter_list_alt
+                        : Icons.filter_list,
+                    color: (_selectedSessionFilter != 'All' || _selectedDesignationFilter != 'All')
+                        ? colors.primary
+                        : null,
+                  ),
+                  tooltip: 'Filter Members',
+                  onPressed: _showFiltersSheet,
+                ),
+              ],
               bottom: PreferredSize(
                 preferredSize: const Size.fromHeight(110),
                 child: Column(

@@ -303,4 +303,9 @@ class ResultService {
       'semester': semester,
     });
   }
+
+  // 8. Delete a specific personal result (and let CASCADE delete associated subject results)
+  static Future<void> deleteResult(String resultId) async {
+    await _client.from('results').delete().eq('id', resultId);
+  }
 }

@@ -29,6 +29,7 @@ class HomeLayout extends StatefulWidget {
 class _HomeLayoutState extends State<HomeLayout> with WidgetsBindingObserver {
   int _currentIndex = 0;
   late List<Widget> _screens;
+  bool _isUpdateDialogShowing = false;
 
   // Keys for Guided Onboarding Spotlight Tour
   final GlobalKey _drawerKey = GlobalKey();
@@ -60,7 +61,10 @@ class _HomeLayoutState extends State<HomeLayout> with WidgetsBindingObserver {
     JobService.subscribeToJobs();
     ContestService.subscribeToContests();
     ChatService.subscribeToAllMessages();
-    // Check for App Updates
+
+    // Check & Subscribe for App Updates
+    UpdateService.instance.subscribeToUpdates();
+    UpdateService.instance.addListener(_handleUpdateStatus);
     UpdateService.instance.checkForUpdates();
 
     // Initialize Tour Service and auto-trigger on first app launch
@@ -77,9 +81,26 @@ class _HomeLayoutState extends State<HomeLayout> with WidgetsBindingObserver {
     });
   }
 
+  void _handleUpdateStatus() {
+    if (UpdateService.instance.hasUpdate && UpdateService.instance.isMajor) {
+      if (!_isUpdateDialogShowing) {
+        setState(() {
+          _isUpdateDialogShowing = true;
+        });
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) {
+            MainDrawerMenu.showUpdateDialog(context, force: true);
+          }
+        });
+      }
+    }
+  }
+
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    UpdateService.instance.removeListener(_handleUpdateStatus);
+    UpdateService.instance.unsubscribeFromUpdates();
     // Unsubscribe from services to prevent memory leaks and duplicate notifications
     NoticeService.unsubscribeFromNotices();
     JobService.unsubscribeFromJobs();

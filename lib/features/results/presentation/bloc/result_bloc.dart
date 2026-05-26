@@ -11,6 +11,7 @@ class ResultBloc extends Bloc<ResultEvent, ResultState> {
     on<SyncResultsRequested>(_onSyncResultsRequested);
     on<FetchSpecificResultsRequested>(_onFetchSpecificResultsRequested);
     on<LoadBatchResultsRequested>(_onLoadBatchResultsRequested);
+    on<DeleteResultRequested>(_onDeleteResultRequested);
   }
 
   Future<void> _onLoadResultsRequested(
@@ -110,6 +111,26 @@ class ResultBloc extends Bloc<ResultEvent, ResultState> {
     } catch (e) {
       emit(state.copyWith(
         isBatchLoading: false,
+        errorMessage: e.toString(),
+      ));
+    }
+  }
+
+  Future<void> _onDeleteResultRequested(
+    DeleteResultRequested event,
+    Emitter<ResultState> emit,
+  ) async {
+    emit(state.copyWith(isOwnLoading: true, clearError: true));
+    try {
+      await ResultService.deleteResult(event.resultId);
+      final freshResults = await ResultService.loadResultsFromDB();
+      emit(state.copyWith(
+        isOwnLoading: false,
+        ownResults: freshResults,
+      ));
+    } catch (e) {
+      emit(state.copyWith(
+        isOwnLoading: false,
         errorMessage: e.toString(),
       ));
     }

@@ -57,6 +57,7 @@ class _NoticesScreenState extends State<NoticesScreen> {
     bool isVisible = existingNotice?.isVisible ?? true;
     File? selectedImage;
     String? currentImageUrl = existingNotice?.imagePath;
+    bool isUploading = false;
 
     showModalBottomSheet(
       context: context,
@@ -65,7 +66,6 @@ class _NoticesScreenState extends State<NoticesScreen> {
       builder: (modalContext) {
         return StatefulBuilder(
           builder: (BuildContext context, StateSetter setModalState) {
-            bool isUploading = false;
 
             Future<void> pickImage() async {
               final picker = ImagePicker();
@@ -325,11 +325,21 @@ class _NoticesScreenState extends State<NoticesScreen> {
               final clubNotices = state is NoticesLoaded ? state.clubNotices : <NoticeItem>[];
               final deptNotices = state is NoticesLoaded ? state.deptNotices : <NoticeItem>[];
 
-              return TabBarView(
-                children: [
-                  _buildNoticeList(clubNotices, 'club'),
-                  _buildNoticeList(deptNotices, 'department'),
-                ],
+              return ValueListenableBuilder<ProfileData>(
+                valueListenable: currentProfile,
+                builder: (context, profile, _) {
+                  return ValueListenableBuilder<CommitteePermission?>(
+                    valueListenable: PermissionsService.currentPermissions,
+                    builder: (context, currentPerms, _) {
+                      return TabBarView(
+                        children: [
+                          _buildNoticeList(clubNotices, 'club', currentPerms, profile),
+                          _buildNoticeList(deptNotices, 'department', currentPerms, profile),
+                        ],
+                      );
+                    },
+                  );
+                },
               );
             },
           ),
@@ -393,11 +403,9 @@ class _NoticesScreenState extends State<NoticesScreen> {
     );
   }
 
-  Widget _buildNoticeList(List<NoticeItem> notices, String category) {
-    final authState = context.read<AuthBloc>().state;
-    final profile = authState is AuthAuthenticated ? authState.profile : currentProfile.value;
+  Widget _buildNoticeList(List<NoticeItem> notices, String category, CommitteePermission? currentPerms, ProfileData profile) {
     final isAdmin = profile.role == UserRole.superUser ||
-        (profile.role == UserRole.committeeMember && (PermissionsService.currentPermissions.value?.canManageNotices ?? false)) ||
+        (profile.role == UserRole.committeeMember && (currentPerms?.canManageNotices ?? false)) ||
         profile.designation == 'President' ||
         profile.designation == 'Vice President';
     final isSuperUser = profile.designation == 'President' || profile.designation == 'Vice President' || profile.role == UserRole.superUser;

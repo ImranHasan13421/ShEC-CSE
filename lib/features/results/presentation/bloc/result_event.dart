@@ -34,3 +34,12 @@ class LoadBatchResultsRequested extends ResultEvent {
   @override
   List<Object?> get props => [session];
 }
+
+class DeleteResultRequested extends ResultEvent {
+  final String resultId;
+
+  const DeleteResultRequested({required this.resultId});
+
+  @override
+  List<Object?> get props => [resultId];
+}

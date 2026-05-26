@@ -3,7 +3,6 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'notice_event.dart';
 import 'notice_state.dart';
 import '../../../../backend/services/notice_service.dart';
-import '../../models/notice_state.dart';
 
 class NoticeBloc extends Bloc<NoticeEvent, NoticeState> {
   StreamSubscription? _noticesSubscription;

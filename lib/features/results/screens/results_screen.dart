@@ -233,7 +233,7 @@ class _ResultsScreenState extends State<ResultsScreen> with SingleTickerProvider
                   TourStep(
                     targetKey: _fabKey,
                     title: 'Manual Exam Fetcher',
-                    description: 'Use the floating manual query builder to search, select, and pull specific academic sessions/exams.',
+                    description: 'Use the floating manual query builder to search, select, and pull specific academic sessions/exams. Note: If you are a year-drop student, use this manual fetcher to pull your specific exam with your present session ID.',
                   ),
                 ],
                 onComplete: () {
@@ -391,9 +391,44 @@ class _ResultsScreenState extends State<ResultsScreen> with SingleTickerProvider
         child: ExpansionTile(
           tilePadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
           childrenPadding: const EdgeInsets.all(16).copyWith(top: 0),
-          title: Text(
-            result.examName,
-            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+          title: Row(
+            children: [
+              Expanded(
+                child: Text(
+                  result.examName,
+                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                ),
+              ),
+              IconButton(
+                icon: const Icon(Icons.delete_outline, color: Colors.redAccent, size: 20),
+                tooltip: 'Remove Semester Result',
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(),
+                onPressed: () {
+                  showDialog(
+                    context: context,
+                    builder: (dialogCtx) => AlertDialog(
+                      title: const Text('Remove Result'),
+                      content: Text('Are you sure you want to remove the result of "${result.examName}" from your personal dashboard?'),
+                      actions: [
+                        TextButton(
+                          onPressed: () => Navigator.pop(dialogCtx),
+                          child: const Text('Cancel'),
+                        ),
+                        ElevatedButton(
+                          style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+                          onPressed: () {
+                            Navigator.pop(dialogCtx);
+                            context.read<ResultBloc>().add(DeleteResultRequested(resultId: result.id));
+                          },
+                          child: const Text('Delete', style: TextStyle(color: Colors.white)),
+                        ),
+                      ],
+                    ),
+                  );
+                },
+              ),
+            ],
           ),
           subtitle: Padding(
             padding: const EdgeInsets.only(top: 8.0),

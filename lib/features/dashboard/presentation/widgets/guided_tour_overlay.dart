@@ -69,11 +69,21 @@ class _GuidedTourOverlayState extends State<GuidedTourOverlay> with SingleTicker
   void _updateTargetBounds() {
     if (widget.steps.isEmpty || _currentStepIndex >= widget.steps.length) return;
 
-    // Small delay to allow bottom tab switching and rendering to fully settle
-    Future.delayed(const Duration(milliseconds: 100), () {
+    final step = widget.steps[_currentStepIndex];
+    final targetContext = step.targetKey.currentContext;
+
+    if (targetContext != null) {
+      Scrollable.ensureVisible(
+        targetContext,
+        duration: const Duration(milliseconds: 250),
+        alignment: 0.5, // Centered scrolling placement
+      );
+    }
+
+    // Delay slightly to allow the scroll animation and bottom tab switches to fully settle
+    Future.delayed(const Duration(milliseconds: 300), () {
       if (!mounted) return;
 
-      final step = widget.steps[_currentStepIndex];
       final context = step.targetKey.currentContext;
 
       if (context != null) {
