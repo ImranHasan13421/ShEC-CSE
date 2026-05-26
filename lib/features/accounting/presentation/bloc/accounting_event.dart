@@ -19,24 +19,26 @@ class FetchDuesStatusRequested extends AccountingEvent {
 }
 
 class AddFeePaymentSubmitted extends AccountingEvent {
-  final String memberId;
+  final String? memberId;
   final double amount;
   final String month;
   final String paymentType;
   final String? eventName;
   final String? remarks;
+  final String? externalSource;
 
   const AddFeePaymentSubmitted({
-    required this.memberId,
+    this.memberId,
     required this.amount,
     required this.month,
     required this.paymentType,
     this.eventName,
     this.remarks,
+    this.externalSource,
   });
 
   @override
-  List<Object?> get props => [memberId, amount, month, paymentType, eventName, remarks];
+  List<Object?> get props => [memberId, amount, month, paymentType, eventName, remarks, externalSource];
 }
 
 class AddExpenseSubmitted extends AccountingEvent {

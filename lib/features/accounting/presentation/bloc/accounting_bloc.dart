@@ -54,6 +54,7 @@ class AccountingBloc extends Bloc<AccountingEvent, AccountingState> {
         paymentType: event.paymentType,
         eventName: event.eventName,
         remarks: event.remarks,
+        externalSource: event.externalSource,
       );
       emit(const AccountingActionSuccess('Fee payment recorded successfully!', isPaymentAdded: true));
     } catch (e) {

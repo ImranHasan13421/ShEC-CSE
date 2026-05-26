@@ -422,12 +422,13 @@ class AccountingService {
 
   // Record a payment
   static Future<void> addFeePayment({
-    required String memberId,
+    String? memberId,
     required double amount,
     required String month,
     required String paymentType,
     String? eventName,
     String? remarks,
+    String? externalSource,
   }) async {
     final isOnline = await ConnectivityService.hasInternet();
     if (!isOnline) {
@@ -447,6 +448,7 @@ class AccountingService {
         'event_name': eventName,
         'remarks': remarks,
         'received_by': currentUserId,
+        'external_source': externalSource,
       });
     } catch (e) {
       debugPrint('Error adding fee payment: $e');
