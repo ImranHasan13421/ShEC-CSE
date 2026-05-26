@@ -1,10 +1,16 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:ShEC_CSE/main.dart'; // Imports the global navigatorKey
 
 class ConnectivityService {
   /// Asynchronously checks for active internet connection via a robust Google DNS lookup.
   static Future<bool> hasInternet() async {
+    if (kIsWeb) {
+      // On web, dart:io InternetAddress lookup is not supported and will throw.
+      // We assume online, letting standard network calls fail naturally or fallback to kIsWeb check.
+      return true;
+    }
     try {
       final result = await InternetAddress.lookup('google.com').timeout(
         const Duration(seconds: 3),
