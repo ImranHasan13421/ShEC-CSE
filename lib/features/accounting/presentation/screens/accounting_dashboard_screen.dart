@@ -94,7 +94,6 @@ class _AccountingDashboardScreenState extends State<AccountingDashboardScreen> {
               child: Scaffold(
                 backgroundColor: Colors.transparent,
                 appBar: AppBar(
-                  backgroundColor: Colors.transparent,
                   elevation: 0,
                   title: const Text('Club Accounts'),
                   bottom: TabBar(

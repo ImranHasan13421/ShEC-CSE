@@ -20,6 +20,7 @@ class _AestheticsSettingsScreenState extends State<AestheticsSettingsScreen> wit
   late bool _localAuroraEnabled;
   late String _localPattern;
   late String _localWallpaper;
+  late bool _localWallpaperEnabled;
   late AppColorTheme _localColorTheme;
   late AppThemeMode _localThemeMode;
   late int _localCustomColorValue;
@@ -48,6 +49,7 @@ class _AestheticsSettingsScreenState extends State<AestheticsSettingsScreen> wit
     _localAuroraEnabled = ambientAuroraEnabled.value;
     _localPattern = ambientPattern.value;
     _localWallpaper = ambientWallpaper.value;
+    _localWallpaperEnabled = ambientWallpaperEnabled.value;
     _localColorTheme = themeService.colorTheme;
     _localThemeMode = themeService.themeMode;
     _localCustomColorValue = themeService.customColorValue;
@@ -134,6 +136,7 @@ class _AestheticsSettingsScreenState extends State<AestheticsSettingsScreen> wit
     ambientAuroraEnabled.value = _localAuroraEnabled;
     ambientPattern.value = _localPattern;
     ambientWallpaper.value = _localWallpaper;
+    ambientWallpaperEnabled.value = _localWallpaperEnabled;
 
     // Commit dynamic ThemeService settings (propagates to MaterialApp builder)
     themeService.setThemeMode(_localThemeMode);
@@ -168,6 +171,7 @@ class _AestheticsSettingsScreenState extends State<AestheticsSettingsScreen> wit
   Widget build(BuildContext context) {
     final currentThemeScheme = Theme.of(context).colorScheme;
     final ColorScheme previewScheme = _getLocalColorScheme();
+    final bool isPreviewLight = previewScheme.brightness == Brightness.light;
 
     return Stack(
       children: [
@@ -180,10 +184,10 @@ class _AestheticsSettingsScreenState extends State<AestheticsSettingsScreen> wit
           overridePattern: _localPattern,
           overrideAuroraEnabled: _localAuroraEnabled,
           overrideWallpaper: _localWallpaper,
+          overrideWallpaperEnabled: _localWallpaperEnabled,
           child: Scaffold(
             backgroundColor: Colors.transparent,
             appBar: AppBar(
-              backgroundColor: Colors.transparent,
               elevation: 0,
               title: const Text(
                 'Aesthetics & Themes',
@@ -361,35 +365,57 @@ class _AestheticsSettingsScreenState extends State<AestheticsSettingsScreen> wit
                                 activeColor: previewScheme.primary,
                                 title: Row(
                                   children: [
-                                    Icon(Icons.bubble_chart, color: previewScheme.primary),
+                                    Icon(Icons.bubble_chart, color: isPreviewLight ? previewScheme.primary.withValues(alpha: 0.5) : previewScheme.primary),
                                     const SizedBox(width: 12),
-                                    const Text(
-                                      'Aesthetic Mesh Auroras',
-                                      style: TextStyle(fontWeight: FontWeight.bold),
+                                    Expanded(
+                                      child: Text(
+                                        'Aesthetic Mesh Auroras',
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          color: isPreviewLight ? previewScheme.onSurface.withValues(alpha: 0.5) : null,
+                                        ),
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 6),
+                                    GestureDetector(
+                                      onTap: isPreviewLight ? null : () => _showTimeTableDialog(context, previewScheme),
+                                      child: Icon(
+                                        Icons.info_outline,
+                                        size: 16,
+                                        color: isPreviewLight ? previewScheme.primary.withValues(alpha: 0.5) : previewScheme.primary,
+                                      ),
                                     ),
                                   ],
                                 ),
-                                subtitle: const Padding(
-                                  padding: EdgeInsets.only(top: 4.0),
+                                subtitle: Padding(
+                                  padding: const EdgeInsets.only(top: 4.0),
                                   child: Text(
-                                    'Enable beautifully drifting background color blobs based on current time. Disabling this displays a flat gradient background or static wallpaper.',
-                                    style: TextStyle(fontSize: 12),
+                                    isPreviewLight
+                                        ? 'Mesh Auroras are turned off in Light Mode to ensure contrast and visual clarity.'
+                                        : 'Enable beautifully drifting background color blobs based on current time. Disabling this displays a flat gradient background or static wallpaper.',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: isPreviewLight ? previewScheme.onSurfaceVariant.withValues(alpha: 0.6) : null,
+                                    ),
                                   ),
                                 ),
-                                value: _localAuroraEnabled,
-                                onChanged: (val) {
-                                  setState(() => _localAuroraEnabled = val);
-                                },
+                                value: isPreviewLight ? false : _localAuroraEnabled,
+                                onChanged: isPreviewLight
+                                    ? null
+                                    : (val) {
+                                        setState(() => _localAuroraEnabled = val);
+                                      },
                               ),
                             ),
                             const SizedBox(height: 16),
         
-                            // Aesthetic Styles Selector (Only enabled if Aesthetic Mesh Auroras is active)
+                            // Aesthetic Styles Selector (Only enabled if Aesthetic Mesh Auroras is active and not in light mode)
                             AnimatedOpacity(
                               duration: const Duration(milliseconds: 250),
-                              opacity: _localAuroraEnabled ? 1.0 : 0.4,
+                              opacity: _localAuroraEnabled && !isPreviewLight ? 1.0 : 0.4,
                               child: AbsorbPointer(
-                                absorbing: !_localAuroraEnabled,
+                                absorbing: !_localAuroraEnabled || isPreviewLight,
                                 child: _buildGlassCard(
                                   key: _styleSelectorKey,
                                   child: Padding(
@@ -496,115 +522,143 @@ class _AestheticsSettingsScreenState extends State<AestheticsSettingsScreen> wit
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
-                            // Static Background Wallpapers Panel
                             _buildGlassCard(
-                              child: Padding(
-                                padding: const EdgeInsets.all(16.0),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      'STATIC BACKGROUND WALLPAPER',
-                                      style: TextStyle(
-                                        fontSize: 11,
-                                        fontWeight: FontWeight.w800,
-                                        letterSpacing: 1.2,
-                                        color: previewScheme.primary,
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
+                                children: [
+                                  SwitchListTile(
+                                    activeColor: previewScheme.primary,
+                                    title: Row(
+                                      children: [
+                                        Icon(Icons.wallpaper, color: previewScheme.primary),
+                                        const SizedBox(width: 12),
+                                        const Text(
+                                          'Static Canvas Elements',
+                                          style: TextStyle(fontWeight: FontWeight.bold),
+                                        ),
+                                      ],
+                                    ),
+                                    subtitle: const Padding(
+                                      padding: EdgeInsets.only(top: 4.0),
+                                      child: Text(
+                                        'Display beautiful vector wallpapers and geometric patterns. Drawn crisply on top of ambient auroras without any blur.',
+                                        style: TextStyle(fontSize: 12),
                                       ),
                                     ),
-                                    const SizedBox(height: 12),
-                                    _buildWallpaperGrid(previewScheme),
-                                  ],
-                                ),
-                              ),
-                            ),
-                            const SizedBox(height: 16),
-
-                            // Static Background Patterns ChoiceChips Selector
-                            _buildGlassCard(
-                              child: Padding(
-                                padding: const EdgeInsets.all(16.0),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      'STATIC BACKGROUND PATTERN',
-                                      style: TextStyle(
-                                        fontSize: 11,
-                                        fontWeight: FontWeight.w800,
-                                        letterSpacing: 1.2,
-                                        color: previewScheme.primary,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 12),
-                                    SingleChildScrollView(
-                                      scrollDirection: Axis.horizontal,
-                                      physics: const BouncingScrollPhysics(),
-                                      child: Row(
-                                        children: [
-                                          'none',
-                                          'dots',
-                                          'grid',
-                                          'waves',
-                                          'stripes',
-                                        ].map((pat) {
-                                          final isSelected = _localPattern == pat;
-                                          String label;
-                                          IconData icon;
-                                          switch (pat) {
-                                            case 'none':
-                                              label = 'None';
-                                              icon = Icons.blur_off;
-                                              break;
-                                            case 'dots':
-                                              label = 'Dots Grid';
-                                              icon = Icons.blur_on;
-                                              break;
-                                            case 'grid':
-                                              label = 'Line Grid';
-                                              icon = Icons.grid_on;
-                                              break;
-                                            case 'waves':
-                                              label = 'Waves';
-                                              icon = Icons.waves;
-                                              break;
-                                            case 'stripes':
-                                              label = 'Diagonal Stripes';
-                                              icon = Icons.dehaze;
-                                              break;
-                                            default:
-                                              label = 'None';
-                                              icon = Icons.blur_off;
-                                          }
-                                          return Padding(
-                                            padding: const EdgeInsets.only(right: 8.0),
-                                            child: ChoiceChip(
-                                              label: Row(
-                                                mainAxisSize: MainAxisSize.min,
-                                                children: [
-                                                  Icon(icon, size: 16, color: isSelected ? Colors.white : previewScheme.onSurface),
-                                                  const SizedBox(width: 6),
-                                                  Text(label),
-                                                ],
+                                    value: _localWallpaperEnabled,
+                                    onChanged: (val) {
+                                      setState(() => _localWallpaperEnabled = val);
+                                    },
+                                  ),
+                                  AnimatedSize(
+                                    duration: const Duration(milliseconds: 300),
+                                    curve: Curves.easeInOut,
+                                    child: _localWallpaperEnabled
+                                        ? Column(
+                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                            children: [
+                                              const Divider(height: 1),
+                                              Padding(
+                                                padding: const EdgeInsets.all(16.0),
+                                                child: Column(
+                                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                                  children: [
+                                                    Text(
+                                                      'STATIC BACKGROUND WALLPAPER',
+                                                      style: TextStyle(
+                                                        fontSize: 11,
+                                                        fontWeight: FontWeight.w800,
+                                                        letterSpacing: 1.2,
+                                                        color: previewScheme.primary,
+                                                      ),
+                                                    ),
+                                                    const SizedBox(height: 12),
+                                                    _buildWallpaperGrid(previewScheme),
+                                                    const SizedBox(height: 24),
+                                                    Text(
+                                                      'STATIC BACKGROUND PATTERN',
+                                                      style: TextStyle(
+                                                        fontSize: 11,
+                                                        fontWeight: FontWeight.w800,
+                                                        letterSpacing: 1.2,
+                                                        color: previewScheme.primary,
+                                                      ),
+                                                    ),
+                                                    const SizedBox(height: 12),
+                                                    SingleChildScrollView(
+                                                      scrollDirection: Axis.horizontal,
+                                                      physics: const BouncingScrollPhysics(),
+                                                      child: Row(
+                                                        children: [
+                                                          'none',
+                                                          'dots',
+                                                          'grid',
+                                                          'waves',
+                                                          'stripes',
+                                                        ].map((pat) {
+                                                          final isSelected = _localPattern == pat;
+                                                          String label;
+                                                          IconData icon;
+                                                          switch (pat) {
+                                                            case 'none':
+                                                              label = 'None';
+                                                              icon = Icons.blur_off;
+                                                              break;
+                                                            case 'dots':
+                                                              label = 'Dots Grid';
+                                                              icon = Icons.blur_on;
+                                                              break;
+                                                            case 'grid':
+                                                              label = 'Line Grid';
+                                                              icon = Icons.grid_on;
+                                                              break;
+                                                            case 'waves':
+                                                              label = 'Waves';
+                                                              icon = Icons.waves;
+                                                              break;
+                                                            case 'stripes':
+                                                              label = 'Diagonal Stripes';
+                                                              icon = Icons.dehaze;
+                                                              break;
+                                                            default:
+                                                              label = 'None';
+                                                              icon = Icons.blur_off;
+                                                          }
+                                                          return Padding(
+                                                            padding: const EdgeInsets.only(right: 8.0),
+                                                            child: ChoiceChip(
+                                                              label: Row(
+                                                                mainAxisSize: MainAxisSize.min,
+                                                                children: [
+                                                                  Icon(icon, size: 16, color: isSelected ? Colors.white : previewScheme.onSurface),
+                                                                  const SizedBox(width: 6),
+                                                                  Text(label),
+                                                                ],
+                                                              ),
+                                                              selected: isSelected,
+                                                              selectedColor: previewScheme.primary,
+                                                              labelStyle: TextStyle(
+                                                                color: isSelected ? Colors.white : previewScheme.onSurface,
+                                                                fontWeight: FontWeight.bold,
+                                                              ),
+                                                              onSelected: (selected) {
+                                                                if (selected) {
+                                                                  setState(() => _localPattern = pat);
+                                                                }
+                                                              },
+                                                            ),
+                                                          );
+                                                        }).toList(),
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
                                               ),
-                                              selected: isSelected,
-                                              selectedColor: previewScheme.primary,
-                                              labelStyle: TextStyle(
-                                                color: isSelected ? Colors.white : previewScheme.onSurface,
-                                                fontWeight: FontWeight.bold,
-                                              ),
-                                              onSelected: (selected) {
-                                                if (selected) {
-                                                  setState(() => _localPattern = pat);
-                                                }
-                                              },
-                                            ),
-                                          );
-                                        }).toList(),
-                                      ),
-                                    ),
-                                  ],
-                                ),
+                                            ],
+                                          )
+                                        : const SizedBox.shrink(),
+                                  ),
+                                ],
                               ),
                             ),
                           ],
@@ -673,15 +727,157 @@ class _AestheticsSettingsScreenState extends State<AestheticsSettingsScreen> wit
 
   Widget _buildGlassCard({Key? key, required Widget child}) {
     final colors = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Card(
       key: key,
-      elevation: 0,
-      color: colors.surfaceContainer.withOpacity(0.7),
+      elevation: isDark ? 0 : 2, // Slight elevation in light mode to make it pop!
+      color: isDark ? colors.surfaceContainer.withOpacity(0.7) : Colors.white, // Solid opaque white in light mode to boost contrast
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(20),
-        side: BorderSide(color: colors.outline.withOpacity(0.1)),
+        side: BorderSide(color: colors.outline.withOpacity(isDark ? 0.1 : 0.2)),
       ),
       child: child,
+    );
+  }
+
+  void _showTimeTableDialog(BuildContext context, ColorScheme previewScheme) {
+    final colors = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    showDialog(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          backgroundColor: isDark ? colors.surface : Colors.white,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+          title: Row(
+            children: [
+              Icon(Icons.access_time_filled, color: previewScheme.primary, size: 24),
+              const SizedBox(width: 12),
+              const Text(
+                'Aesthetic Time Table',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+              ),
+            ],
+          ),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'The background color scheme dynamically adapts to these time periods to create a soothing, ambient aesthetic.',
+                  style: TextStyle(fontSize: 12.5),
+                ),
+                const SizedBox(height: 20),
+                _buildTimeTableItem(
+                  title: 'Morning (5:00 AM - 12:00 PM)',
+                  label: 'Sunrise Golden Amber & Warm Peach',
+                  icons: [Icons.wb_twilight, Icons.wb_sunny_outlined],
+                  dotColors: [previewScheme.primary, const Color(0xFFFF9100), const Color(0xFFFFD600)],
+                  previewScheme: previewScheme,
+                ),
+                const SizedBox(height: 14),
+                _buildTimeTableItem(
+                  title: 'Afternoon (12:00 PM - 5:00 PM)',
+                  label: 'High-energy Sky Cyan & Emerald',
+                  icons: [Icons.wb_sunny, Icons.light_mode],
+                  dotColors: [previewScheme.primary, const Color(0xFF00E5FF), const Color(0xFF00E676)],
+                  previewScheme: previewScheme,
+                ),
+                const SizedBox(height: 14),
+                _buildTimeTableItem(
+                  title: 'Evening (5:00 PM - 9:00 PM)',
+                  label: 'Twilight Crimson Sunset & Magenta',
+                  icons: [Icons.wb_twilight_sharp, Icons.nights_stay_outlined],
+                  dotColors: [previewScheme.primary, const Color(0xFFFF1744), const Color(0xFFD500F9)],
+                  previewScheme: previewScheme,
+                ),
+                const SizedBox(height: 14),
+                _buildTimeTableItem(
+                  title: 'Night (9:00 PM - 5:00 AM)',
+                  label: 'Deep Cosmic Indigo & Midnight Blue',
+                  icons: [Icons.nights_stay, Icons.bedtime],
+                  dotColors: [previewScheme.primary, const Color(0xFF2979FF), const Color(0xFF651FFF)],
+                  previewScheme: previewScheme,
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              style: TextButton.styleFrom(
+                foregroundColor: previewScheme.primary,
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+              ),
+              child: const Text('Got it', style: TextStyle(fontWeight: FontWeight.bold)),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildTimeTableItem({
+    required String title,
+    required String label,
+    required List<IconData> icons,
+    required List<Color> dotColors,
+    required ColorScheme previewScheme,
+  }) {
+    final colors = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: isDark ? colors.surfaceContainer.withOpacity(0.4) : colors.surfaceContainer.withOpacity(0.8),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: colors.outline.withOpacity(0.08)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(icons[0], size: 16, color: previewScheme.primary),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  title,
+                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Text(
+            label,
+            style: TextStyle(fontSize: 11, color: colors.onSurfaceVariant.withOpacity(0.85)),
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: dotColors.map((dotColor) {
+              return Container(
+                margin: const EdgeInsets.only(right: 6),
+                width: 10,
+                height: 10,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: dotColor,
+                  boxShadow: [
+                    BoxShadow(
+                      color: dotColor.withOpacity(0.4),
+                      blurRadius: 4,
+                      spreadRadius: 1,
+                    )
+                  ],
+                ),
+              );
+            }).toList(),
+          ),
+        ],
+      ),
     );
   }
 
@@ -713,6 +909,7 @@ class _AestheticsSettingsScreenState extends State<AestheticsSettingsScreen> wit
               overridePattern: _localPattern,
               overrideAuroraEnabled: _localAuroraEnabled,
               overrideWallpaper: _localWallpaper,
+              overrideWallpaperEnabled: _localWallpaperEnabled,
               child: const SizedBox.expand(),
             ),
           ),

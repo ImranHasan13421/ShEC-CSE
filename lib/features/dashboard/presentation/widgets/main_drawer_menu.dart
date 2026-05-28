@@ -27,6 +27,69 @@ import 'package:ShEC_CSE/features/accounting/presentation/screens/accounting_das
 import 'package:ShEC_CSE/features/dashboard/screens/aesthetics_settings_screen.dart';
 import 'package:ShEC_CSE/features/permissions/screens/committee_permissions_screen.dart';
 
+// ─── Custom Premium Interactive Tree Branch Painter ──────────────────────────
+
+class _BranchLinePainter extends CustomPainter {
+  final bool isLast;
+  final Color color;
+
+  _BranchLinePainter({required this.isLast, required this.color});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = color
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.round
+      ..strokeWidth = 1.5;
+
+    const double startX = 13.0;
+    final double midY = size.height / 2;
+
+    // Draw vertical line from top to mid (if last) or bottom (if not last)
+    final double endY = isLast ? midY : size.height;
+    canvas.drawLine(const Offset(startX, 0.0), Offset(startX, endY), paint);
+
+    // Draw horizontal line from the vertical line to the right
+    canvas.drawLine(Offset(startX, midY), Offset(startX + 18.0, midY), paint);
+
+    // Draw a beautiful small node dot at the end of the branch
+    final dotPaint = Paint()
+      ..color = color
+      ..style = PaintingStyle.fill;
+    canvas.drawCircle(Offset(startX + 18.0, midY), 2.0, dotPaint);
+  }
+
+  @override
+  bool shouldRepaint(covariant _BranchLinePainter oldDelegate) {
+    return oldDelegate.isLast != isLast || oldDelegate.color != color;
+  }
+}
+
+class TreeBranchItem extends StatelessWidget {
+  final Widget child;
+  final bool isLast;
+  final Color lineColor;
+
+  const TreeBranchItem({
+    super.key,
+    required this.child,
+    required this.isLast,
+    required this.lineColor,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return CustomPaint(
+      painter: _BranchLinePainter(isLast: isLast, color: lineColor),
+      child: Padding(
+        padding: const EdgeInsets.only(left: 24.0),
+        child: child,
+      ),
+    );
+  }
+}
+
 // ─── Custom Premium Accordion Group Widget ───────────────────────────────────
 
 class DrawerAccordionGroup extends StatefulWidget {
@@ -53,24 +116,65 @@ class _DrawerAccordionGroupState extends State<DrawerAccordionGroup> {
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
+
+    // Dynamic folder icon swapping or filled visual states
+    IconData getGroupIcon() {
+      if (widget.icon == Icons.school_outlined) {
+        return widget.isExpanded ? Icons.school : Icons.school_outlined;
+      } else if (widget.icon == Icons.people_outline) {
+        return widget.isExpanded ? Icons.people : Icons.people_outline;
+      } else if (widget.icon == Icons.account_balance_wallet_outlined) {
+        return widget.isExpanded ? Icons.account_balance_wallet : Icons.account_balance_wallet_outlined;
+      } else if (widget.icon == Icons.info_outline) {
+        return widget.isExpanded ? Icons.info : Icons.info_outline;
+      } else if (widget.icon == Icons.settings_outlined) {
+        return widget.isExpanded ? Icons.settings : Icons.settings_outlined;
+      }
+      return widget.isExpanded ? Icons.folder_open_rounded : Icons.folder_rounded;
+    }
+
+    final treeChildren = <Widget>[];
+    final childrenCount = widget.children.length;
+    for (int i = 0; i < childrenCount; i++) {
+      treeChildren.add(
+        TreeBranchItem(
+          isLast: i == childrenCount - 1,
+          lineColor: colors.primary.withValues(alpha: 0.35),
+          child: widget.children[i],
+        ),
+      );
+    }
+
     return Column(
       children: [
         ListTile(
           onTap: () => widget.onToggle(!widget.isExpanded),
-          leading: Icon(widget.icon, color: Colors.white.withValues(alpha: 0.85), size: 22),
+          leading: Icon(
+            getGroupIcon(), 
+            color: widget.isExpanded 
+                ? colors.primary.withValues(alpha: 0.95) 
+                : Colors.white.withValues(alpha: 0.85), 
+            size: 22
+          ),
           title: Text(
             widget.title,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 13.5,
-              fontWeight: FontWeight.w700,
-              color: Colors.white,
+              fontWeight: widget.isExpanded ? FontWeight.bold : FontWeight.w700,
+              color: widget.isExpanded ? Colors.white : Colors.white.withValues(alpha: 0.85),
             ),
           ),
           trailing: AnimatedRotation(
             turns: widget.isExpanded ? 0.5 : 0.0,
             duration: const Duration(milliseconds: 200),
-            child: const Icon(Icons.expand_more, color: Colors.white60, size: 18),
+            child: Icon(
+              Icons.expand_more, 
+              color: widget.isExpanded ? colors.primary.withValues(alpha: 0.8) : Colors.white60, 
+              size: 18
+            ),
           ),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          tileColor: widget.isExpanded ? colors.primary.withValues(alpha: 0.08) : Colors.transparent,
         ),
         AnimatedSize(
           duration: const Duration(milliseconds: 250),
@@ -78,7 +182,11 @@ class _DrawerAccordionGroupState extends State<DrawerAccordionGroup> {
           child: widget.isExpanded
               ? Padding(
                   padding: const EdgeInsets.only(left: 14.0),
-                  child: Column(children: widget.children),
+                  child: AnimatedOpacity(
+                    duration: const Duration(milliseconds: 200),
+                    opacity: widget.isExpanded ? 1.0 : 0.0,
+                    child: Column(children: treeChildren),
+                  ),
                 )
               : const SizedBox.shrink(),
         ),
@@ -947,7 +1055,9 @@ class _MainDrawerMenuState extends State<MainDrawerMenu> {
     Widget? destination,
     int badgeCount = 0,
     VoidCallback? onTap,
+    bool showChevron = false,
   }) {
+    final colors = Theme.of(context).colorScheme;
     return InkWell(
       onTap: () {
         controller.toggle();
@@ -956,37 +1066,41 @@ class _MainDrawerMenuState extends State<MainDrawerMenu> {
           Navigator.push(context, MaterialPageRoute(builder: (_) => destination));
         }
       },
-      borderRadius: BorderRadius.circular(12),
+      borderRadius: BorderRadius.circular(10),
+      hoverColor: colors.primary.withValues(alpha: 0.08),
+      splashColor: colors.primary.withValues(alpha: 0.15),
+      highlightColor: colors.primary.withValues(alpha: 0.05),
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(10),
         ),
         child: Row(
           children: [
             if (badgeCount != 0)
               Badge(
                 label: badgeCount > 0 ? Text('$badgeCount') : null,
-                child: Icon(icon, color: Colors.white.withValues(alpha: 0.75), size: 20),
+                child: Icon(icon, color: Colors.white.withValues(alpha: 0.8), size: 18),
               )
             else
-              Icon(icon, color: Colors.white.withValues(alpha: 0.75), size: 20),
-            const SizedBox(width: 16),
+              Icon(icon, color: Colors.white.withValues(alpha: 0.8), size: 18),
+            const SizedBox(width: 12),
             Expanded(
               child: Text(
                 title,
                 style: TextStyle(
-                  fontSize: 13,
+                  fontSize: 12.5,
                   fontWeight: FontWeight.w600,
                   color: Colors.white.withValues(alpha: 0.85),
                 ),
               ),
             ),
-            Icon(
-              Icons.chevron_right,
-              size: 14,
-              color: Colors.white.withValues(alpha: 0.35),
-            ),
+            if (showChevron)
+              Icon(
+                Icons.chevron_right,
+                size: 14,
+                color: Colors.white.withValues(alpha: 0.35),
+              ),
           ],
         ),
       ),

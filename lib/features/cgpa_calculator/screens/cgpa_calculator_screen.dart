@@ -150,7 +150,6 @@ class _CGPACalculatorScreenState extends State<CGPACalculatorScreen> {
           child: Scaffold(
             backgroundColor: Colors.transparent,
             appBar: AppBar(
-              backgroundColor: Colors.transparent,
               elevation: 0,
               title: const Text('CGPA Calculator'),
             ),

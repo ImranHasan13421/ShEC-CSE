@@ -101,7 +101,6 @@ class _ResultsScreenState extends State<ResultsScreen> with SingleTickerProvider
               child: Scaffold(
                 backgroundColor: Colors.transparent,
                 appBar: AppBar(
-                  backgroundColor: Colors.transparent,
                   elevation: 0,
                   title: const Text('Academic Results'),
                   actions: [

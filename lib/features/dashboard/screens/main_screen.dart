@@ -152,7 +152,6 @@ class _HomeLayoutState extends State<HomeLayout> with WidgetsBindingObserver {
                 Scaffold(
                   backgroundColor: Colors.transparent,
                   appBar: AppBar(
-                    backgroundColor: Colors.transparent,
                     elevation: 0,
                     leading: ListenableBuilder(
                       listenable: UpdateService.instance,

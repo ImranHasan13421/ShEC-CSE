@@ -63,7 +63,6 @@ class _TeacherContactsScreenState extends State<TeacherContactsScreen> {
         backgroundColor: Colors.transparent,
         appBar: AppBar(
           title: const Text('Teacher Contacts'),
-          backgroundColor: Colors.transparent,
           elevation: 0,
         ),
       body: BlocListener<TeacherBloc, TeacherState>(

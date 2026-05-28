@@ -190,7 +190,6 @@ class _SignupScreenState extends State<SignupScreen> {
         backgroundColor: Colors.transparent,
       appBar: AppBar(
         title: const Text('Create an Account'),
-        backgroundColor: Colors.transparent,
         elevation: 0,
       ),
       body: SafeArea(

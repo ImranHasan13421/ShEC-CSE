@@ -142,12 +142,29 @@ class ThemeService extends ChangeNotifier {
           secondary: const Color(0xFFEEEEEE),
           surface: background,
           surfaceContainer: container,
+          onSurface: Colors.white,
+          onSurfaceVariant: const Color(0xFFB0B3B8),
         ),
         scaffoldBackgroundColor: background,
         appBarTheme: AppBarTheme(
-          backgroundColor: background,
+          backgroundColor: background.withValues(alpha: 0.92),
           foregroundColor: Colors.white,
           elevation: 0,
+          iconTheme: const IconThemeData(color: Colors.white),
+          actionsIconTheme: const IconThemeData(color: Colors.white),
+          titleTextStyle: const TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.bold,
+            fontSize: 20,
+          ),
+        ),
+        textTheme: const TextTheme(
+          bodyLarge: TextStyle(color: Colors.white, fontSize: 16),
+          bodyMedium: TextStyle(color: Color(0xFFE2E8F0), fontSize: 14),
+          bodySmall: TextStyle(color: Color(0xFF94A3B8), fontSize: 12),
+          titleLarge: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 20),
+          titleMedium: TextStyle(color: Color(0xFFF1F5F9), fontWeight: FontWeight.w600, fontSize: 16),
+          titleSmall: TextStyle(color: Color(0xFFCBD5E1), fontWeight: FontWeight.w500, fontSize: 14),
         ),
         useMaterial3: true,
       );
@@ -161,12 +178,29 @@ class ThemeService extends ChangeNotifier {
           secondary: const Color(0xFF393E46),
           surface: const Color(0xFFF7F9FC),
           surfaceContainer: Colors.white,
+          onSurface: const Color(0xFF0F172A), // Very high-contrast slate-900
+          onSurfaceVariant: const Color(0xFF475569), // Readable slate-600
         ),
         scaffoldBackgroundColor: const Color(0xFFF7F9FC),
         appBarTheme: AppBarTheme(
-          backgroundColor: primary,
-          foregroundColor: Colors.white,
+          backgroundColor: const Color(0xFFF7F9FC).withValues(alpha: 0.92),
+          foregroundColor: const Color(0xFF0F172A),
           elevation: 0,
+          iconTheme: const IconThemeData(color: Color(0xFF0F172A)),
+          actionsIconTheme: const IconThemeData(color: Color(0xFF0F172A)),
+          titleTextStyle: const TextStyle(
+            color: Color(0xFF0F172A),
+            fontWeight: FontWeight.bold,
+            fontSize: 20,
+          ),
+        ),
+        textTheme: const TextTheme(
+          bodyLarge: TextStyle(color: Color(0xFF0F172A), fontSize: 16),
+          bodyMedium: TextStyle(color: Color(0xFF334155), fontSize: 14), // Readable slate-700
+          bodySmall: TextStyle(color: Color(0xFF475569), fontSize: 12), // Readable slate-600
+          titleLarge: TextStyle(color: Color(0xFF0F172A), fontWeight: FontWeight.bold, fontSize: 20),
+          titleMedium: TextStyle(color: Color(0xFF1E293B), fontWeight: FontWeight.w600, fontSize: 16),
+          titleSmall: TextStyle(color: Color(0xFF334155), fontWeight: FontWeight.w500, fontSize: 14),
         ),
         useMaterial3: true,
       );

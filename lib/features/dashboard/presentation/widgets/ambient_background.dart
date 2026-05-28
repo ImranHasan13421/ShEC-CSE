@@ -11,6 +11,7 @@ final ValueNotifier<String> ambientStyle = ValueNotifier('aurora'); // Options: 
 final ValueNotifier<String> ambientPattern = ValueNotifier('none'); // Options: none, dots, grid, waves, stripes
 final ValueNotifier<bool> ambientAuroraEnabled = ValueNotifier(true); // Toggle on/off for aesthetic dynamic blobs
 final ValueNotifier<String> ambientWallpaper = ValueNotifier('none'); // Options: none, starry, geometric, wave, tech_grid
+final ValueNotifier<bool> ambientWallpaperEnabled = ValueNotifier(true); // Toggle on/off for static wallpaper
 
 class AmbientSettings {
   static Future<void> init() async {
@@ -23,6 +24,7 @@ class AmbientSettings {
       ambientPattern.value = prefs.getString('ambient_pattern') ?? 'none';
       ambientAuroraEnabled.value = prefs.getBool('ambient_aurora_enabled') ?? true;
       ambientWallpaper.value = prefs.getString('ambient_wallpaper') ?? 'none';
+      ambientWallpaperEnabled.value = prefs.getBool('ambient_wallpaper_enabled') ?? true;
     } catch (e) {
       debugPrint('Error loading ambient background settings: $e');
     }
@@ -55,6 +57,10 @@ class AmbientSettings {
     ambientWallpaper.addListener(() async {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('ambient_wallpaper', ambientWallpaper.value);
+    });
+    ambientWallpaperEnabled.addListener(() async {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool('ambient_wallpaper_enabled', ambientWallpaperEnabled.value);
     });
   }
 }
@@ -106,6 +112,7 @@ class AmbientTimeBackground extends StatefulWidget {
   final String? overridePattern;
   final bool? overrideAuroraEnabled;
   final String? overrideWallpaper;
+  final bool? overrideWallpaperEnabled;
 
   const AmbientTimeBackground({
     super.key,
@@ -119,6 +126,7 @@ class AmbientTimeBackground extends StatefulWidget {
     this.overridePattern,
     this.overrideAuroraEnabled,
     this.overrideWallpaper,
+    this.overrideWallpaperEnabled,
   });
 
   @override
@@ -190,40 +198,40 @@ class _AmbientTimeBackgroundState extends State<AmbientTimeBackground> with Sing
     final primary = colorScheme.primary;
     final baseBg = colorScheme.surface;
 
-    // Enhanced opacities for Light theme (0.45 - 0.65) to prevent colors from washing out on white Scaffolds.
+    // Enhanced opacities for both Light theme (0.50 - 0.70) and Dark theme (0.45 - 0.55) to make auroras glow intensely
     // Sparkle colors dynamically shift to colored motes in Light theme so they contrast cleanly.
     switch (_timePeriod) {
-      case TimePeriod.morning:
+      case TimePeriod.morning: // Sunrise Golden Yellow & Vibrant Orange Glow
         return AmbientColors(
-          color1: primary.withValues(alpha: isDark ? 0.30 : 0.65),
-          color2: const Color(0xFFFFB300).withValues(alpha: isDark ? 0.25 : 0.60), // Amber
-          color3: const Color(0xFFFF7043).withValues(alpha: isDark ? 0.20 : 0.50), // Peach/Coral
+          color1: primary.withValues(alpha: isDark ? 0.48 : 0.68),
+          color2: const Color(0xFFFF9100).withValues(alpha: isDark ? 0.42 : 0.62), // Orange Glow
+          color3: const Color(0xFFFFD600).withValues(alpha: isDark ? 0.38 : 0.58), // Bright Golden Yellow
           baseBackground: baseBg,
-          sparkleColor: isDark ? Colors.white : const Color(0xFFFFB300),
+          sparkleColor: isDark ? const Color(0xFFFFD600) : const Color(0xFFFF9100),
         );
-      case TimePeriod.afternoon:
+      case TimePeriod.afternoon: // Sky Cyan & Radiant Energetic Green
         return AmbientColors(
-          color1: primary.withValues(alpha: isDark ? 0.30 : 0.65),
-          color2: const Color(0xFF00ADB5).withValues(alpha: isDark ? 0.25 : 0.60), // Teal
-          color3: const Color(0xFF42A5F5).withValues(alpha: isDark ? 0.20 : 0.50), // Sky Blue
+          color1: primary.withValues(alpha: isDark ? 0.48 : 0.68),
+          color2: const Color(0xFF00E5FF).withValues(alpha: isDark ? 0.42 : 0.62), // Cyan
+          color3: const Color(0xFF00E676).withValues(alpha: isDark ? 0.35 : 0.55), // Emerald Green
           baseBackground: baseBg,
-          sparkleColor: isDark ? Colors.white : const Color(0xFF00ADB5),
+          sparkleColor: isDark ? const Color(0xFF00E5FF) : const Color(0xFF00E676),
         );
-      case TimePeriod.evening:
+      case TimePeriod.evening: // Sunset Crimson & Twilight Magenta
         return AmbientColors(
-          color1: primary.withValues(alpha: isDark ? 0.30 : 0.65),
-          color2: const Color(0xFFAB47BC).withValues(alpha: isDark ? 0.25 : 0.60), // Muted Purple
-          color3: const Color(0xFFEC407A).withValues(alpha: isDark ? 0.20 : 0.50), // Rose/Sunset
+          color1: primary.withValues(alpha: isDark ? 0.52 : 0.72),
+          color2: const Color(0xFFFF1744).withValues(alpha: isDark ? 0.48 : 0.68), // Twilight Crimson Red
+          color3: const Color(0xFFD500F9).withValues(alpha: isDark ? 0.42 : 0.62), // Twilight Neon Magenta
           baseBackground: baseBg,
-          sparkleColor: isDark ? Colors.white : const Color(0xFFEC407A),
+          sparkleColor: isDark ? const Color(0xFFD500F9) : const Color(0xFFFF1744),
         );
-      case TimePeriod.night:
+      case TimePeriod.night: // Cosmic Neon Blue & Cyber Purple
         return AmbientColors(
-          color1: primary.withValues(alpha: isDark ? 0.25 : 0.60),
-          color2: const Color(0xFF3F51B5).withValues(alpha: isDark ? 0.20 : 0.50), // Indigo
-          color3: const Color(0xFF1A237E).withValues(alpha: isDark ? 0.15 : 0.45), // Midnight Space Blue
+          color1: primary.withValues(alpha: isDark ? 0.45 : 0.65),
+          color2: const Color(0xFF2979FF).withValues(alpha: isDark ? 0.40 : 0.60), // Electric Blue
+          color3: const Color(0xFF651FFF).withValues(alpha: isDark ? 0.35 : 0.55), // Cyber Indigo Purple
           baseBackground: baseBg,
-          sparkleColor: isDark ? Colors.white : const Color(0xFF3F51B5),
+          sparkleColor: isDark ? const Color(0xFF2979FF) : const Color(0xFF651FFF),
         );
     }
   }
@@ -244,18 +252,21 @@ class _AmbientTimeBackgroundState extends State<AmbientTimeBackground> with Sing
         ambientPattern,
         ambientAuroraEnabled,
         ambientWallpaper,
+        ambientWallpaperEnabled,
       ]),
       builder: (context, _) {
         final speedFactor = widget.overrideSpeed ?? ambientAnimationSpeed.value;
         final densityCount = widget.overrideDensity ?? ambientSparkleDensity.value;
         final isSparklesEnabled = widget.overrideEnabled ?? ambientBackgroundEnabled.value;
         final currentStyle = widget.overrideStyle ?? ambientStyle.value;
-        final currentPattern = widget.overridePattern ?? ambientPattern.value;
-        final isAuroraEnabled = widget.overrideAuroraEnabled ?? ambientAuroraEnabled.value;
-        final currentWallpaper = widget.overrideWallpaper ?? ambientWallpaper.value;
-        final isDark = Theme.of(context).brightness == Brightness.dark;
+        final ColorScheme activeScheme = widget.overrideColorScheme ?? Theme.of(context).colorScheme;
+        final isDark = activeScheme.brightness == Brightness.dark;
+        final isAuroraEnabled = !isDark ? false : (widget.overrideAuroraEnabled ?? ambientAuroraEnabled.value);
+        final isWallpaperEnabled = widget.overrideWallpaperEnabled ?? ambientWallpaperEnabled.value;
+        final currentWallpaper = isWallpaperEnabled ? (widget.overrideWallpaper ?? ambientWallpaper.value) : 'none';
+        final currentPattern = isWallpaperEnabled ? (widget.overridePattern ?? ambientPattern.value) : 'none';
 
-        // Draw flat container only if absolutely nothing is enabled (no sparkles, no auroras, no patterns, no custom wallpapers)
+        // Draw flat container only if absolutely nothing is enabled
         if (!isSparklesEnabled && !isAuroraEnabled && currentPattern == 'none' && currentWallpaper == 'none') {
           return Container(
             color: colors.baseBackground,
@@ -265,7 +276,7 @@ class _AmbientTimeBackgroundState extends State<AmbientTimeBackground> with Sing
 
         return Stack(
           children: [
-            // 1. Slow Aurora Mesh Blobs / Wallpapers / Patterns Layer
+            // 1. Slow Aurora Mesh Blobs Layer (Rendered below blur)
             Positioned.fill(
               child: RepaintBoundary(
                 child: CustomPaint(
@@ -273,10 +284,9 @@ class _AmbientTimeBackgroundState extends State<AmbientTimeBackground> with Sing
                     animationValue: _animationController.value,
                     colors: colors,
                     style: currentStyle,
-                    pattern: currentPattern,
                     auroraEnabled: isAuroraEnabled,
-                    wallpaper: currentWallpaper,
                     isDark: isDark,
+                    speedFactor: speedFactor,
                   ),
                 ),
               ),
@@ -289,7 +299,24 @@ class _AmbientTimeBackgroundState extends State<AmbientTimeBackground> with Sing
                   child: Container(color: Colors.transparent),
                 ),
               ),
-            // 3. Crisp, High-Density Sparkles floating over the blurred backdrop (Only rendered when sparkles are enabled)
+            // 3. Crisp, Static Background Wallpaper and Pattern Layer (Drawn OVER the blurred auroras so they stay crisp and sharp!)
+            if (currentWallpaper != 'none' || currentPattern != 'none' || isAuroraEnabled)
+              Positioned.fill(
+                child: RepaintBoundary(
+                  child: CustomPaint(
+                    painter: WallpaperAndPatternPainter(
+                      colors: colors,
+                      primaryColor: Theme.of(context).colorScheme.primary,
+                      pattern: currentPattern,
+                      wallpaper: currentWallpaper,
+                      isDark: isDark,
+                      timePeriod: _timePeriod,
+                      showTimeSymbol: isAuroraEnabled,
+                    ),
+                  ),
+                ),
+              ),
+            // 4. Crisp, High-Density Sparkles floating over the backdrop (Only rendered when sparkles are enabled)
             if (isSparklesEnabled)
               Positioned.fill(
                 child: RepaintBoundary(
@@ -301,11 +328,12 @@ class _AmbientTimeBackgroundState extends State<AmbientTimeBackground> with Sing
                       speedFactor: speedFactor,
                       density: densityCount,
                       style: currentStyle,
+                      isDark: isDark,
                     ),
                   ),
                 ),
               ),
-            // 4. Child Content Layer
+            // 5. Child Content Layer
             Positioned.fill(
               child: widget.useSafeArea ? SafeArea(child: widget.child) : widget.child,
             ),
@@ -320,62 +348,206 @@ class AuroraBlobsPainter extends CustomPainter {
   final double animationValue;
   final AmbientColors colors;
   final String style;
-  final String pattern;
   final bool auroraEnabled;
-  final String wallpaper;
   final bool isDark;
+  final double speedFactor;
 
   AuroraBlobsPainter({
     required this.animationValue,
     required this.colors,
     required this.style,
-    required this.pattern,
     required this.auroraEnabled,
-    required this.wallpaper,
     required this.isDark,
+    required this.speedFactor,
   });
 
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()..style = PaintingStyle.fill;
 
-    // Background color determination
+    // Background base color determination based on style settings
     Color baseBg = colors.baseBackground;
     
-    if (wallpaper == 'starry') {
-      baseBg = const Color(0xFF02020A); // Very deep starry space void
-    } else if (wallpaper == 'geometric') {
-      baseBg = isDark ? const Color(0xFF0C0B12) : const Color(0xFFF3F5F9);
-    } else if (wallpaper == 'wave') {
-      baseBg = isDark ? const Color(0xFF06060E) : const Color(0xFFF9FAFD);
-    } else if (wallpaper == 'tech_grid') {
-      baseBg = isDark ? const Color(0xFF07090F) : const Color(0xFFEFF1F6);
-    } else {
-      // Standard style background fallback
-      if (style == 'cyberpunk' && auroraEnabled) {
-        baseBg = const Color(0xFF0C0B10); // Extremely dark cyber slate
-      } else if (style == 'cosmic' && auroraEnabled) {
-        baseBg = const Color(0xFF03020A); // Deep void black
-      } else if (style == 'ocean' && auroraEnabled) {
-        baseBg = const Color(0xFF08121E); // Deep ocean abyssal navy
-      } else if (style == 'autumn' && auroraEnabled) {
-        baseBg = const Color(0xFF1B110B); // Warm forest bark brown
-      }
+    if (style == 'cyberpunk' && auroraEnabled) {
+      baseBg = const Color(0xFF07050A); // Extremely deep dark cyber void
+    } else if (style == 'cosmic' && auroraEnabled) {
+      baseBg = const Color(0xFF020107); // Absolute starry void black
+    } else if (style == 'ocean' && auroraEnabled) {
+      baseBg = const Color(0xFF040A12); // Deep abyssal ocean blue-black
+    } else if (style == 'autumn' && auroraEnabled) {
+      baseBg = const Color(0xFF0F0A06); // Deep rich forest bark brown-black
     }
     
     paint.color = baseBg;
     canvas.drawRect(Offset.zero & size, paint);
 
-    // Render wallpaper designs if active
+    // Dynamic style blobs driven by speed factor
+    final double speededAnim = animationValue * speedFactor;
+
+    if (auroraEnabled) {
+      if (style == 'cyberpunk') {
+        // Draw Magenta and Cyan glowing cyber-blobs
+        final Color cyberColor1 = const Color(0xFFFF007F).withValues(alpha: isDark ? 0.22 : 0.36); // Neon Pink
+        final Color cyberColor2 = const Color(0xFF00ADB5).withValues(alpha: isDark ? 0.22 : 0.36); // Neon Cyan
+
+        final double angle1 = speededAnim * 2 * math.pi;
+        final double dx1 = size.width * 0.3 + math.cos(angle1) * size.width * 0.22;
+        final double dy1 = size.height * 0.3 + math.sin(angle1) * size.height * 0.12;
+        paint.shader = RadialGradient(colors: [cyberColor1, cyberColor1.withValues(alpha: 0.0)]).createShader(Rect.fromCircle(center: Offset(dx1, dy1), radius: size.width * 0.75));
+        canvas.drawCircle(Offset(dx1, dy1), size.width * 0.75, paint);
+
+        final double angle2 = (speededAnim + 0.5) * 2 * math.pi;
+        final double dx2 = size.width * 0.7 + math.sin(angle2) * size.width * 0.22;
+        final double dy2 = size.height * 0.7 + math.cos(angle2) * size.height * 0.12;
+        paint.shader = RadialGradient(colors: [cyberColor2, cyberColor2.withValues(alpha: 0.0)]).createShader(Rect.fromCircle(center: Offset(dx2, dy2), radius: size.width * 0.8));
+        canvas.drawCircle(Offset(dx2, dy2), size.width * 0.8, paint);
+        
+      } else if (style == 'cosmic') {
+        // Cosmic Nebula Circles (glowing deep violet & blue spaces)
+        final Color spacePurple = const Color(0xFF7B2CBF).withValues(alpha: isDark ? 0.20 : 0.32);
+        final Color spaceIndigo = const Color(0xFF3C096C).withValues(alpha: isDark ? 0.22 : 0.35);
+        final Color spacePink = const Color(0xFFE0AAFF).withValues(alpha: isDark ? 0.12 : 0.22);
+
+        final double angle1 = speededAnim * 2 * math.pi;
+        final double dx1 = size.width * 0.5 + math.cos(angle1 * 0.5) * size.width * 0.25;
+        final double dy1 = size.height * 0.4 + math.sin(angle1 * 0.5) * size.height * 0.15;
+        paint.shader = RadialGradient(colors: [spacePurple, spacePurple.withValues(alpha: 0.0)]).createShader(Rect.fromCircle(center: Offset(dx1, dy1), radius: size.width * 0.85));
+        canvas.drawCircle(Offset(dx1, dy1), size.width * 0.85, paint);
+
+        final double angle2 = (speededAnim + 0.3) * 2 * math.pi;
+        final double dx2 = size.width * 0.4 + math.sin(angle2) * size.width * 0.22;
+        final double dy2 = size.height * 0.7 + math.cos(angle2) * size.height * 0.12;
+        paint.shader = RadialGradient(colors: [spaceIndigo, spaceIndigo.withValues(alpha: 0.0)]).createShader(Rect.fromCircle(center: Offset(dx2, dy2), radius: size.width * 0.95));
+        canvas.drawCircle(Offset(dx2, dy2), size.width * 0.95, paint);
+
+        final double angle3 = (speededAnim + 0.6) * 2 * math.pi;
+        final double dx3 = size.width * 0.6 + math.cos(angle3) * size.width * 0.22;
+        final double dy3 = size.height * 0.5 + math.sin(angle3) * size.height * 0.12;
+        paint.shader = RadialGradient(colors: [spacePink, spacePink.withValues(alpha: 0.0)]).createShader(Rect.fromCircle(center: Offset(dx3, dy3), radius: size.width * 0.7));
+        canvas.drawCircle(Offset(dx3, dy3), size.width * 0.7, paint);
+
+      } else if (style == 'ocean') {
+        // Ocean calmness (teal, sky blue and marine green horizontal waves)
+        final Color oceanTeal = const Color(0xFF00ADB5).withValues(alpha: isDark ? 0.20 : 0.32);
+        final Color oceanBlue = const Color(0xFF1F4068).withValues(alpha: isDark ? 0.22 : 0.35);
+        final Color oceanGreen = const Color(0xFF2E8B57).withValues(alpha: isDark ? 0.12 : 0.22);
+
+        final double shift1 = math.sin(speededAnim * 2 * math.pi) * size.height * 0.08;
+        paint.shader = RadialGradient(colors: [oceanTeal, oceanTeal.withValues(alpha: 0.0)]).createShader(Rect.fromCircle(center: Offset(size.width * 0.3, size.height * 0.3 + shift1), radius: size.width * 0.9));
+        canvas.drawCircle(Offset(size.width * 0.3, size.height * 0.3 + shift1), size.width * 0.9, paint);
+
+        final double shift2 = math.cos((speededAnim + 0.5) * 2 * math.pi) * size.height * 0.08;
+        paint.shader = RadialGradient(colors: [oceanBlue, oceanBlue.withValues(alpha: 0.0)]).createShader(Rect.fromCircle(center: Offset(size.width * 0.7, size.height * 0.7 + shift2), radius: size.width * 0.95));
+        canvas.drawCircle(Offset(size.width * 0.7, size.height * 0.7 + shift2), size.width * 0.95, paint);
+
+        final double shift3 = math.sin((speededAnim + 0.25) * 2 * math.pi) * size.height * 0.06;
+        paint.shader = RadialGradient(colors: [oceanGreen, oceanGreen.withValues(alpha: 0.0)]).createShader(Rect.fromCircle(center: Offset(size.width * 0.2, size.height * 0.65 + shift3), radius: size.width * 0.75));
+        canvas.drawCircle(Offset(size.width * 0.2, size.height * 0.65 + shift3), size.width * 0.75, paint);
+
+      } else if (style == 'autumn') {
+        // Warm mahogany, amber and copper shades
+        final Color autumnAmber = const Color(0xFFFFB300).withValues(alpha: isDark ? 0.20 : 0.32);
+        final Color autumnCopper = const Color(0xFFD35400).withValues(alpha: isDark ? 0.22 : 0.35);
+        final Color autumnRed = const Color(0xFFC0392B).withValues(alpha: isDark ? 0.12 : 0.22);
+
+        final double angle1 = speededAnim * 2 * math.pi;
+        final double dx1 = size.width * 0.3 + math.cos(angle1) * size.width * 0.22;
+        final double dy1 = size.height * 0.35 + math.sin(angle1) * size.height * 0.10;
+        paint.shader = RadialGradient(colors: [autumnAmber, autumnAmber.withValues(alpha: 0.0)]).createShader(Rect.fromCircle(center: Offset(dx1, dy1), radius: size.width * 0.8));
+        canvas.drawCircle(Offset(dx1, dy1), size.width * 0.8, paint);
+
+        final double angle2 = (speededAnim + 0.4) * 2 * math.pi;
+        final double dx2 = size.width * 0.7 + math.sin(angle2) * size.width * 0.22;
+        final double dy2 = size.height * 0.65 + math.cos(angle2) * size.height * 0.10;
+        paint.shader = RadialGradient(colors: [autumnCopper, autumnCopper.withValues(alpha: 0.0)]).createShader(Rect.fromCircle(center: Offset(dx2, dy2), radius: size.width * 0.9));
+        canvas.drawCircle(Offset(dx2, dy2), size.width * 0.9, paint);
+
+        final double angle3 = (speededAnim + 0.7) * 2 * math.pi;
+        final double dx3 = size.width * 0.4 + math.cos(angle3 * 1.2) * size.width * 0.15;
+        final double dy3 = size.height * 0.5 + math.sin(angle3 * 1.2) * size.height * 0.12;
+        paint.shader = RadialGradient(colors: [autumnRed, autumnRed.withValues(alpha: 0.0)]).createShader(Rect.fromCircle(center: Offset(dx3, dy3), radius: size.width * 0.75));
+        canvas.drawCircle(Offset(dx3, dy3), size.width * 0.75, paint);
+
+      } else {
+        // DEFAULT TIME-BASED AURORA
+        final double angle1 = speededAnim * 2 * math.pi;
+        final double dx1 = size.width * 0.25 + math.cos(angle1) * size.width * 0.22;
+        final double dy1 = size.height * 0.25 + math.sin(angle1) * size.height * 0.12;
+        final double radius1 = size.width * 0.75;
+
+        paint.shader = RadialGradient(
+          colors: [colors.color1, colors.color1.withValues(alpha: 0.0)],
+        ).createShader(Rect.fromCircle(center: Offset(dx1, dy1), radius: radius1));
+        canvas.drawCircle(Offset(dx1, dy1), radius1, paint);
+
+        final double angle2 = (speededAnim + 0.33) * 2 * math.pi;
+        final double dx2 = size.width * 0.75 + math.sin(angle2) * size.width * 0.22;
+        final double dy2 = size.height * 0.75 + math.cos(angle2) * size.height * 0.12;
+        final double radius2 = size.width * 0.8;
+
+        paint.shader = RadialGradient(
+          colors: [colors.color2, colors.color2.withValues(alpha: 0.0)],
+        ).createShader(Rect.fromCircle(center: Offset(dx2, dy2), radius: radius2));
+        canvas.drawCircle(Offset(dx2, dy2), radius2, paint);
+
+        final double angle3 = (speededAnim + 0.66) * 2 * math.pi;
+        final double dx3 = size.width * 0.30 + math.cos(angle3 * 1.5) * size.width * 0.15;
+        final double dy3 = size.height * 0.50 + math.sin(angle3 * 1.5) * size.height * 0.15;
+        final double radius3 = size.width * 0.7;
+
+        paint.shader = RadialGradient(
+          colors: [colors.color3, colors.color3.withValues(alpha: 0.0)],
+        ).createShader(Rect.fromCircle(center: Offset(dx3, dy3), radius: radius3));
+        canvas.drawCircle(Offset(dx3, dy3), radius3, paint);
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant AuroraBlobsPainter oldDelegate) {
+    return oldDelegate.animationValue != animationValue ||
+        oldDelegate.colors != colors ||
+        oldDelegate.style != style ||
+        oldDelegate.auroraEnabled != auroraEnabled ||
+        oldDelegate.isDark != isDark ||
+        oldDelegate.speedFactor != speedFactor;
+  }
+}
+
+class WallpaperAndPatternPainter extends CustomPainter {
+  final AmbientColors colors;
+  final Color primaryColor;
+  final String pattern;
+  final String wallpaper;
+  final bool isDark;
+  final TimePeriod timePeriod;
+  final bool showTimeSymbol;
+
+  WallpaperAndPatternPainter({
+    required this.colors,
+    required this.primaryColor,
+    required this.pattern,
+    required this.wallpaper,
+    required this.isDark,
+    required this.timePeriod,
+    required this.showTimeSymbol,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final double paintAlphaMultiplier = isDark ? 1.0 : 0.8;
+
+    // 1. Draw static background wallpapers (with boosted legibility)
     if (wallpaper != 'none') {
       if (wallpaper == 'starry') {
-        // Draw static constellation lines
         final linePaint = Paint()
-          ..color = isDark ? Colors.white.withValues(alpha: 0.08) : Colors.black.withValues(alpha: 0.06)
-          ..strokeWidth = 1.0
+          ..color = isDark 
+              ? Colors.white.withValues(alpha: 0.35) 
+              : primaryColor.withValues(alpha: 0.26)
+          ..strokeWidth = 1.2
           ..style = PaintingStyle.stroke;
         
-        // Draw constellations
+        // Draw constellation linkages
         canvas.drawLine(Offset(size.width * 0.15, size.height * 0.2), Offset(size.width * 0.35, size.height * 0.15), linePaint);
         canvas.drawLine(Offset(size.width * 0.35, size.height * 0.15), Offset(size.width * 0.45, size.height * 0.3), linePaint);
         canvas.drawLine(Offset(size.width * 0.45, size.height * 0.3), Offset(size.width * 0.25, size.height * 0.35), linePaint);
@@ -386,27 +558,29 @@ class AuroraBlobsPainter extends CustomPainter {
         canvas.drawLine(Offset(size.width * 0.9, size.height * 0.72), Offset(size.width * 0.7, size.height * 0.78), linePaint);
         canvas.drawLine(Offset(size.width * 0.7, size.height * 0.78), Offset(size.width * 0.65, size.height * 0.6), linePaint);
 
-        // Glowing star dots
-        final starPaint = Paint()..color = isDark ? Colors.white.withValues(alpha: 0.35) : Colors.black.withValues(alpha: 0.25);
-        canvas.drawCircle(Offset(size.width * 0.15, size.height * 0.2), 2.5, starPaint);
-        canvas.drawCircle(Offset(size.width * 0.35, size.height * 0.15), 3.2, starPaint);
-        canvas.drawCircle(Offset(size.width * 0.45, size.height * 0.3), 2.0, starPaint);
-        canvas.drawCircle(Offset(size.width * 0.25, size.height * 0.35), 2.5, starPaint);
-        canvas.drawCircle(Offset(size.width * 0.65, size.height * 0.6), 3.0, starPaint);
-        canvas.drawCircle(Offset(size.width * 0.8, size.height * 0.55), 2.0, starPaint);
-        canvas.drawCircle(Offset(size.width * 0.9, size.height * 0.72), 3.5, starPaint);
-        canvas.drawCircle(Offset(size.width * 0.7, size.height * 0.78), 2.5, starPaint);
+        // Star bodies with actual circular glows
+        final starPaint = Paint()..color = isDark ? Colors.white.withValues(alpha: 0.75) : primaryColor.withValues(alpha: 0.60);
+        canvas.drawCircle(Offset(size.width * 0.15, size.height * 0.2), 3.5, starPaint);
+        canvas.drawCircle(Offset(size.width * 0.35, size.height * 0.15), 4.2, starPaint);
+        canvas.drawCircle(Offset(size.width * 0.45, size.height * 0.3), 3.0, starPaint);
+        canvas.drawCircle(Offset(size.width * 0.25, size.height * 0.35), 3.5, starPaint);
+        canvas.drawCircle(Offset(size.width * 0.65, size.height * 0.6), 4.0, starPaint);
+        canvas.drawCircle(Offset(size.width * 0.8, size.height * 0.55), 3.0, starPaint);
+        canvas.drawCircle(Offset(size.width * 0.9, size.height * 0.72), 4.5, starPaint);
+        canvas.drawCircle(Offset(size.width * 0.7, size.height * 0.78), 3.5, starPaint);
+
       } else if (wallpaper == 'geometric') {
         final shapePaint = Paint()
-          ..style = PaintingStyle.fill
-          ..color = colors.color1.withValues(alpha: isDark ? 0.045 : 0.035);
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 1.5
+          ..color = (isDark ? colors.color1 : primaryColor).withValues(alpha: isDark ? 0.28 : 0.20);
         
-        // Drawing overlapping circles and large diamond shapes
+        // Boosted overlapping circles and geometric bounds
         canvas.drawCircle(Offset(size.width * 0.15, size.height * 0.28), size.width * 0.38, shapePaint);
-        shapePaint.color = colors.color2.withValues(alpha: isDark ? 0.035 : 0.025);
+        shapePaint.color = (isDark ? colors.color2 : primaryColor).withValues(alpha: isDark ? 0.24 : 0.18);
         canvas.drawCircle(Offset(size.width * 0.85, size.height * 0.72), size.width * 0.42, shapePaint);
         
-        shapePaint.color = colors.color3.withValues(alpha: isDark ? 0.025 : 0.015);
+        shapePaint.color = (isDark ? colors.color3 : primaryColor).withValues(alpha: isDark ? 0.20 : 0.14);
         final Path diamond = Path()
           ..moveTo(size.width * 0.5, size.height * 0.22)
           ..lineTo(size.width * 0.78, size.height * 0.42)
@@ -414,17 +588,18 @@ class AuroraBlobsPainter extends CustomPainter {
           ..lineTo(size.width * 0.22, size.height * 0.42)
           ..close();
         canvas.drawPath(diamond, shapePaint);
+
       } else if (wallpaper == 'wave') {
         final wavePaint = Paint()
           ..style = PaintingStyle.stroke
-          ..strokeWidth = 1.6;
+          ..strokeWidth = 2.5; // Thickened waves
         
         for (int i = 0; i < 3; i++) {
           wavePaint.color = (i == 0 
               ? colors.color1 
               : i == 1 
                   ? colors.color2 
-                  : colors.color3).withValues(alpha: isDark ? 0.08 : 0.05);
+                  : colors.color3).withValues(alpha: isDark ? 0.35 : 0.25);
           final Path path = Path();
           final double startY = size.height * (0.3 + i * 0.22);
           path.moveTo(0, startY);
@@ -434,13 +609,14 @@ class AuroraBlobsPainter extends CustomPainter {
           }
           canvas.drawPath(path, wavePaint);
         }
+
       } else if (wallpaper == 'tech_grid') {
         final gridPaint = Paint()
-          ..color = colors.color1.withValues(alpha: isDark ? 0.03 : 0.02)
+          ..color = (isDark ? colors.color1 : primaryColor).withValues(alpha: isDark ? 0.24 : 0.16)
           ..style = PaintingStyle.stroke
-          ..strokeWidth = 0.8;
+          ..strokeWidth = 1.2;
 
-        // Grid lines
+        // Blueprint Grid
         const double spacing = 48.0;
         for (double x = 0; x < size.width; x += spacing) {
           canvas.drawLine(Offset(x, 0), Offset(x, size.height), gridPaint);
@@ -449,209 +625,177 @@ class AuroraBlobsPainter extends CustomPainter {
           canvas.drawLine(Offset(0, y), Offset(size.width, y), gridPaint);
         }
 
-        // Concentric technology crosshairs/dots
+        // Tech crosshairs/dots
         final markPaint = Paint()
-          ..color = colors.color2.withValues(alpha: isDark ? 0.06 : 0.04)
+          ..color = (isDark ? colors.color2 : primaryColor).withValues(alpha: isDark ? 0.35 : 0.24)
           ..style = PaintingStyle.fill;
         
         for (double x = 0; x < size.width; x += spacing * 2) {
           for (double y = 0; y < size.height; y += spacing * 2) {
-            canvas.drawCircle(Offset(x, y), 1.8, markPaint);
+            canvas.drawCircle(Offset(x, y), 3.0, markPaint);
           }
         }
       }
     }
 
-    // Dynamic style blobs
-    if (auroraEnabled) {
-      if (style == 'cyberpunk') {
-      // 1. Neon Cyber Grids (Draw standard lines with opacity for digital feel)
-      final gridPaint = Paint()
-        ..color = colors.color1.withValues(alpha: 0.05)
+    // 2. Draw static background patterns
+    if (pattern != 'none') {
+      final patternPaint = Paint()
+        ..color = (isDark ? Colors.white : primaryColor).withValues(alpha: isDark ? 0.22 * paintAlphaMultiplier : 0.16 * paintAlphaMultiplier)
+        ..style = PaintingStyle.stroke;
+
+      if (pattern == 'dots') {
+        patternPaint.style = PaintingStyle.fill;
+        const double spacing = 24.0;
+        for (double x = spacing / 2; x < size.width; x += spacing) {
+          for (double y = spacing / 2; y < size.height; y += spacing) {
+            canvas.drawCircle(Offset(x, y), 2.0, patternPaint); // Slightly larger dots
+          }
+        }
+      } else if (pattern == 'grid') {
+        patternPaint.strokeWidth = 1.0;
+        const double spacing = 32.0;
+        for (double x = 0; x < size.width; x += spacing) {
+          canvas.drawLine(Offset(x, 0), Offset(x, size.height), patternPaint);
+        }
+        for (double y = 0; y < size.height; y += spacing) {
+          canvas.drawLine(Offset(0, y), Offset(size.width, y), patternPaint);
+        }
+      } else if (pattern == 'waves') {
+        patternPaint.strokeWidth = 1.4;
+        const double spacing = 40.0;
+        for (double y = spacing; y < size.height; y += spacing) {
+          final Path path = Path();
+          path.moveTo(0, y);
+          for (double x = 0; x < size.width; x += 12) {
+            path.lineTo(x, y + math.sin(x / 30) * 4);
+          }
+          canvas.drawPath(path, patternPaint);
+        }
+      } else if (pattern == 'stripes') {
+        patternPaint.strokeWidth = 1.5;
+        const double spacing = 45.0;
+        for (double i = -size.height; i < size.width; i += spacing) {
+          canvas.drawLine(Offset(i, 0), Offset(i + size.height, size.height), patternPaint);
+        }
+      }
+    }
+
+    // 3. Draw subtle, premium time-based symbols (Sunrise, Sun, Sunset, Moon) scaled up and eye-catching!
+    if (showTimeSymbol) {
+      final symbolPaint = Paint()
+        ..color = isDark 
+            ? colors.color1.withValues(alpha: 0.28) // Glowing subtle outline in dark mode
+            : primaryColor.withValues(alpha: 0.22) // Visible outline in light mode
         ..style = PaintingStyle.stroke
-        ..strokeWidth = 1.0;
-      
-      const double gap = 40.0;
-      for (double x = 0; x < size.width; x += gap) {
-        canvas.drawLine(Offset(x, 0), Offset(x, size.height), gridPaint);
-      }
-      for (double y = 0; y < size.height; y += gap) {
-        canvas.drawLine(Offset(0, y), Offset(size.width, y), gridPaint);
-      }
+        ..strokeWidth = 3.0;
 
-      // Draw Magenta and Cyan glowing cyber-blobs
-      final Color cyberColor1 = const Color(0xFFFF007F).withValues(alpha: 0.15); // Neon Pink
-      final Color cyberColor2 = const Color(0xFF00ADB5).withValues(alpha: 0.15); // Neon Cyan
+      final fillPaint = Paint()
+        ..color = isDark 
+            ? colors.color2.withValues(alpha: 0.10) 
+            : primaryColor.withValues(alpha: 0.08)
+        ..style = PaintingStyle.fill;
 
-      final double angle1 = animationValue * 2 * math.pi;
-      final double dx1 = size.width * 0.3 + math.cos(angle1) * size.width * 0.1;
-      final double dy1 = size.height * 0.3 + math.sin(angle1) * size.height * 0.05;
-      paint.shader = RadialGradient(colors: [cyberColor1, cyberColor1.withValues(alpha: 0.0)]).createShader(Rect.fromCircle(center: Offset(dx1, dy1), radius: size.width * 0.6));
-      canvas.drawCircle(Offset(dx1, dy1), size.width * 0.6, paint);
+      // Positioned in upper right quadrant - scaled and noticeable
+      final Offset symCenter = Offset(size.width * 0.82, size.height * 0.12);
 
-      final double angle2 = (animationValue + 0.5) * 2 * math.pi;
-      final double dx2 = size.width * 0.7 + math.sin(angle2) * size.width * 0.1;
-      final double dy2 = size.height * 0.7 + math.cos(angle2) * size.height * 0.05;
-      paint.shader = RadialGradient(colors: [cyberColor2, cyberColor2.withValues(alpha: 0.0)]).createShader(Rect.fromCircle(center: Offset(dx2, dy2), radius: size.width * 0.65));
-      canvas.drawCircle(Offset(dx2, dy2), size.width * 0.65, paint);
-      
-    } else if (style == 'cosmic') {
-      // Cosmic Nebula Circles (glowing deep violet & blue spaces)
-      final Color spacePurple = const Color(0xFF7B2CBF).withValues(alpha: 0.12);
-      final Color spaceIndigo = const Color(0xFF3C096C).withValues(alpha: 0.15);
-      final Color spacePink = const Color(0xFFE0AAFF).withValues(alpha: 0.08);
+      switch (timePeriod) {
+        case TimePeriod.morning: // Sunrise
+          canvas.drawLine(
+            Offset(symCenter.dx - 48, symCenter.dy + 16),
+            Offset(symCenter.dx + 48, symCenter.dy + 16),
+            symbolPaint..strokeWidth = 2.0,
+          );
+          final rect = Rect.fromCircle(center: symCenter, radius: 30);
+          canvas.drawArc(rect, math.pi, math.pi, false, fillPaint);
+          canvas.drawArc(rect, math.pi, math.pi, false, symbolPaint..strokeWidth = 3.0);
+          
+          for (double angle = 0; angle <= math.pi; angle += math.pi / 4) {
+            final double startX = symCenter.dx + math.cos(angle - math.pi) * 32;
+            final double startY = symCenter.dy + math.sin(angle - math.pi) * 32;
+            final double endX = symCenter.dx + math.cos(angle - math.pi) * 46;
+            final double endY = symCenter.dy + math.sin(angle - math.pi) * 46;
+            canvas.drawLine(Offset(startX, startY), Offset(endX, endY), symbolPaint..strokeWidth = 2.0);
+          }
+          break;
 
-      final double angle1 = animationValue * 2 * math.pi;
-      final double dx1 = size.width * 0.5 + math.cos(angle1 * 0.5) * size.width * 0.15;
-      final double dy1 = size.height * 0.4 + math.sin(angle1 * 0.5) * size.height * 0.1;
-      paint.shader = RadialGradient(colors: [spacePurple, spacePurple.withValues(alpha: 0.0)]).createShader(Rect.fromCircle(center: Offset(dx1, dy1), radius: size.width * 0.75));
-      canvas.drawCircle(Offset(dx1, dy1), size.width * 0.75, paint);
+        case TimePeriod.afternoon: // Full Sun
+          canvas.drawCircle(symCenter, 28, fillPaint);
+          canvas.drawCircle(symCenter, 28, symbolPaint..strokeWidth = 3.0);
+          
+          for (int i = 0; i < 8; i++) {
+            final double angle = i * math.pi / 4;
+            final double startX = symCenter.dx + math.cos(angle) * 34;
+            final double startY = symCenter.dy + math.sin(angle) * 34;
+            final double endX = symCenter.dx + math.cos(angle) * 48;
+            final double endY = symCenter.dy + math.sin(angle) * 48;
+            canvas.drawLine(Offset(startX, startY), Offset(endX, endY), symbolPaint..strokeWidth = 2.0);
+          }
+          break;
 
-      final double angle2 = (animationValue + 0.3) * 2 * math.pi;
-      final double dx2 = size.width * 0.4 + math.sin(angle2) * size.width * 0.12;
-      final double dy2 = size.height * 0.7 + math.cos(angle2) * size.height * 0.08;
-      paint.shader = RadialGradient(colors: [spaceIndigo, spaceIndigo.withValues(alpha: 0.0)]).createShader(Rect.fromCircle(center: Offset(dx2, dy2), radius: size.width * 0.8));
-      canvas.drawCircle(Offset(dx2, dy2), size.width * 0.8, paint);
+        case TimePeriod.evening: // Sunset
+          canvas.drawLine(
+            Offset(symCenter.dx - 48, symCenter.dy + 16),
+            Offset(symCenter.dx + 48, symCenter.dy + 16),
+            symbolPaint..strokeWidth = 2.0,
+          );
+          final rect = Rect.fromCircle(center: Offset(symCenter.dx, symCenter.dy + 8), radius: 30);
+          canvas.drawArc(rect, math.pi, math.pi, false, fillPaint);
+          canvas.drawArc(rect, math.pi, math.pi, false, symbolPaint..strokeWidth = 3.0);
 
-      final double angle3 = (animationValue + 0.6) * 2 * math.pi;
-      final double dx3 = size.width * 0.6 + math.cos(angle3) * size.width * 0.1;
-      final double dy3 = size.height * 0.5 + math.sin(angle3) * size.height * 0.08;
-      paint.shader = RadialGradient(colors: [spacePink, spacePink.withValues(alpha: 0.0)]).createShader(Rect.fromCircle(center: Offset(dx3, dy3), radius: size.width * 0.5));
-      canvas.drawCircle(Offset(dx3, dy3), size.width * 0.5, paint);
+          canvas.drawLine(
+            Offset(symCenter.dx - 32, symCenter.dy + 24),
+            Offset(symCenter.dx + 32, symCenter.dy + 24),
+            symbolPaint..strokeWidth = 1.5,
+          );
+          canvas.drawLine(
+            Offset(symCenter.dx - 16, symCenter.dy + 32),
+            Offset(symCenter.dx + 16, symCenter.dy + 32),
+            symbolPaint..strokeWidth = 1.5,
+          );
+          break;
 
-    } else if (style == 'ocean') {
-      // Ocean calmness (teal, sky blue and marine green horizontal waves)
-      final Color oceanTeal = const Color(0xFF00ADB5).withValues(alpha: 0.12);
-      final Color oceanBlue = const Color(0xFF1F4068).withValues(alpha: 0.15);
-      final Color oceanGreen = const Color(0xFF2E8B57).withValues(alpha: 0.08);
+        case TimePeriod.night: // Crescent Moon
+          // Beautifully scaled crescent moon path
+          final Path moonPath = Path()
+            ..moveTo(symCenter.dx + 12, symCenter.dy - 30)
+            ..quadraticBezierTo(symCenter.dx - 26, symCenter.dy, symCenter.dx + 12, symCenter.dy + 30)
+            ..quadraticBezierTo(symCenter.dx - 8, symCenter.dy, symCenter.dx + 12, symCenter.dy - 30)
+            ..close();
+          canvas.drawPath(moonPath, fillPaint);
+          canvas.drawPath(moonPath, symbolPaint..strokeWidth = 3.0);
 
-      final double shift1 = math.sin(animationValue * 2 * math.pi) * size.height * 0.05;
-      paint.shader = RadialGradient(colors: [oceanTeal, oceanTeal.withValues(alpha: 0.0)]).createShader(Rect.fromCircle(center: Offset(size.width * 0.3, size.height * 0.3 + shift1), radius: size.width * 0.8));
-      canvas.drawCircle(Offset(size.width * 0.3, size.height * 0.3 + shift1), size.width * 0.8, paint);
-
-      final double shift2 = math.cos((animationValue + 0.5) * 2 * math.pi) * size.height * 0.05;
-      paint.shader = RadialGradient(colors: [oceanBlue, oceanBlue.withValues(alpha: 0.0)]).createShader(Rect.fromCircle(center: Offset(size.width * 0.7, size.height * 0.7 + shift2), radius: size.width * 0.85));
-      canvas.drawCircle(Offset(size.width * 0.7, size.height * 0.7 + shift2), size.width * 0.85, paint);
-
-      final double shift3 = math.sin((animationValue + 0.25) * 2 * math.pi) * size.height * 0.04;
-      paint.shader = RadialGradient(colors: [oceanGreen, oceanGreen.withValues(alpha: 0.0)]).createShader(Rect.fromCircle(center: Offset(size.width * 0.2, size.height * 0.65 + shift3), radius: size.width * 0.6));
-      canvas.drawCircle(Offset(size.width * 0.2, size.height * 0.65 + shift3), size.width * 0.6, paint);
-
-    } else if (style == 'autumn') {
-      // Warm mahogany, amber and copper shades
-      final Color autumnAmber = const Color(0xFFFFB300).withValues(alpha: 0.12);
-      final Color autumnCopper = const Color(0xFFD35400).withValues(alpha: 0.15);
-      final Color autumnRed = const Color(0xFFC0392B).withValues(alpha: 0.08);
-
-      final double angle1 = animationValue * 2 * math.pi;
-      final double dx1 = size.width * 0.3 + math.cos(angle1) * size.width * 0.12;
-      final double dy1 = size.height * 0.35 + math.sin(angle1) * size.height * 0.06;
-      paint.shader = RadialGradient(colors: [autumnAmber, autumnAmber.withValues(alpha: 0.0)]).createShader(Rect.fromCircle(center: Offset(dx1, dy1), radius: size.width * 0.7));
-      canvas.drawCircle(Offset(dx1, dy1), size.width * 0.7, paint);
-
-      final double angle2 = (animationValue + 0.4) * 2 * math.pi;
-      final double dx2 = size.width * 0.7 + math.sin(angle2) * size.width * 0.1;
-      final double dy2 = size.height * 0.65 + math.cos(angle2) * size.height * 0.06;
-      paint.shader = RadialGradient(colors: [autumnCopper, autumnCopper.withValues(alpha: 0.0)]).createShader(Rect.fromCircle(center: Offset(dx2, dy2), radius: size.width * 0.8));
-      canvas.drawCircle(Offset(dx2, dy2), size.width * 0.8, paint);
-
-      final double angle3 = (animationValue + 0.7) * 2 * math.pi;
-      final double dx3 = size.width * 0.4 + math.cos(angle3 * 1.2) * size.width * 0.08;
-      final double dy3 = size.height * 0.5 + math.sin(angle3 * 1.2) * size.height * 0.08;
-      paint.shader = RadialGradient(colors: [autumnRed, autumnRed.withValues(alpha: 0.0)]).createShader(Rect.fromCircle(center: Offset(dx3, dy3), radius: size.width * 0.6));
-      canvas.drawCircle(Offset(dx3, dy3), size.width * 0.6, paint);
-
-    } else {
-      // DEFAULT AURORA TIME-BASED
-      // 2. Draw Blob 1 (Top-Left moving slowly)
-      final double angle1 = animationValue * 2 * math.pi;
-      final double dx1 = size.width * 0.25 + math.cos(angle1) * size.width * 0.15;
-      final double dy1 = size.height * 0.25 + math.sin(angle1) * size.height * 0.08;
-      final double radius1 = size.width * 0.65;
-
-      paint.shader = RadialGradient(
-        colors: [colors.color1, colors.color1.withValues(alpha: 0.0)],
-      ).createShader(Rect.fromCircle(center: Offset(dx1, dy1), radius: radius1));
-      canvas.drawCircle(Offset(dx1, dy1), radius1, paint);
-
-      // 3. Draw Blob 2 (Bottom-Right moving ovally)
-      final double angle2 = (animationValue + 0.33) * 2 * math.pi;
-      final double dx2 = size.width * 0.75 + math.sin(angle2) * size.width * 0.15;
-      final double dy2 = size.height * 0.75 + math.cos(angle2) * size.height * 0.08;
-      final double radius2 = size.width * 0.70;
-
-      paint.shader = RadialGradient(
-        colors: [colors.color2, colors.color2.withValues(alpha: 0.0)],
-      ).createShader(Rect.fromCircle(center: Offset(dx2, dy2), radius: radius2));
-      canvas.drawCircle(Offset(dx2, dy2), radius2, paint);
-
-      // 4. Draw Blob 3 (Center-Left drifting)
-      final double angle3 = (animationValue + 0.66) * 2 * math.pi;
-      final double dx3 = size.width * 0.30 + math.cos(angle3 * 1.5) * size.width * 0.10;
-      final double dy3 = size.height * 0.50 + math.sin(angle3 * 1.5) * size.height * 0.10;
-      final double radius3 = size.width * 0.60;
-
-      paint.shader = RadialGradient(
-        colors: [colors.color3, colors.color3.withValues(alpha: 0.0)],
-      ).createShader(Rect.fromCircle(center: Offset(dx3, dy3), radius: radius3));
-      canvas.drawCircle(Offset(dx3, dy3), radius3, paint);
-    }
-  }
-
-  // Draw static background patterns
-  if (pattern != 'none') {
-    final patternPaint = Paint()
-      ..color = isDark ? Colors.white.withValues(alpha: 0.035) : Colors.black.withValues(alpha: 0.025)
-      ..style = PaintingStyle.stroke;
-
-    if (pattern == 'dots') {
-      patternPaint.style = PaintingStyle.fill;
-      const double spacing = 24.0;
-      for (double x = spacing / 2; x < size.width; x += spacing) {
-        for (double y = spacing / 2; y < size.height; y += spacing) {
-          canvas.drawCircle(Offset(x, y), 1.2, patternPaint);
-        }
-      }
-    } else if (pattern == 'grid') {
-      patternPaint.strokeWidth = 0.8;
-      const double spacing = 32.0;
-      for (double x = 0; x < size.width; x += spacing) {
-        canvas.drawLine(Offset(x, 0), Offset(x, size.height), patternPaint);
-      }
-      for (double y = 0; y < size.height; y += spacing) {
-        canvas.drawLine(Offset(0, y), Offset(size.width, y), patternPaint);
-      }
-    } else if (pattern == 'waves') {
-      patternPaint.strokeWidth = 1.0;
-      const double spacing = 40.0;
-      for (double y = spacing; y < size.height; y += spacing) {
-        final Path path = Path();
-        path.moveTo(0, y);
-        for (double x = 0; x < size.width; x += 12) {
-          path.lineTo(x, y + math.sin(x / 30) * 4);
-        }
-        canvas.drawPath(path, patternPaint);
-      }
-    } else if (pattern == 'stripes') {
-      patternPaint.strokeWidth = 1.2;
-      const double spacing = 45.0;
-      for (double i = -size.height; i < size.width; i += spacing) {
-        canvas.drawLine(Offset(i, 0), Offset(i + size.height, size.height), patternPaint);
+          // Add a beautiful scaled glowing star next to it
+          final starPaint = Paint()
+            ..color = isDark ? Colors.white.withValues(alpha: 0.35) : primaryColor.withValues(alpha: 0.30)
+            ..style = PaintingStyle.fill;
+          
+          // Draw a small 4-point star path
+          final Path starPath = Path()
+            ..moveTo(symCenter.dx - 28, symCenter.dy - 12)
+            ..quadraticBezierTo(symCenter.dx - 24, symCenter.dy - 12, symCenter.dx - 24, symCenter.dy - 16)
+            ..quadraticBezierTo(symCenter.dx - 24, symCenter.dy - 12, symCenter.dx - 20, symCenter.dy - 12)
+            ..quadraticBezierTo(symCenter.dx - 24, symCenter.dy - 12, symCenter.dx - 24, symCenter.dy - 8)
+            ..quadraticBezierTo(symCenter.dx - 24, symCenter.dy - 12, symCenter.dx - 28, symCenter.dy - 12)
+            ..close();
+          canvas.drawPath(starPath, starPaint);
+          
+          canvas.drawCircle(Offset(symCenter.dx - 18, symCenter.dy + 14), 3.0, starPaint);
+          break;
       }
     }
   }
-}
 
-@override
-bool shouldRepaint(covariant AuroraBlobsPainter oldDelegate) {
-  return oldDelegate.animationValue != animationValue ||
-      oldDelegate.colors != colors ||
-      oldDelegate.style != style ||
-      oldDelegate.pattern != pattern ||
-      oldDelegate.auroraEnabled != auroraEnabled ||
-      oldDelegate.wallpaper != wallpaper ||
-      oldDelegate.isDark != isDark;
-}
+  @override
+  bool shouldRepaint(covariant WallpaperAndPatternPainter oldDelegate) {
+    return oldDelegate.colors != colors ||
+        oldDelegate.primaryColor != primaryColor ||
+        oldDelegate.pattern != pattern ||
+        oldDelegate.wallpaper != wallpaper ||
+        oldDelegate.isDark != isDark ||
+        oldDelegate.timePeriod != timePeriod ||
+        oldDelegate.showTimeSymbol != showTimeSymbol;
+  }
 }
 
 class SparklesPainter extends CustomPainter {
@@ -661,6 +805,7 @@ class SparklesPainter extends CustomPainter {
   final double speedFactor;
   final int density;
   final String style;
+  final bool isDark;
 
   SparklesPainter({
     required this.animationValue,
@@ -669,6 +814,7 @@ class SparklesPainter extends CustomPainter {
     required this.speedFactor,
     required this.density,
     required this.style,
+    required this.isDark,
   });
 
   @override
@@ -751,21 +897,43 @@ class SparklesPainter extends CustomPainter {
       
       // Color choices
       Color pColor = sparkleColor;
-      if (style == 'cyberpunk') {
-        pColor = i % 2 == 0 ? const Color(0xFFFF007F) : const Color(0xFF00F5FF);
-      } else if (style == 'cosmic') {
-        pColor = Colors.white.withValues(alpha: particle.opacity);
-      } else if (style == 'ocean') {
-        pColor = Colors.cyanAccent.withValues(alpha: particle.opacity * 0.6);
-      } else if (style == 'autumn') {
-        pColor = i % 3 == 0 
-            ? const Color(0xFFD35400) // orange
-            : i % 3 == 1 
-                ? const Color(0xFFFFB300) // gold
-                : const Color(0xFFC0392B); // red-brown
+      if (!isDark) {
+        // In light mode, map white/cyan/yellow to deeper rich saturated variants so they pop on white scaffolds
+        if (style == 'cyberpunk') {
+          pColor = i % 2 == 0 ? const Color(0xFFD0006F) : const Color(0xFF007E85);
+        } else if (style == 'cosmic') {
+          pColor = const Color(0xFF5E35B1); // Deep rich cosmic violet sparkles instead of white!
+        } else if (style == 'ocean') {
+          pColor = const Color(0xFF006064); // Dark cyan/blue bubble rings instead of light cyan!
+        } else if (style == 'autumn') {
+          pColor = i % 3 == 0 
+              ? const Color(0xFFB33600) // Deep warm rust orange
+              : i % 3 == 1 
+                  ? const Color(0xFFC48600) // Deep gold
+                  : const Color(0xFF8B0000); // Deep crimson
+        } else {
+          // Default time-based: ensure it has rich visibility
+          pColor = sparkleColor.withValues(alpha: 1.0);
+        }
+      } else {
+        // Dark mode colors (original)
+        if (style == 'cyberpunk') {
+          pColor = i % 2 == 0 ? const Color(0xFFFF007F) : const Color(0xFF00F5FF);
+        } else if (style == 'cosmic') {
+          pColor = Colors.white;
+        } else if (style == 'ocean') {
+          pColor = Colors.cyanAccent;
+        } else if (style == 'autumn') {
+          pColor = i % 3 == 0 
+              ? const Color(0xFFD35400)
+              : i % 3 == 1 
+                  ? const Color(0xFFFFB300)
+                  : const Color(0xFFC0392B);
+        }
       }
 
-      paint.color = pColor.withValues(alpha: particle.opacity * 0.55);
+      final double opacityFactor = isDark ? 0.55 : 0.90;
+      paint.color = pColor.withValues(alpha: particle.opacity * opacityFactor);
 
       if (style == 'cyberpunk') {
         // Square code motes
@@ -803,6 +971,7 @@ class SparklesPainter extends CustomPainter {
         oldDelegate.sparkleColor != sparkleColor ||
         oldDelegate.speedFactor != speedFactor ||
         oldDelegate.density != density ||
-        oldDelegate.style != style;
+        oldDelegate.style != style ||
+        oldDelegate.isDark != isDark;
   }
 }

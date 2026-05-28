@@ -288,7 +288,6 @@ class _NoticesScreenState extends State<NoticesScreen> {
       child: Scaffold(
         backgroundColor: Colors.transparent,
         appBar: AppBar(
-          backgroundColor: Colors.transparent,
           elevation: 0,
           title: const Text('Notices'),
           bottom: const TabBar(

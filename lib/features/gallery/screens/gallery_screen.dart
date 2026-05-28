@@ -334,7 +334,6 @@ class _GalleryScreenState extends State<GalleryScreen> {
       child: Scaffold(
         backgroundColor: Colors.transparent,
         appBar: AppBar(
-          backgroundColor: Colors.transparent,
           elevation: 0,
           title: const Text('Gallery'),
         ),

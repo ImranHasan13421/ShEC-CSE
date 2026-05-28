@@ -77,7 +77,6 @@ class _ClubScreenState extends State<ClubScreen> {
           child: Scaffold(
             backgroundColor: Colors.transparent,
             appBar: AppBar(
-              backgroundColor: Colors.transparent,
               elevation: 0,
               title: const Text('Programming Club'),
             ),

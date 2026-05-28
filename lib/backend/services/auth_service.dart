@@ -150,6 +150,20 @@ class AuthService {
       );
     } catch (e) {
       debugPrint('Error fetching user profile: $e');
+      
+      // If token has expired or is invalid, force clear caches, sign out, and rethrow to redirect to login
+      if (e is PostgrestException && (e.message.contains('JWT expired') || e.code == 'PGRST303' || e.code == '401')) {
+        debugPrint('Session JWT has expired. Forcing sign out...');
+        try {
+          await DatabaseHelper.instance.clearCache('current_profile');
+          await DatabaseHelper.instance.clearCache('all_members');
+          await _client.auth.signOut();
+        } catch (_) {}
+        currentProfile.value = ProfileData(name: 'Guest', email: '', duRegNo: '', session: '');
+        PermissionsService.currentPermissions.value = null;
+        throw Exception('JWT expired');
+      }
+
       // If network call failed, attempt to fall back to SQLite cache as a last resort
       final cachedProfileStr = await DatabaseHelper.instance.getCache('current_profile');
       if (cachedProfileStr != null) {

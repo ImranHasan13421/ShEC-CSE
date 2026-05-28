@@ -50,7 +50,6 @@ class _DepartmentScreenState extends State<DepartmentScreen> {
           child: Scaffold(
             backgroundColor: Colors.transparent,
             appBar: AppBar(
-              backgroundColor: Colors.transparent,
               elevation: 0,
               title: const Text('CSE Department'),
             ),

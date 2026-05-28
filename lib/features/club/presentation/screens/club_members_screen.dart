@@ -656,7 +656,6 @@ class _ClubMembersScreenState extends State<ClubMembersScreen> with SingleTicker
           child: Scaffold(
             backgroundColor: Colors.transparent,
             appBar: AppBar(
-              backgroundColor: Colors.transparent,
               elevation: 0,
               title: const Text('Club Directory'),
               actions: [

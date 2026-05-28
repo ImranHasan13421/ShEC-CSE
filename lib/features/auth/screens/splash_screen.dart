@@ -66,8 +66,8 @@ class _SplashScreenState extends State<SplashScreen> {
     if (!mounted) return;
 
     Widget nextScreen;
-    if (widget.isLoggedIn) {
-      if (currentProfile.value.id.isNotEmpty && !currentProfile.value.isApproved) {
+    if (widget.isLoggedIn && currentProfile.value.id.isNotEmpty) {
+      if (!currentProfile.value.isApproved) {
         nextScreen = const PendingApprovalScreen();
       } else {
         nextScreen = const HomeLayout();
