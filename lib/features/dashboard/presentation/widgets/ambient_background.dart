@@ -276,75 +276,91 @@ class _AmbientTimeBackgroundState extends State<AmbientTimeBackground> with Sing
         final currentPattern = isWallpaperEnabled ? (widget.overridePattern ?? ambientPattern.value) : 'none';
         final currentWallpaperDensity = widget.overrideWallpaperDensity ?? ambientWallpaperDensity.value;
 
-        // Draw flat container only if absolutely nothing is enabled
-        if (!isSparklesEnabled && !isAuroraEnabled && currentPattern == 'none' && currentWallpaper == 'none') {
-          return Container(
-            color: colors.baseBackground,
-            child: widget.useSafeArea ? SafeArea(child: widget.child) : widget.child,
-          );
+        // Base background color determination matching the active style, providing an opaque backdrop
+        Color baseBg = colors.baseBackground;
+        if (isDark) {
+          if (currentStyle == 'cyberpunk') {
+            baseBg = const Color(0xFF07050A);
+          } else if (currentStyle == 'cosmic') {
+            baseBg = const Color(0xFF020107);
+          } else if (currentStyle == 'ocean') {
+            baseBg = const Color(0xFF040A12);
+          } else if (currentStyle == 'autumn') {
+            baseBg = const Color(0xFF0F0A06);
+          }
         }
 
         return Stack(
           children: [
+            // 0. Solid Base Opaque Background (Prevents behind-drawer elements from bleeding through when drawer is closed or dynamic auroras are toggled off)
+            Positioned.fill(
+              child: Container(
+                color: baseBg,
+              ),
+            ),
             // 1. Slow Aurora Mesh Blobs Layer (Rendered below blur)
+            Positioned.fill(
+              child: isAuroraEnabled
+                  ? RepaintBoundary(
+                      child: CustomPaint(
+                        painter: AuroraBlobsPainter(
+                          animationValue: _animationController.value,
+                          colors: colors,
+                          style: currentStyle,
+                          auroraEnabled: isAuroraEnabled,
+                          isDark: isDark,
+                          speedFactor: speedFactor,
+                        ),
+                      ),
+                    )
+                  : const SizedBox.shrink(),
+            ),
+            // 2. High-Performance Gaussian Soft Blur (Only rendered when dynamic auroras are enabled to diffuse colors)
+            Positioned.fill(
+              child: isAuroraEnabled
+                  ? BackdropFilter(
+                      filter: ImageFilter.blur(sigmaX: 35, sigmaY: 35),
+                      child: Container(color: Colors.transparent),
+                    )
+                  : const SizedBox.shrink(),
+            ),
+            // 3. Crisp, Static Background Wallpaper and Pattern Layer (Drawn OVER the blurred auroras so they stay crisp and sharp!)
             Positioned.fill(
               child: RepaintBoundary(
                 child: CustomPaint(
-                  painter: AuroraBlobsPainter(
-                    animationValue: _animationController.value,
+                  painter: WallpaperAndPatternPainter(
                     colors: colors,
-                    style: currentStyle,
-                    auroraEnabled: isAuroraEnabled,
+                    primaryColor: Theme.of(context).colorScheme.primary,
+                    pattern: currentPattern,
+                    wallpaper: currentWallpaper,
                     isDark: isDark,
-                    speedFactor: speedFactor,
+                    timePeriod: _timePeriod,
+                    showTimeSymbol: true, // Always true to render the glowing sun/moon in every mode!
+                    density: currentWallpaperDensity,
+                    animationValue: _animationController.value, // Pass animation value for custom pulsing light effect!
                   ),
                 ),
               ),
             ),
-            // 2. High-Performance Gaussian Soft Blur (Only rendered when dynamic auroras are enabled to diffuse colors)
-            if (isAuroraEnabled)
-              Positioned.fill(
-                child: BackdropFilter(
-                  filter: ImageFilter.blur(sigmaX: 35, sigmaY: 35),
-                  child: Container(color: Colors.transparent),
-                ),
-              ),
-            // 3. Crisp, Static Background Wallpaper and Pattern Layer (Drawn OVER the blurred auroras so they stay crisp and sharp!)
-            if (currentWallpaper != 'none' || currentPattern != 'none' || isAuroraEnabled)
-              Positioned.fill(
-                child: RepaintBoundary(
-                  child: CustomPaint(
-                    painter: WallpaperAndPatternPainter(
-                      colors: colors,
-                      primaryColor: Theme.of(context).colorScheme.primary,
-                      pattern: currentPattern,
-                      wallpaper: currentWallpaper,
-                      isDark: isDark,
-                      timePeriod: _timePeriod,
-                      showTimeSymbol: isAuroraEnabled,
-                      density: currentWallpaperDensity,
-                    ),
-                  ),
-                ),
-              ),
             // 4. Crisp, High-Density Sparkles floating over the backdrop (Only rendered when sparkles are enabled)
-            if (isSparklesEnabled)
-              Positioned.fill(
-                child: RepaintBoundary(
-                  child: CustomPaint(
-                    painter: SparklesPainter(
-                      animationValue: _animationController.value,
-                      particles: _particles,
-                      sparkleColor: colors.sparkleColor,
-                      speedFactor: speedFactor,
-                      density: densityCount,
-                      style: currentStyle,
-                      isDark: isDark,
-                    ),
-                  ),
-                ),
-              ),
-            // 5. Child Content Layer
+            Positioned.fill(
+              child: isSparklesEnabled
+                  ? RepaintBoundary(
+                      child: CustomPaint(
+                        painter: SparklesPainter(
+                          animationValue: _animationController.value,
+                          particles: _particles,
+                          sparkleColor: colors.sparkleColor,
+                          speedFactor: speedFactor,
+                          density: densityCount,
+                          style: currentStyle,
+                          isDark: isDark,
+                        ),
+                      ),
+                    )
+                  : const SizedBox.shrink(),
+            ),
+            // 5. Child Content Layer (Always structurally stable!)
             Positioned.fill(
               child: widget.useSafeArea ? SafeArea(child: widget.child) : widget.child,
             ),
@@ -534,6 +550,7 @@ class WallpaperAndPatternPainter extends CustomPainter {
   final TimePeriod timePeriod;
   final bool showTimeSymbol;
   final double density;
+  final double animationValue;
 
   WallpaperAndPatternPainter({
     required this.colors,
@@ -544,11 +561,13 @@ class WallpaperAndPatternPainter extends CustomPainter {
     required this.timePeriod,
     required this.showTimeSymbol,
     required this.density,
+    required this.animationValue,
   });
 
   @override
   void paint(Canvas canvas, Size size) {
     final double paintAlphaMultiplier = isDark ? 1.0 : 0.8;
+    final double pulse = 0.5 + 0.5 * math.sin(animationValue * 2 * math.pi);
 
     // 1. Draw static background wallpapers (with boosted legibility)
     if (wallpaper != 'none') {
@@ -709,17 +728,21 @@ class WallpaperAndPatternPainter extends CustomPainter {
 
     // 3. Draw subtle, premium time-based symbols (Sunrise, Sun, Sunset, Moon) scaled up and eye-catching!
     if (showTimeSymbol) {
+      // Outlines and Fills color adaptations based on theme brightness:
+      // In Light Mode, lines are thick and highly visible.
+      // In Dark/Night modes, lines are soft neon glows utilizing style palettes.
       final symbolPaint = Paint()
         ..color = isDark 
-            ? colors.color1.withValues(alpha: 0.28) // Glowing subtle outline in dark mode
-            : primaryColor.withValues(alpha: 0.22) // Visible outline in light mode
+            ? colors.color1.withValues(alpha: isDark ? 0.50 : 0.40) 
+            : primaryColor.withValues(alpha: 0.65)
         ..style = PaintingStyle.stroke
-        ..strokeWidth = 3.0;
+        ..strokeCap = StrokeCap.round
+        ..strokeWidth = isDark ? 2.5 : 3.2;
 
       final fillPaint = Paint()
         ..color = isDark 
-            ? colors.color2.withValues(alpha: 0.10) 
-            : primaryColor.withValues(alpha: 0.08)
+            ? colors.color2.withValues(alpha: isDark ? 0.18 : 0.12) 
+            : primaryColor.withValues(alpha: 0.14)
         ..style = PaintingStyle.fill;
 
       // Positioned in upper right quadrant - scaled and noticeable
@@ -727,6 +750,24 @@ class WallpaperAndPatternPainter extends CustomPainter {
 
       switch (timePeriod) {
         case TimePeriod.morning: // Sunrise
+          // Soft glowing aura that pulses breathing light
+          final double morningGlowRadius = 30.0 + 8.0 * pulse;
+          final morningGlowPaint = Paint()
+            ..color = (isDark ? colors.color2 : primaryColor).withValues(alpha: (isDark ? 0.14 : 0.08) * pulse)
+            ..style = PaintingStyle.fill;
+          canvas.drawCircle(symCenter, morningGlowRadius, morningGlowPaint);
+
+          // Draw rising rays
+          for (double angle = 0; angle <= math.pi; angle += math.pi / 4) {
+            final double rayLen = 32 + 6.0 * (angle % 2 == 0 ? pulse : (1.0 - pulse));
+            final double startX = symCenter.dx + math.cos(angle - math.pi) * 32;
+            final double startY = symCenter.dy + math.sin(angle - math.pi) * 32;
+            final double endX = symCenter.dx + math.cos(angle - math.pi) * rayLen;
+            final double endY = symCenter.dy + math.sin(angle - math.pi) * rayLen;
+            canvas.drawLine(Offset(startX, startY), Offset(endX, endY), symbolPaint..strokeWidth = 2.0);
+          }
+
+          // Sunrise half-circle
           canvas.drawLine(
             Offset(symCenter.dx - 48, symCenter.dy + 16),
             Offset(symCenter.dx + 48, symCenter.dy + 16),
@@ -734,40 +775,61 @@ class WallpaperAndPatternPainter extends CustomPainter {
           );
           final rect = Rect.fromCircle(center: symCenter, radius: 30);
           canvas.drawArc(rect, math.pi, math.pi, false, fillPaint);
-          canvas.drawArc(rect, math.pi, math.pi, false, symbolPaint..strokeWidth = 3.0);
-          
-          for (double angle = 0; angle <= math.pi; angle += math.pi / 4) {
-            final double startX = symCenter.dx + math.cos(angle - math.pi) * 32;
-            final double startY = symCenter.dy + math.sin(angle - math.pi) * 32;
-            final double endX = symCenter.dx + math.cos(angle - math.pi) * 46;
-            final double endY = symCenter.dy + math.sin(angle - math.pi) * 46;
-            canvas.drawLine(Offset(startX, startY), Offset(endX, endY), symbolPaint..strokeWidth = 2.0);
-          }
+          canvas.drawArc(rect, math.pi, math.pi, false, symbolPaint..strokeWidth = isDark ? 2.5 : 3.2);
           break;
 
-        case TimePeriod.afternoon: // Full Sun
-          canvas.drawCircle(symCenter, 28, fillPaint);
-          canvas.drawCircle(symCenter, 28, symbolPaint..strokeWidth = 3.0);
-          
+        case TimePeriod.afternoon: // Full Sun with glowing pulse
+          // Soft breathing light halo
+          final double sunGlowRadius = 28.0 + 10.0 * pulse;
+          final sunGlowPaint = Paint()
+            ..color = (isDark ? colors.color2 : primaryColor).withValues(alpha: (isDark ? 0.16 : 0.08) * (0.3 + 0.7 * pulse))
+            ..style = PaintingStyle.fill;
+          canvas.drawCircle(symCenter, sunGlowRadius, sunGlowPaint);
+          canvas.drawCircle(symCenter, sunGlowRadius + 6.0 * (1.0 - pulse), Paint()..color = sunGlowPaint.color.withValues(alpha: sunGlowPaint.color.a * 0.4)..style = PaintingStyle.fill);
+
+          // Animate radiating solar rays expanding/contracting
           for (int i = 0; i < 8; i++) {
             final double angle = i * math.pi / 4;
+            final double rayLen = 34 + 6.0 * (i % 2 == 0 ? pulse : (1.0 - pulse));
             final double startX = symCenter.dx + math.cos(angle) * 34;
             final double startY = symCenter.dy + math.sin(angle) * 34;
-            final double endX = symCenter.dx + math.cos(angle) * 48;
-            final double endY = symCenter.dy + math.sin(angle) * 48;
+            final double endX = symCenter.dx + math.cos(angle) * rayLen;
+            final double endY = symCenter.dy + math.sin(angle) * rayLen;
             canvas.drawLine(Offset(startX, startY), Offset(endX, endY), symbolPaint..strokeWidth = 2.0);
           }
+
+          // Central sun body
+          canvas.drawCircle(symCenter, 28, fillPaint);
+          canvas.drawCircle(symCenter, 28, symbolPaint..strokeWidth = isDark ? 2.5 : 3.2);
           break;
 
         case TimePeriod.evening: // Sunset
+          // Evening glowing red/sunset aura
+          final double eveningGlowRadius = 30.0 + 8.0 * pulse;
+          final eveningGlowPaint = Paint()
+            ..color = (isDark ? colors.color3 : primaryColor).withValues(alpha: (isDark ? 0.14 : 0.08) * pulse)
+            ..style = PaintingStyle.fill;
+          canvas.drawCircle(Offset(symCenter.dx, symCenter.dy + 8), eveningGlowRadius, eveningGlowPaint);
+
+          // Ray projections
+          for (double angle = 0; angle <= math.pi; angle += math.pi / 4) {
+            final double rayLen = 32 + 5.0 * pulse;
+            final double startX = symCenter.dx + math.cos(angle - math.pi) * 32;
+            final double startY = symCenter.dy + math.sin(angle - math.pi) * 32;
+            final double endX = symCenter.dx + math.cos(angle - math.pi) * rayLen;
+            final double endY = symCenter.dy + math.sin(angle - math.pi) * rayLen;
+            canvas.drawLine(Offset(startX, startY), Offset(endX, endY), symbolPaint..strokeWidth = 2.0);
+          }
+
+          // Sunset half-circle and reflection ripples
           canvas.drawLine(
             Offset(symCenter.dx - 48, symCenter.dy + 16),
             Offset(symCenter.dx + 48, symCenter.dy + 16),
             symbolPaint..strokeWidth = 2.0,
           );
-          final rect = Rect.fromCircle(center: Offset(symCenter.dx, symCenter.dy + 8), radius: 30);
-          canvas.drawArc(rect, math.pi, math.pi, false, fillPaint);
-          canvas.drawArc(rect, math.pi, math.pi, false, symbolPaint..strokeWidth = 3.0);
+          final rectSunset = Rect.fromCircle(center: Offset(symCenter.dx, symCenter.dy + 8), radius: 30);
+          canvas.drawArc(rectSunset, math.pi, math.pi, false, fillPaint);
+          canvas.drawArc(rectSunset, math.pi, math.pi, false, symbolPaint..strokeWidth = isDark ? 2.5 : 3.2);
 
           canvas.drawLine(
             Offset(symCenter.dx - 32, symCenter.dy + 24),
@@ -781,22 +843,29 @@ class WallpaperAndPatternPainter extends CustomPainter {
           );
           break;
 
-        case TimePeriod.night: // Crescent Moon
-          // Beautifully scaled crescent moon path
+        case TimePeriod.night: // Crescent Moon with glowing halo
+          // Pulsing moon halo
+          final double moonGlowRadius = 24.0 + 8.0 * pulse;
+          final moonGlowPaint = Paint()
+            ..color = (isDark ? colors.color2 : primaryColor).withValues(alpha: (isDark ? 0.16 : 0.08) * (0.3 + 0.7 * pulse))
+            ..style = PaintingStyle.fill;
+          canvas.drawCircle(symCenter, moonGlowRadius, moonGlowPaint);
+
+          // Beautiful scaled crescent moon path
           final Path moonPath = Path()
             ..moveTo(symCenter.dx + 12, symCenter.dy - 30)
             ..quadraticBezierTo(symCenter.dx - 26, symCenter.dy, symCenter.dx + 12, symCenter.dy + 30)
             ..quadraticBezierTo(symCenter.dx - 8, symCenter.dy, symCenter.dx + 12, symCenter.dy - 30)
             ..close();
           canvas.drawPath(moonPath, fillPaint);
-          canvas.drawPath(moonPath, symbolPaint..strokeWidth = 3.0);
+          canvas.drawPath(moonPath, symbolPaint..strokeWidth = isDark ? 2.5 : 3.2);
 
-          // Add a beautiful scaled glowing star next to it
+          // Glowing space star next to the moon that blinks in alternate rhythm
+          final double starPulse = 1.0 - pulse;
           final starPaint = Paint()
-            ..color = isDark ? Colors.white.withValues(alpha: 0.35) : primaryColor.withValues(alpha: 0.30)
+            ..color = (isDark ? Colors.white : primaryColor).withValues(alpha: (isDark ? 0.35 : 0.25) + 0.5 * starPulse)
             ..style = PaintingStyle.fill;
           
-          // Draw a small 4-point star path
           final Path starPath = Path()
             ..moveTo(symCenter.dx - 28, symCenter.dy - 12)
             ..quadraticBezierTo(symCenter.dx - 24, symCenter.dy - 12, symCenter.dx - 24, symCenter.dy - 16)
@@ -821,7 +890,8 @@ class WallpaperAndPatternPainter extends CustomPainter {
         oldDelegate.isDark != isDark ||
         oldDelegate.timePeriod != timePeriod ||
         oldDelegate.showTimeSymbol != showTimeSymbol ||
-        oldDelegate.density != density;
+        oldDelegate.density != density ||
+        oldDelegate.animationValue != animationValue;
   }
 }
 
