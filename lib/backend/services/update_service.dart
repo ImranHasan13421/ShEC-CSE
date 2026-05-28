@@ -10,8 +10,8 @@ class UpdateService extends ChangeNotifier {
   static final SupabaseClient _client = Supabase.instance.client;
 
   // Local static build information
-  static const int currentBuildNumber = 1;
-  static const String currentVersion = '1.0.0';
+  static const int currentBuildNumber = 10;
+  static const String currentVersion = '0.9.1';
 
   // State
   bool _isLoading = false;
@@ -29,6 +29,28 @@ class UpdateService extends ChangeNotifier {
   int get latestBuildNumber => _latestBuildNumber;
   String get downloadUrl => _downloadUrl;
   String get releaseNotes => _releaseNotes;
+
+  // Compares two semver strings (e.g. "1.2.3" vs "0.9.1").
+  // Returns true if [remote] is strictly newer than [local].
+  bool _isNewerVersion(String local, String remote) {
+    try {
+      final localParts = local.split('.').map(int.parse).toList();
+      final remoteParts = remote.split('.').map(int.parse).toList();
+
+      // Pad shorter list with zeros so lengths match
+      while (localParts.length < 3) { localParts.add(0); }
+      while (remoteParts.length < 3) { remoteParts.add(0); }
+
+      for (int i = 0; i < 3; i++) {
+        if (remoteParts[i] > localParts[i]) return true;
+        if (remoteParts[i] < localParts[i]) return false;
+      }
+      return false; // versions are identical
+    } catch (_) {
+      // If parsing fails fall back to build number comparison
+      return false;
+    }
+  }
 
   // Check for updates from Supabase
   Future<void> checkForUpdates() async {
@@ -50,16 +72,29 @@ class UpdateService extends ChangeNotifier {
         final String dbNotes = response['release_notes'] ?? '';
         final bool dbIsMajor = response['is_major'] ?? false;
 
-        if (dbBuildNumber > currentBuildNumber) {
+        // Primary check: semantic version string comparison (e.g. "1.0.0" > "0.9.1")
+        // Tiebreaker: if version strings are equal, fall back to build number
+        final bool versionNewer = _isNewerVersion(currentVersion, dbVersion);
+        final bool sameVersion = dbVersion == currentVersion;
+        final bool buildNewer = sameVersion && dbBuildNumber > currentBuildNumber;
+
+        if (versionNewer || buildNewer) {
           _hasUpdate = true;
           _latestVersion = dbVersion;
           _latestBuildNumber = dbBuildNumber;
           _downloadUrl = dbUrl;
           _releaseNotes = dbNotes;
           _isMajor = dbIsMajor;
+          debugPrint(
+            'Update available: $currentVersion (build $currentBuildNumber) '
+            '→ $dbVersion (build $dbBuildNumber)',
+          );
         } else {
           _hasUpdate = false;
           _isMajor = false;
+          debugPrint(
+            'App is up to date: $currentVersion (build $currentBuildNumber)',
+          );
         }
       } else {
         _hasUpdate = false;

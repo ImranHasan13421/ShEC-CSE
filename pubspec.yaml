@@ -1,7 +1,7 @@
 name: ShEC_CSE
 description: "A new Flutter project."
 
-version: 1.0.0+1
+version: 0.9.1
 
 environment:
   sdk: '>=3.11.0'
