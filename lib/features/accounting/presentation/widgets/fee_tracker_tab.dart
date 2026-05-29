@@ -100,7 +100,14 @@ class _FeeTrackerTabState extends State<FeeTrackerTab> {
     final hasData = state is AccountingDataLoaded;
     final payments = hasData ? state.summary.recentPayments : <FeePayment>[];
 
-    final filtered = payments.where((p) {
+    final profile = currentProfile.value;
+    final isCommittee = profile.role == UserRole.committeeMember || profile.role == UserRole.superUser;
+    
+    final visiblePayments = isCommittee 
+        ? payments 
+        : payments.where((p) => p.memberId == profile.id).toList();
+
+    final filtered = visiblePayments.where((p) {
       if (_searchQuery.isEmpty) return true;
       final term = _searchQuery.toLowerCase();
       return p.memberName.toLowerCase().contains(term) ||

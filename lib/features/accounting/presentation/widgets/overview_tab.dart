@@ -120,13 +120,16 @@ class _OverviewTabState extends State<OverviewTab> {
           ],
 
           // Recent Activity Ledger
-          Text(
-            'Recent Ledger Activity',
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: colors.onSurface),
-          ),
-          const SizedBox(height: 12),
+          if (currentProfile.value.role == UserRole.committeeMember ||
+              currentProfile.value.role == UserRole.superUser) ...[
+            Text(
+              'Recent Ledger Activity',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: colors.onSurface),
+            ),
+            const SizedBox(height: 12),
 
-          _buildRecentActivityList(summary, colors),
+            _buildRecentActivityList(summary, colors),
+          ],
         ],
       ),
     );

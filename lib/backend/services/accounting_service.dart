@@ -63,12 +63,19 @@ class FeePayment {
       idRoll = roll;
     }
 
+    final String? extSource = map['external_source'];
+    final String resolvedName = firstName.isNotEmpty || lastName.isNotEmpty 
+        ? '$firstName $lastName'.trim()
+        : (extSource != null && extSource.isNotEmpty 
+            ? extSource 
+            : (map['payment_type'] == 'sponsor' || map['payment_type'] == 'external' || map['member_id'] == null 
+                ? 'Sponsor / External' 
+                : 'Unknown Member'));
+
     return FeePayment(
       id: map['id'] ?? '',
       memberId: map['member_id'] ?? '',
-      memberName: firstName.isNotEmpty || lastName.isNotEmpty 
-          ? '$firstName $lastName'.trim()
-          : 'Unknown Member',
+      memberName: resolvedName,
       memberIdRoll: idRoll,
       amount: (map['amount'] as num?)?.toDouble() ?? 0.0,
       month: map['month'] ?? '',

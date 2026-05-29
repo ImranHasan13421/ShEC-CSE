@@ -10,6 +10,7 @@ import '../widgets/dues_tracker_tab.dart';
 import 'package:ShEC_CSE/features/dashboard/presentation/widgets/ambient_background.dart';
 import 'package:ShEC_CSE/core/services/tour_service.dart';
 import 'package:ShEC_CSE/features/dashboard/presentation/widgets/guided_tour_overlay.dart';
+import 'package:ShEC_CSE/features/profile/models/profile_state.dart';
 
 class AccountingDashboardScreen extends StatefulWidget {
   const AccountingDashboardScreen({super.key});
@@ -88,56 +89,65 @@ class _AccountingDashboardScreenState extends State<AccountingDashboardScreen> {
               );
             }
           },
-          child: DefaultTabController(
-            length: 4,
-            child: AmbientTimeBackground(
-              child: Scaffold(
-                backgroundColor: Colors.transparent,
-                appBar: AppBar(
-                  elevation: 0,
-                  title: const Text('Club Accounts'),
-                  bottom: TabBar(
-                    key: _tabBarKey,
-                    isScrollable: true,
-                    tabAlignment: TabAlignment.start,
-                    labelColor: tabLabelColor,
-                    unselectedLabelColor: tabUnselectedColor,
-                    indicatorColor: tabIndicatorColor,
-                    indicatorWeight: 3,
-                    physics: const BouncingScrollPhysics(),
-                    tabs: const [
-                      Tab(icon: Icon(Icons.dashboard_outlined), text: 'Overview'),
-                      Tab(icon: Icon(Icons.payments_outlined), text: 'Fee Tracker'),
-                      Tab(icon: Icon(Icons.receipt_long_outlined), text: 'Expense Logger'),
-                      Tab(icon: Icon(Icons.assignment_ind_outlined), text: 'Dues Tracker'),
-                    ],
+          child: Builder(
+            builder: (context) {
+              final profile = currentProfile.value;
+              final isCommittee = profile.role == UserRole.committeeMember || profile.role == UserRole.superUser;
+
+              return DefaultTabController(
+                length: isCommittee ? 4 : 3,
+                child: AmbientTimeBackground(
+                  child: Scaffold(
+                    backgroundColor: Colors.transparent,
+                    appBar: AppBar(
+                      elevation: 0,
+                      title: const Text('Club Accounts'),
+                      bottom: TabBar(
+                        key: _tabBarKey,
+                        isScrollable: true,
+                        tabAlignment: TabAlignment.start,
+                        labelColor: tabLabelColor,
+                        unselectedLabelColor: tabUnselectedColor,
+                        indicatorColor: tabIndicatorColor,
+                        indicatorWeight: 3,
+                        physics: const BouncingScrollPhysics(),
+                        tabs: [
+                          const Tab(icon: Icon(Icons.dashboard_outlined), text: 'Overview'),
+                          const Tab(icon: Icon(Icons.payments_outlined), text: 'Fee Tracker'),
+                          const Tab(icon: Icon(Icons.receipt_long_outlined), text: 'Expense Logger'),
+                          if (isCommittee)
+                            const Tab(icon: Icon(Icons.assignment_ind_outlined), text: 'Dues Tracker'),
+                        ],
+                      ),
+                    ),
+                    body: BlocBuilder<AccountingBloc, AccountingState>(
+                      buildWhen: (previous, current) {
+                        if (current is AccountingLoading) {
+                          return previous is AccountingInitial;
+                        }
+                        return current is AccountingDataLoaded || current is AccountingError;
+                      },
+                      builder: (context, state) {
+                        if (state is AccountingLoading || state is AccountingInitial) {
+                          return const Center(child: CircularProgressIndicator());
+                        }
+                        
+                        return TabBarView(
+                          physics: const BouncingScrollPhysics(),
+                          children: [
+                            const OverviewTab(),
+                            const FeeTrackerTab(),
+                            const ExpenseLoggerTab(),
+                            if (isCommittee)
+                              const DuesTrackerTab(),
+                          ],
+                        );
+                      },
+                    ),
                   ),
                 ),
-                body: BlocBuilder<AccountingBloc, AccountingState>(
-                  buildWhen: (previous, current) {
-                    if (current is AccountingLoading) {
-                      return previous is AccountingInitial;
-                    }
-                    return current is AccountingDataLoaded || current is AccountingError;
-                  },
-                  builder: (context, state) {
-                    if (state is AccountingLoading || state is AccountingInitial) {
-                      return const Center(child: CircularProgressIndicator());
-                    }
-                    
-                    return const TabBarView(
-                      physics: BouncingScrollPhysics(),
-                      children: [
-                        OverviewTab(),
-                        FeeTrackerTab(),
-                        ExpenseLoggerTab(),
-                        DuesTrackerTab(),
-                      ],
-                    );
-                  },
-                ),
-              ),
-            ),
+              );
+            }
           ),
         ),
         if (_showTour)
