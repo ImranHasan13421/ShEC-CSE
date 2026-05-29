@@ -334,8 +334,6 @@ class _AmbientTimeBackgroundState extends State<AmbientTimeBackground> with Sing
                     pattern: currentPattern,
                     wallpaper: currentWallpaper,
                     isDark: isDark,
-                    timePeriod: _timePeriod,
-                    showTimeSymbol: true, // Always true to render the glowing sun/moon in every mode!
                     density: currentWallpaperDensity,
                     animationValue: _animationController.value, // Pass animation value for custom pulsing light effect!
                   ),
@@ -547,8 +545,6 @@ class WallpaperAndPatternPainter extends CustomPainter {
   final String pattern;
   final String wallpaper;
   final bool isDark;
-  final TimePeriod timePeriod;
-  final bool showTimeSymbol;
   final double density;
   final double animationValue;
 
@@ -558,8 +554,6 @@ class WallpaperAndPatternPainter extends CustomPainter {
     required this.pattern,
     required this.wallpaper,
     required this.isDark,
-    required this.timePeriod,
-    required this.showTimeSymbol,
     required this.density,
     required this.animationValue,
   });
@@ -567,7 +561,6 @@ class WallpaperAndPatternPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final double paintAlphaMultiplier = isDark ? 1.0 : 0.8;
-    final double pulse = 0.5 + 0.5 * math.sin(animationValue * 2 * math.pi);
 
     // 1. Draw static background wallpapers (with boosted legibility)
     if (wallpaper != 'none') {
@@ -725,160 +718,6 @@ class WallpaperAndPatternPainter extends CustomPainter {
         }
       }
     }
-
-    // 3. Draw subtle, premium time-based symbols (Sunrise, Sun, Sunset, Moon) scaled up and eye-catching!
-    if (showTimeSymbol) {
-      // Outlines and Fills color adaptations based on theme brightness:
-      // In Light Mode, lines are thick and highly visible.
-      // In Dark/Night modes, lines are soft neon glows utilizing style palettes.
-      final symbolPaint = Paint()
-        ..color = isDark 
-            ? colors.color1.withValues(alpha: isDark ? 0.50 : 0.40) 
-            : primaryColor.withValues(alpha: 0.65)
-        ..style = PaintingStyle.stroke
-        ..strokeCap = StrokeCap.round
-        ..strokeWidth = isDark ? 2.5 : 3.2;
-
-      final fillPaint = Paint()
-        ..color = isDark 
-            ? colors.color2.withValues(alpha: isDark ? 0.18 : 0.12) 
-            : primaryColor.withValues(alpha: 0.14)
-        ..style = PaintingStyle.fill;
-
-      // Positioned in upper right quadrant - scaled and noticeable
-      final Offset symCenter = Offset(size.width * 0.82, size.height * 0.12);
-
-      switch (timePeriod) {
-        case TimePeriod.morning: // Sunrise
-          // Soft glowing aura that pulses breathing light
-          final double morningGlowRadius = 30.0 + 8.0 * pulse;
-          final morningGlowPaint = Paint()
-            ..color = (isDark ? colors.color2 : primaryColor).withValues(alpha: (isDark ? 0.14 : 0.08) * pulse)
-            ..style = PaintingStyle.fill;
-          canvas.drawCircle(symCenter, morningGlowRadius, morningGlowPaint);
-
-          // Draw rising rays
-          for (double angle = 0; angle <= math.pi; angle += math.pi / 4) {
-            final double rayLen = 32 + 6.0 * (angle % 2 == 0 ? pulse : (1.0 - pulse));
-            final double startX = symCenter.dx + math.cos(angle - math.pi) * 32;
-            final double startY = symCenter.dy + math.sin(angle - math.pi) * 32;
-            final double endX = symCenter.dx + math.cos(angle - math.pi) * rayLen;
-            final double endY = symCenter.dy + math.sin(angle - math.pi) * rayLen;
-            canvas.drawLine(Offset(startX, startY), Offset(endX, endY), symbolPaint..strokeWidth = 2.0);
-          }
-
-          // Sunrise half-circle
-          canvas.drawLine(
-            Offset(symCenter.dx - 48, symCenter.dy + 16),
-            Offset(symCenter.dx + 48, symCenter.dy + 16),
-            symbolPaint..strokeWidth = 2.0,
-          );
-          final rect = Rect.fromCircle(center: symCenter, radius: 30);
-          canvas.drawArc(rect, math.pi, math.pi, false, fillPaint);
-          canvas.drawArc(rect, math.pi, math.pi, false, symbolPaint..strokeWidth = isDark ? 2.5 : 3.2);
-          break;
-
-        case TimePeriod.afternoon: // Full Sun with glowing pulse
-          // Soft breathing light halo
-          final double sunGlowRadius = 28.0 + 10.0 * pulse;
-          final sunGlowPaint = Paint()
-            ..color = (isDark ? colors.color2 : primaryColor).withValues(alpha: (isDark ? 0.16 : 0.08) * (0.3 + 0.7 * pulse))
-            ..style = PaintingStyle.fill;
-          canvas.drawCircle(symCenter, sunGlowRadius, sunGlowPaint);
-          canvas.drawCircle(symCenter, sunGlowRadius + 6.0 * (1.0 - pulse), Paint()..color = sunGlowPaint.color.withValues(alpha: sunGlowPaint.color.a * 0.4)..style = PaintingStyle.fill);
-
-          // Animate radiating solar rays expanding/contracting
-          for (int i = 0; i < 8; i++) {
-            final double angle = i * math.pi / 4;
-            final double rayLen = 34 + 6.0 * (i % 2 == 0 ? pulse : (1.0 - pulse));
-            final double startX = symCenter.dx + math.cos(angle) * 34;
-            final double startY = symCenter.dy + math.sin(angle) * 34;
-            final double endX = symCenter.dx + math.cos(angle) * rayLen;
-            final double endY = symCenter.dy + math.sin(angle) * rayLen;
-            canvas.drawLine(Offset(startX, startY), Offset(endX, endY), symbolPaint..strokeWidth = 2.0);
-          }
-
-          // Central sun body
-          canvas.drawCircle(symCenter, 28, fillPaint);
-          canvas.drawCircle(symCenter, 28, symbolPaint..strokeWidth = isDark ? 2.5 : 3.2);
-          break;
-
-        case TimePeriod.evening: // Sunset
-          // Evening glowing red/sunset aura
-          final double eveningGlowRadius = 30.0 + 8.0 * pulse;
-          final eveningGlowPaint = Paint()
-            ..color = (isDark ? colors.color3 : primaryColor).withValues(alpha: (isDark ? 0.14 : 0.08) * pulse)
-            ..style = PaintingStyle.fill;
-          canvas.drawCircle(Offset(symCenter.dx, symCenter.dy + 8), eveningGlowRadius, eveningGlowPaint);
-
-          // Ray projections
-          for (double angle = 0; angle <= math.pi; angle += math.pi / 4) {
-            final double rayLen = 32 + 5.0 * pulse;
-            final double startX = symCenter.dx + math.cos(angle - math.pi) * 32;
-            final double startY = symCenter.dy + math.sin(angle - math.pi) * 32;
-            final double endX = symCenter.dx + math.cos(angle - math.pi) * rayLen;
-            final double endY = symCenter.dy + math.sin(angle - math.pi) * rayLen;
-            canvas.drawLine(Offset(startX, startY), Offset(endX, endY), symbolPaint..strokeWidth = 2.0);
-          }
-
-          // Sunset half-circle and reflection ripples
-          canvas.drawLine(
-            Offset(symCenter.dx - 48, symCenter.dy + 16),
-            Offset(symCenter.dx + 48, symCenter.dy + 16),
-            symbolPaint..strokeWidth = 2.0,
-          );
-          final rectSunset = Rect.fromCircle(center: Offset(symCenter.dx, symCenter.dy + 8), radius: 30);
-          canvas.drawArc(rectSunset, math.pi, math.pi, false, fillPaint);
-          canvas.drawArc(rectSunset, math.pi, math.pi, false, symbolPaint..strokeWidth = isDark ? 2.5 : 3.2);
-
-          canvas.drawLine(
-            Offset(symCenter.dx - 32, symCenter.dy + 24),
-            Offset(symCenter.dx + 32, symCenter.dy + 24),
-            symbolPaint..strokeWidth = 1.5,
-          );
-          canvas.drawLine(
-            Offset(symCenter.dx - 16, symCenter.dy + 32),
-            Offset(symCenter.dx + 16, symCenter.dy + 32),
-            symbolPaint..strokeWidth = 1.5,
-          );
-          break;
-
-        case TimePeriod.night: // Crescent Moon with glowing halo
-          // Pulsing moon halo
-          final double moonGlowRadius = 24.0 + 8.0 * pulse;
-          final moonGlowPaint = Paint()
-            ..color = (isDark ? colors.color2 : primaryColor).withValues(alpha: (isDark ? 0.16 : 0.08) * (0.3 + 0.7 * pulse))
-            ..style = PaintingStyle.fill;
-          canvas.drawCircle(symCenter, moonGlowRadius, moonGlowPaint);
-
-          // Beautiful scaled crescent moon path
-          final Path moonPath = Path()
-            ..moveTo(symCenter.dx + 12, symCenter.dy - 30)
-            ..quadraticBezierTo(symCenter.dx - 26, symCenter.dy, symCenter.dx + 12, symCenter.dy + 30)
-            ..quadraticBezierTo(symCenter.dx - 8, symCenter.dy, symCenter.dx + 12, symCenter.dy - 30)
-            ..close();
-          canvas.drawPath(moonPath, fillPaint);
-          canvas.drawPath(moonPath, symbolPaint..strokeWidth = isDark ? 2.5 : 3.2);
-
-          // Glowing space star next to the moon that blinks in alternate rhythm
-          final double starPulse = 1.0 - pulse;
-          final starPaint = Paint()
-            ..color = (isDark ? Colors.white : primaryColor).withValues(alpha: (isDark ? 0.35 : 0.25) + 0.5 * starPulse)
-            ..style = PaintingStyle.fill;
-          
-          final Path starPath = Path()
-            ..moveTo(symCenter.dx - 28, symCenter.dy - 12)
-            ..quadraticBezierTo(symCenter.dx - 24, symCenter.dy - 12, symCenter.dx - 24, symCenter.dy - 16)
-            ..quadraticBezierTo(symCenter.dx - 24, symCenter.dy - 12, symCenter.dx - 20, symCenter.dy - 12)
-            ..quadraticBezierTo(symCenter.dx - 24, symCenter.dy - 12, symCenter.dx - 24, symCenter.dy - 8)
-            ..quadraticBezierTo(symCenter.dx - 24, symCenter.dy - 12, symCenter.dx - 28, symCenter.dy - 12)
-            ..close();
-          canvas.drawPath(starPath, starPaint);
-          
-          canvas.drawCircle(Offset(symCenter.dx - 18, symCenter.dy + 14), 3.0, starPaint);
-          break;
-      }
-    }
   }
 
   @override
@@ -888,8 +727,6 @@ class WallpaperAndPatternPainter extends CustomPainter {
         oldDelegate.pattern != pattern ||
         oldDelegate.wallpaper != wallpaper ||
         oldDelegate.isDark != isDark ||
-        oldDelegate.timePeriod != timePeriod ||
-        oldDelegate.showTimeSymbol != showTimeSymbol ||
         oldDelegate.density != density ||
         oldDelegate.animationValue != animationValue;
   }
