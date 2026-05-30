@@ -116,6 +116,12 @@ class _HomeLayoutState extends State<HomeLayout> with WidgetsBindingObserver {
       JobService.fetchJobs(forceRefresh: true);
       ContestService.fetchContestsAndCourses(forceRefresh: true);
       ChatService.fetchRooms();
+
+      // Force re-establish dynamic WebSocket channels to keep foreground/background switches synchronized
+      NoticeService.unsubscribeFromNotices().then((_) => NoticeService.subscribeToNotices());
+      JobService.unsubscribeFromJobs().then((_) => JobService.subscribeToJobs());
+      ContestService.unsubscribeFromContests().then((_) => ContestService.subscribeToContests());
+      ChatService.unsubscribeFromMessages().then((_) => ChatService.subscribeToAllMessages());
     }
   }
 
