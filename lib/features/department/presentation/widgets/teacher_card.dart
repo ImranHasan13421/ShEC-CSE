@@ -133,6 +133,56 @@ class TeacherCard extends StatelessWidget {
     );
   }
 
+  Future<bool> _showConfirmDialog(
+    BuildContext context, {
+    required String title,
+    required String content,
+    required IconData icon,
+    required Color iconColor,
+    required String confirmText,
+    required Color confirmColor,
+  }) async {
+    final colors = Theme.of(context).colorScheme;
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (dialogCtx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        backgroundColor: colors.surface,
+        title: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: iconColor.withOpacity(0.1),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(icon, color: iconColor),
+            ),
+            const SizedBox(width: 12),
+            Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+          ],
+        ),
+        content: Text(content, style: TextStyle(color: colors.onSurface, fontSize: 14)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogCtx, false),
+            child: Text('Cancel', style: TextStyle(color: colors.onSurfaceVariant)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: confirmColor,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+            onPressed: () => Navigator.pop(dialogCtx, true),
+            child: Text(confirmText),
+          ),
+        ],
+      ),
+    );
+    return result ?? false;
+  }
+
   Widget _buildTeacherAdminMenu(BuildContext context, TeacherContact teacher, ProfileData profile) {
     return Row(
       mainAxisSize: MainAxisSize.min,
@@ -144,8 +194,19 @@ class TeacherCard extends StatelessWidget {
             padding: EdgeInsets.zero,
             constraints: const BoxConstraints(),
             tooltip: 'Approve Teacher',
-            onPressed: () {
-              context.read<TeacherBloc>().add(ApproveTeacherRequested(id: teacher.id));
+            onPressed: () async {
+              final confirmed = await _showConfirmDialog(
+                context,
+                title: 'Approve Teacher',
+                content: 'Are you sure you want to approve "${teacher.name}"?',
+                icon: Icons.check_circle_outline,
+                iconColor: Colors.green,
+                confirmText: 'Approve',
+                confirmColor: Colors.green,
+              );
+              if (confirmed && context.mounted) {
+                context.read<TeacherBloc>().add(ApproveTeacherRequested(id: teacher.id));
+              }
             },
           ),
           const SizedBox(width: 12),
@@ -159,11 +220,23 @@ class TeacherCard extends StatelessWidget {
           padding: EdgeInsets.zero,
           constraints: const BoxConstraints(),
           tooltip: teacher.isVisible ? 'Hide Teacher' : 'Show Teacher',
-          onPressed: () {
-            context.read<TeacherBloc>().add(ToggleTeacherVisibilityRequested(
-                  id: teacher.id,
-                  isVisible: !teacher.isVisible,
-                ));
+          onPressed: () async {
+            final isVisible = teacher.isVisible;
+            final confirmed = await _showConfirmDialog(
+              context,
+              title: isVisible ? 'Hide Teacher' : 'Show Teacher',
+              content: 'Are you sure you want to ${isVisible ? "hide" : "show"} "${teacher.name}" on the public contacts directory?',
+              icon: isVisible ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+              iconColor: Colors.orange,
+              confirmText: isVisible ? 'Hide' : 'Show',
+              confirmColor: Colors.orange,
+            );
+            if (confirmed && context.mounted) {
+              context.read<TeacherBloc>().add(ToggleTeacherVisibilityRequested(
+                    id: teacher.id,
+                    isVisible: !teacher.isVisible,
+                  ));
+            }
           },
         ),
         const SizedBox(width: 12),
@@ -180,8 +253,19 @@ class TeacherCard extends StatelessWidget {
           padding: EdgeInsets.zero,
           constraints: const BoxConstraints(),
           tooltip: 'Delete Teacher',
-          onPressed: () {
-            context.read<TeacherBloc>().add(DeleteTeacherRequested(teacher: teacher));
+          onPressed: () async {
+            final confirmed = await _showConfirmDialog(
+              context,
+              title: 'Delete Teacher',
+              content: 'Are you sure you want to permanently delete "${teacher.name}" from the teacher contacts?',
+              icon: Icons.delete_outline,
+              iconColor: Colors.red,
+              confirmText: 'Delete',
+              confirmColor: Colors.red,
+            );
+            if (confirmed && context.mounted) {
+              context.read<TeacherBloc>().add(DeleteTeacherRequested(teacher: teacher));
+            }
           },
         ),
       ],

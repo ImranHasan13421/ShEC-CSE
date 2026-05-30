@@ -144,6 +144,9 @@ class _DepartmentScreenState extends State<DepartmentScreen> {
 
   Widget _buildInfoCard(BuildContext context, String title, List<_InfoRow> rows) {
     final colors = Theme.of(context).colorScheme;
+    final staticRows = rows.where((r) => r.url == null).toList();
+    final actionRows = rows.where((r) => r.url != null).toList();
+
     return Card(
       elevation: 0,
       color: colors.surface,
@@ -158,32 +161,50 @@ class _DepartmentScreenState extends State<DepartmentScreen> {
           children: [
             Text(title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
             const SizedBox(height: 16),
-            ...rows.map((row) => Padding(
+            ...staticRows.map((row) => Padding(
               padding: const EdgeInsets.only(bottom: 12.0),
-              child: GestureDetector(
-                onTap: row.url != null ? () => _launchURL(row.url!) : null,
-                behavior: HitTestBehavior.opaque,
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Icon(row.icon, size: 20, color: colors.primary),
-                    const SizedBox(width: 12),
-                    Text(row.label, style: const TextStyle(fontWeight: FontWeight.w600)),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        row.value,
-                        style: TextStyle(
-                          color: row.url != null ? colors.primary : colors.onSurface.withOpacity(0.7),
-                          decoration: row.url != null ? TextDecoration.underline : TextDecoration.none,
-                          fontWeight: row.url != null ? FontWeight.bold : FontWeight.normal,
-                        ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(row.icon, size: 20, color: colors.primary),
+                  const SizedBox(width: 12),
+                  Text(row.label, style: const TextStyle(fontWeight: FontWeight.w600)),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      row.value,
+                      style: TextStyle(
+                        color: colors.onSurface.withOpacity(0.7),
                       ),
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
             )),
+            if (actionRows.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              ...actionRows.map((row) => Padding(
+                padding: const EdgeInsets.only(top: 8.0),
+                child: SizedBox(
+                  width: double.infinity,
+                  height: 48,
+                  child: OutlinedButton.icon(
+                    onPressed: () => _launchURL(row.url!),
+                    icon: Icon(row.icon, size: 20),
+                    label: Text(
+                      row.value,
+                      style: const TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                    style: OutlinedButton.styleFrom(
+                      side: BorderSide(color: colors.primary),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                  ),
+                ),
+              )),
+            ],
           ],
         ),
       ),

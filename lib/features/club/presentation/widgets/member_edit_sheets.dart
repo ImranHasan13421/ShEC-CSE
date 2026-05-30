@@ -53,7 +53,7 @@ class _EditMemberSheetState extends State<EditMemberSheet> {
   String? selectedBatch;
 
   final List<String> sessions = List.generate(10, (i) => '${2018 + i}-${2019 + i}');
-  final List<String> batches = List.generate(15, (i) => '${10 + i}');
+  final List<String> batches = List.generate(10, (i) => '${i + 1}');
 
   @override
   void initState() {
@@ -156,7 +156,7 @@ class _EditMemberSheetState extends State<EditMemberSheet> {
                   child: DropdownButtonFormField<String>(
                     value: selectedBatch,
                     decoration: const InputDecoration(labelText: 'Batch', border: OutlineInputBorder()),
-                    items: batches.map((b) => DropdownMenuItem(value: b, child: Text(b))).toList(),
+                    items: batches.map((b) => DropdownMenuItem(value: b, child: Text('Batch $b'))).toList(),
                     onChanged: (val) => setState(() => selectedBatch = val),
                   ),
                 ),

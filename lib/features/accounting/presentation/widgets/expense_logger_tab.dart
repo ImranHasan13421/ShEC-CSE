@@ -29,7 +29,7 @@ class _ExpenseLoggerTabState extends State<ExpenseLoggerTab> {
   }
 
   bool _isCreator(ClubExpense expense) {
-    return currentProfile.value.id == expense.recordedBy;
+    return currentProfile.value.id == expense.recordedBy || _isAdmin;
   }
 
   void _showAddExpenseDialog(BuildContext context) {

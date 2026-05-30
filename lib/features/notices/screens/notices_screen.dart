@@ -58,6 +58,7 @@ class _NoticesScreenState extends State<NoticesScreen> {
     File? selectedImage;
     String? currentImageUrl = existingNotice?.imagePath;
     bool isUploading = false;
+    final formKey = GlobalKey<FormState>();
 
     showModalBottomSheet(
       context: context,
@@ -88,8 +89,6 @@ class _NoticesScreenState extends State<NoticesScreen> {
                 }
               }
             }
-
-            final formKey = GlobalKey<FormState>();
 
             return Padding(
               padding: EdgeInsets.only(

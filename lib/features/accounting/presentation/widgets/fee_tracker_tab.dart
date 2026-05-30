@@ -31,7 +31,7 @@ class _FeeTrackerTabState extends State<FeeTrackerTab> {
   }
 
   bool _isCreator(FeePayment payment) {
-    return currentProfile.value.id == payment.receivedBy;
+    return currentProfile.value.id == payment.receivedBy || _isAdmin;
   }
 
   void _showAddPaymentDialog(BuildContext context) {

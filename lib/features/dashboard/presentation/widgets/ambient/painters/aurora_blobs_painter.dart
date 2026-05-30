@@ -39,8 +39,8 @@ class AuroraBlobsPainter extends CustomPainter {
     paint.color = baseBg;
     canvas.drawRect(Offset.zero & size, paint);
 
-    // Dynamic style blobs driven by speed factor
-    final double speededAnim = animationValue * speedFactor;
+    // Use the continuous elapsed time in seconds to ensure perfectly smooth, infinite, non-looping motion
+    final double t = animationValue * speedFactor * 0.15;
 
     if (auroraEnabled) {
       if (style == 'cyberpunk') {
@@ -48,15 +48,13 @@ class AuroraBlobsPainter extends CustomPainter {
         final Color cyberColor1 = const Color(0xFFFF007F).withValues(alpha: isDark ? 0.22 : 0.36); // Neon Pink
         final Color cyberColor2 = const Color(0xFF00ADB5).withValues(alpha: isDark ? 0.22 : 0.36); // Neon Cyan
 
-        final double angle1 = speededAnim * 2 * math.pi;
-        final double dx1 = size.width * 0.3 + math.cos(angle1) * size.width * 0.22;
-        final double dy1 = size.height * 0.3 + math.sin(angle1) * size.height * 0.12;
+        final double dx1 = size.width * 0.35 + (math.cos(t * 0.7) * 0.18 + math.sin(t * 1.3) * 0.07) * size.width;
+        final double dy1 = size.height * 0.35 + (math.sin(t * 1.1) * 0.12 + math.cos(t * 0.5) * 0.05) * size.height;
         paint.shader = RadialGradient(colors: [cyberColor1, cyberColor1.withValues(alpha: 0.0)]).createShader(Rect.fromCircle(center: Offset(dx1, dy1), radius: size.width * 0.75));
         canvas.drawCircle(Offset(dx1, dy1), size.width * 0.75, paint);
 
-        final double angle2 = (speededAnim + 0.5) * 2 * math.pi;
-        final double dx2 = size.width * 0.7 + math.sin(angle2) * size.width * 0.22;
-        final double dy2 = size.height * 0.7 + math.cos(angle2) * size.height * 0.12;
+        final double dx2 = size.width * 0.65 + (math.sin(t * 0.9) * 0.18 + math.cos(t * 1.5) * 0.07) * size.width;
+        final double dy2 = size.height * 0.65 + (math.cos(t * 1.3) * 0.12 + math.sin(t * 0.8) * 0.05) * size.height;
         paint.shader = RadialGradient(colors: [cyberColor2, cyberColor2.withValues(alpha: 0.0)]).createShader(Rect.fromCircle(center: Offset(dx2, dy2), radius: size.width * 0.8));
         canvas.drawCircle(Offset(dx2, dy2), size.width * 0.8, paint);
         
@@ -66,21 +64,18 @@ class AuroraBlobsPainter extends CustomPainter {
         final Color spaceIndigo = const Color(0xFF3C096C).withValues(alpha: isDark ? 0.22 : 0.35);
         final Color spacePink = const Color(0xFFE0AAFF).withValues(alpha: isDark ? 0.12 : 0.22);
 
-        final double angle1 = speededAnim * 2 * math.pi;
-        final double dx1 = size.width * 0.5 + math.cos(angle1 * 0.5) * size.width * 0.25;
-        final double dy1 = size.height * 0.4 + math.sin(angle1 * 0.5) * size.height * 0.15;
+        final double dx1 = size.width * 0.5 + (math.cos(t * 0.5) * 0.18 + math.sin(t * 1.1) * 0.06) * size.width;
+        final double dy1 = size.height * 0.4 + (math.sin(t * 0.8) * 0.12 + math.cos(t * 0.4) * 0.05) * size.height;
         paint.shader = RadialGradient(colors: [spacePurple, spacePurple.withValues(alpha: 0.0)]).createShader(Rect.fromCircle(center: Offset(dx1, dy1), radius: size.width * 0.85));
         canvas.drawCircle(Offset(dx1, dy1), size.width * 0.85, paint);
 
-        final double angle2 = (speededAnim + 0.3) * 2 * math.pi;
-        final double dx2 = size.width * 0.4 + math.sin(angle2) * size.width * 0.22;
-        final double dy2 = size.height * 0.7 + math.cos(angle2) * size.height * 0.12;
+        final double dx2 = size.width * 0.4 + (math.sin(t * 0.75) * 0.16 + math.cos(t * 1.25) * 0.06) * size.width;
+        final double dy2 = size.height * 0.7 + (math.cos(t * 0.95) * 0.12 + math.sin(t * 0.55) * 0.05) * size.height;
         paint.shader = RadialGradient(colors: [spaceIndigo, spaceIndigo.withValues(alpha: 0.0)]).createShader(Rect.fromCircle(center: Offset(dx2, dy2), radius: size.width * 0.95));
         canvas.drawCircle(Offset(dx2, dy2), size.width * 0.95, paint);
 
-        final double angle3 = (speededAnim + 0.6) * 2 * math.pi;
-        final double dx3 = size.width * 0.6 + math.cos(angle3) * size.width * 0.22;
-        final double dy3 = size.height * 0.5 + math.sin(angle3) * size.height * 0.12;
+        final double dx3 = size.width * 0.65 + (math.cos(t * 0.9) * 0.16 + math.sin(t * 1.4) * 0.06) * size.width;
+        final double dy3 = size.height * 0.5 + (math.sin(t * 1.15) * 0.12 + math.cos(t * 0.7) * 0.05) * size.height;
         paint.shader = RadialGradient(colors: [spacePink, spacePink.withValues(alpha: 0.0)]).createShader(Rect.fromCircle(center: Offset(dx3, dy3), radius: size.width * 0.7));
         canvas.drawCircle(Offset(dx3, dy3), size.width * 0.7, paint);
 
@@ -90,17 +85,20 @@ class AuroraBlobsPainter extends CustomPainter {
         final Color oceanBlue = const Color(0xFF1F4068).withValues(alpha: isDark ? 0.22 : 0.35);
         final Color oceanGreen = const Color(0xFF2E8B57).withValues(alpha: isDark ? 0.12 : 0.22);
 
-        final double shift1 = math.sin(speededAnim * 2 * math.pi) * size.height * 0.08;
-        paint.shader = RadialGradient(colors: [oceanTeal, oceanTeal.withValues(alpha: 0.0)]).createShader(Rect.fromCircle(center: Offset(size.width * 0.3, size.height * 0.3 + shift1), radius: size.width * 0.9));
-        canvas.drawCircle(Offset(size.width * 0.3, size.height * 0.3 + shift1), size.width * 0.9, paint);
+        final double shift1 = (math.sin(t * 0.6) * 0.08 + math.cos(t * 1.1) * 0.03) * size.height;
+        final double dx1 = size.width * 0.3 + (math.cos(t * 0.5) * 0.05) * size.width;
+        paint.shader = RadialGradient(colors: [oceanTeal, oceanTeal.withValues(alpha: 0.0)]).createShader(Rect.fromCircle(center: Offset(dx1, size.height * 0.3 + shift1), radius: size.width * 0.9));
+        canvas.drawCircle(Offset(dx1, size.height * 0.3 + shift1), size.width * 0.9, paint);
 
-        final double shift2 = math.cos((speededAnim + 0.5) * 2 * math.pi) * size.height * 0.08;
-        paint.shader = RadialGradient(colors: [oceanBlue, oceanBlue.withValues(alpha: 0.0)]).createShader(Rect.fromCircle(center: Offset(size.width * 0.7, size.height * 0.7 + shift2), radius: size.width * 0.95));
-        canvas.drawCircle(Offset(size.width * 0.7, size.height * 0.7 + shift2), size.width * 0.95, paint);
+        final double shift2 = (math.cos(t * 0.8) * 0.08 + math.sin(t * 1.3) * 0.03) * size.height;
+        final double dx2 = size.width * 0.7 + (math.sin(t * 0.6) * 0.05) * size.width;
+        paint.shader = RadialGradient(colors: [oceanBlue, oceanBlue.withValues(alpha: 0.0)]).createShader(Rect.fromCircle(center: Offset(dx2, size.height * 0.7 + shift2), radius: size.width * 0.95));
+        canvas.drawCircle(Offset(dx2, size.height * 0.7 + shift2), size.width * 0.95, paint);
 
-        final double shift3 = math.sin((speededAnim + 0.25) * 2 * math.pi) * size.height * 0.06;
-        paint.shader = RadialGradient(colors: [oceanGreen, oceanGreen.withValues(alpha: 0.0)]).createShader(Rect.fromCircle(center: Offset(size.width * 0.2, size.height * 0.65 + shift3), radius: size.width * 0.75));
-        canvas.drawCircle(Offset(size.width * 0.2, size.height * 0.65 + shift3), size.width * 0.75, paint);
+        final double shift3 = (math.sin(t * 0.7) * 0.06 + math.cos(t * 1.2) * 0.02) * size.height;
+        final double dx3 = size.width * 0.2 + (math.cos(t * 0.8) * 0.04) * size.width;
+        paint.shader = RadialGradient(colors: [oceanGreen, oceanGreen.withValues(alpha: 0.0)]).createShader(Rect.fromCircle(center: Offset(dx3, size.height * 0.65 + shift3), radius: size.width * 0.75));
+        canvas.drawCircle(Offset(dx3, size.height * 0.65 + shift3), size.width * 0.75, paint);
 
       } else if (style == 'autumn') {
         // Warm mahogany, amber and copper shades
@@ -108,29 +106,25 @@ class AuroraBlobsPainter extends CustomPainter {
         final Color autumnCopper = const Color(0xFFD35400).withValues(alpha: isDark ? 0.22 : 0.35);
         final Color autumnRed = const Color(0xFFC0392B).withValues(alpha: isDark ? 0.12 : 0.22);
 
-        final double angle1 = speededAnim * 2 * math.pi;
-        final double dx1 = size.width * 0.3 + math.cos(angle1) * size.width * 0.22;
-        final double dy1 = size.height * 0.35 + math.sin(angle1) * size.height * 0.10;
+        final double dx1 = size.width * 0.35 + (math.cos(t * 0.65) * 0.18 + math.sin(t * 1.25) * 0.06) * size.width;
+        final double dy1 = size.height * 0.35 + (math.sin(t * 0.95) * 0.10 + math.cos(t * 0.55) * 0.04) * size.height;
         paint.shader = RadialGradient(colors: [autumnAmber, autumnAmber.withValues(alpha: 0.0)]).createShader(Rect.fromCircle(center: Offset(dx1, dy1), radius: size.width * 0.8));
         canvas.drawCircle(Offset(dx1, dy1), size.width * 0.8, paint);
 
-        final double angle2 = (speededAnim + 0.4) * 2 * math.pi;
-        final double dx2 = size.width * 0.7 + math.sin(angle2) * size.width * 0.22;
-        final double dy2 = size.height * 0.65 + math.cos(angle2) * size.height * 0.10;
+        final double dx2 = size.width * 0.65 + (math.sin(t * 0.85) * 0.18 + math.cos(t * 1.35) * 0.06) * size.width;
+        final double dy2 = size.height * 0.65 + (math.cos(t * 1.05) * 0.10 + math.sin(t * 0.65) * 0.04) * size.height;
         paint.shader = RadialGradient(colors: [autumnCopper, autumnCopper.withValues(alpha: 0.0)]).createShader(Rect.fromCircle(center: Offset(dx2, dy2), radius: size.width * 0.9));
         canvas.drawCircle(Offset(dx2, dy2), size.width * 0.9, paint);
 
-        final double angle3 = (speededAnim + 0.7) * 2 * math.pi;
-        final double dx3 = size.width * 0.4 + math.cos(angle3 * 1.2) * size.width * 0.15;
-        final double dy3 = size.height * 0.5 + math.sin(angle3 * 1.2) * size.height * 0.12;
+        final double dx3 = size.width * 0.45 + (math.cos(t * 0.8) * 0.14 + math.sin(t * 1.45) * 0.05) * size.width;
+        final double dy3 = size.height * 0.5 + (math.sin(t * 1.15) * 0.12 + math.cos(t * 0.75) * 0.04) * size.height;
         paint.shader = RadialGradient(colors: [autumnRed, autumnRed.withValues(alpha: 0.0)]).createShader(Rect.fromCircle(center: Offset(dx3, dy3), radius: size.width * 0.75));
         canvas.drawCircle(Offset(dx3, dy3), size.width * 0.75, paint);
 
       } else {
         // DEFAULT TIME-BASED AURORA
-        final double angle1 = speededAnim * 2 * math.pi;
-        final double dx1 = size.width * 0.25 + math.cos(angle1) * size.width * 0.22;
-        final double dy1 = size.height * 0.25 + math.sin(angle1) * size.height * 0.12;
+        final double dx1 = size.width * 0.3 + (math.cos(t * 0.7) * 0.18 + math.sin(t * 1.3) * 0.07) * size.width;
+        final double dy1 = size.height * 0.3 + (math.sin(t * 1.1) * 0.12 + math.cos(t * 0.5) * 0.05) * size.height;
         final double radius1 = size.width * 0.75;
 
         paint.shader = RadialGradient(
@@ -138,9 +132,8 @@ class AuroraBlobsPainter extends CustomPainter {
         ).createShader(Rect.fromCircle(center: Offset(dx1, dy1), radius: radius1));
         canvas.drawCircle(Offset(dx1, dy1), radius1, paint);
 
-        final double angle2 = (speededAnim + 0.33) * 2 * math.pi;
-        final double dx2 = size.width * 0.75 + math.sin(angle2) * size.width * 0.22;
-        final double dy2 = size.height * 0.75 + math.cos(angle2) * size.height * 0.12;
+        final double dx2 = size.width * 0.7 + (math.sin(t * 0.9) * 0.18 + math.cos(t * 1.5) * 0.07) * size.width;
+        final double dy2 = size.height * 0.7 + (math.cos(t * 1.3) * 0.12 + math.sin(t * 0.8) * 0.05) * size.height;
         final double radius2 = size.width * 0.8;
 
         paint.shader = RadialGradient(
@@ -148,9 +141,8 @@ class AuroraBlobsPainter extends CustomPainter {
         ).createShader(Rect.fromCircle(center: Offset(dx2, dy2), radius: radius2));
         canvas.drawCircle(Offset(dx2, dy2), radius2, paint);
 
-        final double angle3 = (speededAnim + 0.66) * 2 * math.pi;
-        final double dx3 = size.width * 0.30 + math.cos(angle3 * 1.5) * size.width * 0.15;
-        final double dy3 = size.height * 0.50 + math.sin(angle3 * 1.5) * size.height * 0.15;
+        final double dx3 = size.width * 0.4 + (math.cos(t * 0.8) * 0.14 + math.sin(t * 1.4) * 0.05) * size.width;
+        final double dy3 = size.height * 0.5 + (math.sin(t * 1.2) * 0.12 + math.cos(t * 0.6) * 0.05) * size.height;
         final double radius3 = size.width * 0.7;
 
         paint.shader = RadialGradient(
@@ -162,12 +154,5 @@ class AuroraBlobsPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(covariant AuroraBlobsPainter oldDelegate) {
-    return oldDelegate.animationValue != animationValue ||
-        oldDelegate.colors != colors ||
-        oldDelegate.style != style ||
-        oldDelegate.auroraEnabled != auroraEnabled ||
-        oldDelegate.isDark != isDark ||
-        oldDelegate.speedFactor != speedFactor;
-  }
+  bool shouldRepaint(covariant AuroraBlobsPainter oldDelegate) => true;
 }

@@ -8,7 +8,7 @@ import '../../../profile/models/profile_state.dart';
 import 'package:ShEC_CSE/features/permissions/services/permissions_service.dart';
 import '../widgets/member_card.dart';
 import '../widgets/member_details_sheet.dart';
-import '../widgets/role_management_dialog.dart';
+import '../widgets/member_edit_sheets.dart';
 import 'package:ShEC_CSE/features/dashboard/presentation/widgets/ambient_background.dart';
 
 class ClubMembersScreen extends StatefulWidget {

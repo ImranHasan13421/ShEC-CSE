@@ -45,10 +45,12 @@ class _AmbientTimeBackgroundState extends State<AmbientTimeBackground> with Sing
   final List<Particle> _particles = [];
   final math.Random _random = math.Random();
   TimePeriod _timePeriod = TimePeriod.night;
+  late final DateTime _startTime;
 
   @override
   void initState() {
     super.initState();
+    _startTime = DateTime.now();
     
     // 12-second continuous looping duration for highly visible yet smooth flow
     _animationController = AnimationController(
@@ -174,6 +176,7 @@ class _AmbientTimeBackgroundState extends State<AmbientTimeBackground> with Sing
         final currentWallpaper = isWallpaperEnabled ? (widget.overrideWallpaper ?? ambientWallpaper.value) : 'none';
         final currentPattern = isWallpaperEnabled ? (widget.overridePattern ?? ambientPattern.value) : 'none';
         final currentWallpaperDensity = widget.overrideWallpaperDensity ?? ambientWallpaperDensity.value;
+        final double elapsedSeconds = DateTime.now().difference(_startTime).inMilliseconds / 1000.0;
 
         // Base background color determination matching the active style, providing an opaque backdrop
         Color baseBg = colors.baseBackground;
@@ -203,7 +206,7 @@ class _AmbientTimeBackgroundState extends State<AmbientTimeBackground> with Sing
                   ? RepaintBoundary(
                       child: CustomPaint(
                         painter: AuroraBlobsPainter(
-                          animationValue: _animationController.value,
+                          animationValue: elapsedSeconds,
                           colors: colors,
                           style: currentStyle,
                           auroraEnabled: isAuroraEnabled,

@@ -33,7 +33,7 @@ class ChatRoom {
       description: json['description'] ?? '',
       type: parsedType,
       iconKey: json['icon_key'] ?? 'groups',
-      createdAt: DateTime.parse(json['created_at']),
+      createdAt: DateTime.parse(json['created_at']).toLocal(),
     );
   }
 }
@@ -67,7 +67,7 @@ class ChatMessage {
       senderName: json['sender_name'],
       senderImage: json['sender_image'],
       text: json['text'],
-      createdAt: DateTime.parse(json['created_at']),
+      createdAt: DateTime.parse(json['created_at']).toLocal(),
       isMe: json['sender_id'] == currentUserId,
     );
   }
