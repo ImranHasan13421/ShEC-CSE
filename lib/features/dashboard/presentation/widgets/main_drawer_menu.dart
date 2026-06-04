@@ -159,6 +159,8 @@ class _DrawerAccordionGroupState extends State<DrawerAccordionGroup> {
           ),
           title: Text(
             widget.title,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
             style: TextStyle(
               fontSize: 13.5,
               fontWeight: widget.isExpanded ? FontWeight.bold : FontWeight.w700,
@@ -686,7 +688,7 @@ class _MainDrawerMenuState extends State<MainDrawerMenu> {
           child: Align(
             alignment: Alignment.centerLeft,
             child: SizedBox(
-              width: MediaQuery.of(context).size.width * 0.55,
+              width: (MediaQuery.of(context).size.width * 0.72).clamp(240.0, 320.0),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -1098,6 +1100,8 @@ class _MainDrawerMenuState extends State<MainDrawerMenu> {
             Expanded(
               child: Text(
                 title,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
                 style: TextStyle(
                   fontSize: 12.5,
                   fontWeight: FontWeight.w600,
