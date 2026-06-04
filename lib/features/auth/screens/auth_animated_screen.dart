@@ -338,7 +338,7 @@ class _AuthAnimatedScreenState extends State<AuthAnimatedScreen> with TickerProv
           _buildGlowTextField(
             controller: _loginEmailController, 
             labelText: 'Email Address',
-            hint: 'e.g. student@du.ac.bd', 
+            hint: 'e.g. student@domain.com',
             icon: Icons.alternate_email_rounded,
             validator: (v) {
               if (v == null || v.trim().isEmpty) return 'Email is required';
