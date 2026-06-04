@@ -3,7 +3,6 @@ import 'dart:math' as math;
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:ShEC_CSE/core/services/storage_service.dart';
 import 'package:ShEC_CSE/core/services/image_processing_service.dart';
 import 'package:image_cropper/image_cropper.dart';
@@ -53,6 +52,7 @@ class _AuthAnimatedScreenState extends State<AuthAnimatedScreen> with TickerProv
   bool _signupPasswordVisible = false;
   bool _signupConfirmPasswordVisible = false;
 
+  // Max 10 batches as requested
   final List<String> _batches = List.generate(10, (index) => (index + 1).toString());
 
   @override
@@ -72,7 +72,13 @@ class _AuthAnimatedScreenState extends State<AuthAnimatedScreen> with TickerProv
           _sessions = data;
           _isSessionsLoading = false;
           if (_sessions.isEmpty) {
-            _sessions = [{'session': '2024-2025'}, {'session': '2023-2024'}];
+            _sessions = [
+              {'session': '2025-2026'},
+              {'session': '2024-2025'},
+              {'session': '2023-2024'},
+              {'session': '2022-2023'},
+              {'session': '2021-2022'},
+            ];
           }
         });
       }
@@ -99,10 +105,22 @@ class _AuthAnimatedScreenState extends State<AuthAnimatedScreen> with TickerProv
     if (!_loginFormKey.currentState!.validate()) return;
     setState(() => _isLoading = true);
     try {
-      await AuthService.signIn(email: _loginEmailController.text.trim(), password: _loginPasswordController.text.trim());
-      if (mounted) Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const HomeLayout()));
+      await AuthService.signIn(
+        email: _loginEmailController.text.trim(), 
+        password: _loginPasswordController.text.trim(),
+      );
+      if (mounted) {
+        Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const HomeLayout()));
+      }
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: $e'),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -110,6 +128,19 @@ class _AuthAnimatedScreenState extends State<AuthAnimatedScreen> with TickerProv
 
   Future<void> _signUp() async {
     if (!_signupFormKey.currentState!.validate()) return;
+    if (_selectedSession == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please select a session'), behavior: SnackBarBehavior.floating),
+      );
+      return;
+    }
+    if (_selectedBatch == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please select a batch'), behavior: SnackBarBehavior.floating),
+      );
+      return;
+    }
+
     setState(() => _isLoading = true);
     try {
       String? profilePicUrl;
@@ -121,17 +152,26 @@ class _AuthAnimatedScreenState extends State<AuthAnimatedScreen> with TickerProv
         password: _signupPasswordController.text.trim(),
         firstName: _signupFirstNameController.text.trim(),
         lastName: _signupLastNameController.text.trim(),
-        batch: _selectedBatch ?? '1',
-        session: _selectedSession ?? '2024-2025',
+        batch: _selectedBatch!,
+        session: _selectedSession!,
         duReg: _signupDuRegController.text.trim(),
         phone: _signupPhoneController.text.trim(),
         profilePic: profilePicUrl,
         universityId: _signupUniversityIdController.text.trim(),
         classRoll: _signupClassRollController.text.trim(),
       );
-      if (mounted) Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const PendingApprovalScreen()));
+      if (mounted) {
+        Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const PendingApprovalScreen()));
+      }
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: $e'),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -141,7 +181,11 @@ class _AuthAnimatedScreenState extends State<AuthAnimatedScreen> with TickerProv
     final picker = ImagePicker();
     final picked = await picker.pickImage(source: ImageSource.gallery);
     if (picked != null) {
-      final cropped = await ImageProcessingService.cropImage(context, File(picked.path), aspectRatio: const CropAspectRatio(ratioX: 1, ratioY: 1));
+      final cropped = await ImageProcessingService.cropImage(
+        context, 
+        File(picked.path), 
+        aspectRatio: const CropAspectRatio(ratioX: 1, ratioY: 1),
+      );
       if (cropped != null) {
         final processed = await ImageProcessingService.processAndConvert(cropped);
         if (processed != null) setState(() => _profileImageFile = processed);
@@ -152,6 +196,7 @@ class _AuthAnimatedScreenState extends State<AuthAnimatedScreen> with TickerProv
   @override
   Widget build(BuildContext context) {
     final size = MediaQuery.of(context).size;
+    final bool isKeyboardOpen = MediaQuery.of(context).viewInsets.bottom > 0;
     return Scaffold(
       backgroundColor: const Color(0xFFF8F9FD),
       body: Stack(
@@ -180,19 +225,26 @@ class _AuthAnimatedScreenState extends State<AuthAnimatedScreen> with TickerProv
               },
             ),
           ),
-          Positioned(
-            bottom: 40,
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text(_isLoginActive ? "Don't have an account? " : "Already have an account? ", style: const TextStyle(color: Color(0xFF636E72), letterSpacing: 0.5)),
-                TextButton(
-                  onPressed: _isLoading ? null : _toggleAuth,
-                  child: Text(_isLoginActive ? "JOIN NOW" : "LOGIN", style: const TextStyle(color: Color(0xFF6C63FF), fontWeight: FontWeight.bold)),
-                ),
-              ],
+          if (!isKeyboardOpen)
+            Positioned(
+              bottom: 30,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    _isLoginActive ? "Don't have an account? " : "Already have an account? ", 
+                    style: const TextStyle(color: Color(0xFF636E72), letterSpacing: 0.5, fontSize: 13),
+                  ),
+                  TextButton(
+                    onPressed: _isLoading ? null : _toggleAuth,
+                    child: Text(
+                      _isLoginActive ? "JOIN NOW" : "LOGIN", 
+                      style: const TextStyle(color: Color(0xFF6C63FF), fontWeight: FontWeight.bold, fontSize: 13),
+                    ),
+                  ),
+                ],
+              ),
             ),
-          ),
           if (_isLoading) Container(color: Colors.white70, child: const Center(child: CircularProgressIndicator())),
         ],
       ),
@@ -206,29 +258,24 @@ class _AuthAnimatedScreenState extends State<AuthAnimatedScreen> with TickerProv
     double scale = 1.0;
     double opacity = 1.0;
 
-    // Sophisticated 3D Rotational Transition
     if (offsetMultiplier == 1) { // LOGIN CARD
       if (_isLoginActive) {
-        // Active -> Rotating away to the left
         rotation = progress * -math.pi; 
-        translateY = progress * -20; // Slight lift
+        translateY = progress * -20;
         scale = 1.0 - (progress * 0.2);
         opacity = (1.0 - progress).clamp(0.0, 1.0);
       } else {
-        // Inactive -> Rotating back into center
         rotation = (1 - progress) * math.pi;
         scale = 0.8 + (progress * 0.2);
         opacity = progress;
       }
     } else { // SIGNUP CARD
       if (!_isLoginActive) {
-        // Active -> Rotating away to the right
         rotation = (1 - progress) * math.pi;
         translateY = (1 - progress) * -20;
         scale = 1.0 - ((1 - progress) * 0.2);
         opacity = progress;
       } else {
-        // Inactive -> Waiting rotated
         rotation = -math.pi;
         opacity = 0.0;
       }
@@ -242,17 +289,17 @@ class _AuthAnimatedScreenState extends State<AuthAnimatedScreen> with TickerProv
         child: Transform(
           alignment: Alignment.center,
           transform: Matrix4.identity()
-            ..setEntry(3, 2, 0.001) // Perspective
+            ..setEntry(3, 2, 0.001) 
             ..translate(0.0, translateY)
             ..rotateY(rotation)
             ..scale(scale),
           child: Container(
             width: size.width * 0.88,
-            height: size.height * 0.78, // Slightly taller for light mode layout
+            height: size.height * 0.76, 
             decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.7),
+              color: Colors.white.withValues(alpha: 0.75),
               borderRadius: BorderRadius.circular(30),
-              border: Border.all(color: Colors.white.withValues(alpha: 0.5)),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.6)),
               boxShadow: [
                 BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 40, offset: const Offset(0, 20)),
                 BoxShadow(color: const Color(0xFF6C63FF).withValues(alpha: 0.05), blurRadius: 15, spreadRadius: -5),
@@ -266,16 +313,24 @@ class _AuthAnimatedScreenState extends State<AuthAnimatedScreen> with TickerProv
                   children: [
                     Container(
                       width: double.infinity,
-                      padding: const EdgeInsets.symmetric(vertical: 30),
-                      color: Colors.white.withValues(alpha: 0.3),
+                      padding: const EdgeInsets.symmetric(vertical: 24),
+                      color: Colors.white.withValues(alpha: 0.4),
                       child: Text(
                         title.toUpperCase(),
                         textAlign: TextAlign.center,
-                        style: const TextStyle(color: Color(0xFF2D3436), fontSize: 22, fontWeight: FontWeight.w900, letterSpacing: 4),
+                        style: const TextStyle(color: Color(0xFF2D3436), fontSize: 20, fontWeight: FontWeight.w900, letterSpacing: 4),
                       ),
                     ),
-                    Expanded(child: SingleChildScrollView(padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10), child: child)),
-                    _GlowButton(text: title == 'Login' ? 'LOG IN' : 'CREATE ACCOUNT', onTap: title == 'Login' ? _login : _signUp),
+                    Expanded(
+                      child: SingleChildScrollView(
+                        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12), 
+                        child: child,
+                      ),
+                    ),
+                    _GlowButton(
+                      text: title == 'Login' ? 'LOG IN' : 'CREATE ACCOUNT', 
+                      onTap: title == 'Login' ? _login : _signUp,
+                    ),
                   ],
                 ),
               ),
@@ -291,21 +346,22 @@ class _AuthAnimatedScreenState extends State<AuthAnimatedScreen> with TickerProv
       key: _loginFormKey,
       child: Column(
         children: [
-          const SizedBox(height: 30),
+          const SizedBox(height: 20),
           _buildGlowTextField(
             controller: _loginEmailController, 
-            hint: 'EMAIL / USERNAME', 
+            labelText: 'Email Address',
+            hint: 'e.g. student@du.ac.bd', 
             icon: Icons.alternate_email_rounded,
             validator: (v) {
-              if (v == null || v.trim().isEmpty) return 'Email or Username is required';
-              if (v.contains('@')) return ValidationRules.validateEmail(v);
-              return null;
+              if (v == null || v.trim().isEmpty) return 'Email is required';
+              return ValidationRules.validateEmail(v);
             },
           ),
-          const SizedBox(height: 25),
+          const SizedBox(height: 18),
           _buildGlowTextField(
             controller: _loginPasswordController, 
-            hint: 'PASSWORD', 
+            labelText: 'Password',
+            hint: 'Enter your password', 
             icon: Icons.lock_person_outlined, 
             obscure: !_loginPasswordVisible,
             validator: (v) => ValidationRules.validateRequired(v, 'Password'),
@@ -314,15 +370,15 @@ class _AuthAnimatedScreenState extends State<AuthAnimatedScreen> with TickerProv
               onPressed: () => setState(() => _loginPasswordVisible = !_loginPasswordVisible),
             ),
           ),
-          const SizedBox(height: 15),
+          const SizedBox(height: 10),
           Align(
             alignment: Alignment.centerRight,
             child: TextButton(
               onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ForgotPasswordScreen())),
-              child: const Text('FORGOT PASSWORD?', style: TextStyle(color: Colors.black38, fontSize: 10, letterSpacing: 1)),
+              child: const Text('FORGOT PASSWORD?', style: TextStyle(color: Color(0xFF6C63FF), fontWeight: FontWeight.bold, fontSize: 10, letterSpacing: 1)),
             ),
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 16),
         ],
       ),
     );
@@ -337,72 +393,89 @@ class _AuthAnimatedScreenState extends State<AuthAnimatedScreen> with TickerProv
           const SizedBox(height: 20),
           _buildProgressiveItem(1, _buildGlowTextField(
             controller: _signupFirstNameController, 
-            hint: 'FIRST NAME', 
+            labelText: 'First Name',
+            hint: 'e.g. John', 
             icon: Icons.person_outline,
             validator: (v) => ValidationRules.validateRequired(v, 'First name'),
           )),
-          const SizedBox(height: 15),
+          const SizedBox(height: 16),
           _buildProgressiveItem(2, _buildGlowTextField(
             controller: _signupLastNameController, 
-            hint: 'LAST NAME', 
+            labelText: 'Last Name',
+            hint: 'e.g. Doe', 
             icon: Icons.person_outline,
             validator: (v) => ValidationRules.validateRequired(v, 'Last name'),
           )),
-          const SizedBox(height: 15),
+          const SizedBox(height: 16),
           _buildProgressiveItem(3, _buildGlowTextField(
             controller: _signupUniversityIdController, 
-            hint: 'UNIVERSITY ID', 
+            labelText: 'University ID',
+            hint: 'e.g. 54/21', 
             icon: Icons.badge_outlined,
             validator: ValidationRules.validateUniversityId,
+            helper: _buildUnivIdHelper(),
           )),
-          const SizedBox(height: 15),
+          const SizedBox(height: 16),
           _buildProgressiveItem(4, _buildGlowTextField(
             controller: _signupClassRollController, 
-            hint: 'CLASS ROLL', 
+            labelText: 'Class Roll',
+            hint: 'e.g. CSE-10', 
             icon: Icons.format_list_numbered_rounded,
             validator: ValidationRules.validateClassRoll,
+            helper: _buildClassRollHelper(),
           )),
-          const SizedBox(height: 15),
+          const SizedBox(height: 16),
           _buildProgressiveItem(5, _buildGlowTextField(
             controller: _signupDuRegController, 
-            hint: 'DU REGISTRATION', 
+            labelText: 'DU Registration No.',
+            hint: 'e.g. 2018425167', 
             icon: Icons.app_registration_rounded,
+            keyboardType: TextInputType.number,
             validator: ValidationRules.validateDuReg,
           )),
-          const SizedBox(height: 15),
+          const SizedBox(height: 16),
           _buildProgressiveItem(6, _buildGlowDropdown(
-            hint: 'SESSION', 
+            labelText: 'SESSION',
+            hint: _isSessionsLoading ? 'Loading...' : 'Select Session', 
             icon: Icons.calendar_month_outlined, 
             items: _sessions.map((s) => s['session'] as String).toList(), 
-            onChanged: (v) => _selectedSession = v,
+            onChanged: (v) => setState(() => _selectedSession = v),
             validator: (v) => ValidationRules.validateRequired(v, 'Session'),
+            value: _selectedSession,
           )),
-          const SizedBox(height: 15),
+          const SizedBox(height: 16),
           _buildProgressiveItem(7, _buildGlowDropdown(
-            hint: 'BATCH', 
+            labelText: 'BATCH',
+            hint: 'Select Batch', 
             icon: Icons.school_outlined, 
             items: _batches, 
-            onChanged: (v) => _selectedBatch = v,
+            onChanged: (v) => setState(() => _selectedBatch = v),
             validator: (v) => ValidationRules.validateRequired(v, 'Batch'),
+            value: _selectedBatch,
           )),
-          const SizedBox(height: 15),
+          const SizedBox(height: 16),
           _buildProgressiveItem(8, _buildGlowTextField(
             controller: _signupPhoneController, 
-            hint: 'PHONE', 
+            labelText: 'Phone Number',
+            hint: 'e.g. 01712345678', 
             icon: Icons.phone_android_outlined,
+            keyboardType: TextInputType.phone,
             validator: ValidationRules.validatePhone,
           )),
-          const SizedBox(height: 15),
+          const SizedBox(height: 16),
           _buildProgressiveItem(9, _buildGlowTextField(
             controller: _signupEmailController, 
-            hint: 'EMAIL', 
+            labelText: 'Email Address',
+            hint: 'e.g. student@du.ac.bd', 
             icon: Icons.email_outlined,
+            keyboardType: TextInputType.emailAddress,
             validator: ValidationRules.validateEmail,
           )),
-          const SizedBox(height: 15),
+          const SizedBox(height: 16),
           _buildProgressiveItem(10, _buildGlowTextField(
             controller: _signupPasswordController, 
-            hint: 'PASSWORD', 
+            labelText: 'Password',
+            hint: 'Min. 6 chars, alphanumeric', 
             icon: Icons.lock_outline, 
             obscure: !_signupPasswordVisible,
             validator: (v) => ValidationRules.validatePassword(v, isSignup: true),
@@ -411,10 +484,11 @@ class _AuthAnimatedScreenState extends State<AuthAnimatedScreen> with TickerProv
               onPressed: () => setState(() => _signupPasswordVisible = !_signupPasswordVisible),
             ),
           )),
-          const SizedBox(height: 15),
+          const SizedBox(height: 16),
           _buildProgressiveItem(11, _buildGlowTextField(
             controller: _signupConfirmPasswordController, 
-            hint: 'CONFIRM PASSWORD', 
+            labelText: 'Confirm Password',
+            hint: 'Re-enter your password', 
             icon: Icons.lock_reset_rounded, 
             obscure: !_signupConfirmPasswordVisible,
             validator: (v) {
@@ -436,9 +510,15 @@ class _AuthAnimatedScreenState extends State<AuthAnimatedScreen> with TickerProv
     return AnimatedBuilder(
       animation: _signupFieldsController,
       builder: (context, _) {
-        final start = index * 0.08;
-        final anim = CurvedAnimation(parent: _signupFieldsController, curve: Interval(start.clamp(0, 0.9), (start + 0.2).clamp(0, 1), curve: Curves.easeOutCubic));
-        return Transform.translate(offset: Offset(0, 20 * (1 - anim.value)), child: Opacity(opacity: anim.value, child: child));
+        final start = index * 0.06;
+        final anim = CurvedAnimation(
+          parent: _signupFieldsController, 
+          curve: Interval(start.clamp(0, 0.9), (start + 0.15).clamp(0, 1), curve: Curves.easeOutCubic),
+        );
+        return Transform.translate(
+          offset: Offset(0, 15 * (1 - anim.value)), 
+          child: Opacity(opacity: anim.value, child: child),
+        );
       },
     );
   }
@@ -447,12 +527,18 @@ class _AuthAnimatedScreenState extends State<AuthAnimatedScreen> with TickerProv
     return GestureDetector(
       onTap: _pickProfileImage,
       child: Container(
-        padding: const EdgeInsets.all(4),
-        decoration: BoxDecoration(shape: BoxShape.circle, border: Border.all(color: const Color(0xFF6C63FF).withValues(alpha: 0.3))),
+        padding: const EdgeInsets.all(3),
+        decoration: BoxDecoration(
+          shape: BoxShape.circle, 
+          border: Border.all(color: const Color(0xFF6C63FF).withValues(alpha: 0.4), width: 1.5),
+        ),
         child: CircleAvatar(
-          radius: 35, backgroundColor: Colors.black.withValues(alpha: 0.05),
+          radius: 38, 
+          backgroundColor: Colors.black.withValues(alpha: 0.03),
           backgroundImage: _profileImageFile != null ? FileImage(_profileImageFile!) : null,
-          child: _profileImageFile == null ? const Icon(Icons.add_a_photo_outlined, color: Color(0xFF6C63FF)) : null,
+          child: _profileImageFile == null 
+              ? const Icon(Icons.add_a_photo_outlined, color: Color(0xFF6C63FF), size: 28) 
+              : null,
         ),
       ),
     );
@@ -460,56 +546,180 @@ class _AuthAnimatedScreenState extends State<AuthAnimatedScreen> with TickerProv
 
   Widget _buildGlowTextField({
     required TextEditingController controller, 
+    required String labelText,
     required String hint, 
     required IconData icon, 
     bool obscure = false, 
     Widget? suffix,
     String? Function(String?)? validator,
+    Widget? helper,
+    TextInputType? keyboardType,
   }) {
-    return Container(
-      decoration: BoxDecoration(color: Colors.black.withValues(alpha: 0.03), borderRadius: BorderRadius.circular(15), border: Border.all(color: Colors.black.withValues(alpha: 0.05))),
-      child: TextFormField(
-        controller: controller, obscureText: obscure,
-        style: const TextStyle(color: Color(0xFF2D3436), fontSize: 14),
-        validator: validator,
-        decoration: InputDecoration(
-          hintText: hint, hintStyle: const TextStyle(color: Colors.black26, fontSize: 12, letterSpacing: 1),
-          prefixIcon: Icon(icon, color: const Color(0xFF6C63FF), size: 20),
-          suffixIcon: suffix, border: InputBorder.none, contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-          errorStyle: const TextStyle(fontSize: 10, height: 0.8),
+    return TextFormField(
+      controller: controller, 
+      obscureText: obscure,
+      keyboardType: keyboardType,
+      style: const TextStyle(color: Color(0xFF2D3436), fontSize: 14),
+      validator: validator,
+      decoration: InputDecoration(
+        labelText: labelText,
+        hintText: hint, 
+        hintStyle: const TextStyle(color: Colors.black38, fontSize: 12),
+        prefixIcon: Icon(icon, color: const Color(0xFF6C63FF), size: 20),
+        suffixIcon: suffix, 
+        helper: helper,
+        helperMaxLines: 2,
+        isDense: true,
+        filled: true,
+        fillColor: Colors.black.withValues(alpha: 0.02),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(15),
+          borderSide: BorderSide(color: Colors.black.withValues(alpha: 0.08)),
         ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(15),
+          borderSide: BorderSide(color: Colors.black.withValues(alpha: 0.08)),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(15),
+          borderSide: const BorderSide(color: Color(0xFF6C63FF), width: 1.5),
+        ),
+        errorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(15),
+          borderSide: const BorderSide(color: Colors.red, width: 1.0),
+        ),
+        focusedErrorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(15),
+          borderSide: const BorderSide(color: Colors.red, width: 1.5),
+        ),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 15),
       ),
     );
   }
 
   Widget _buildGlowDropdown({
+    required String labelText,
     required String hint, 
     required IconData icon, 
     required List<String> items, 
     required Function(String?) onChanged, 
     String? Function(String?)? validator,
+    String? value,
   }) {
-    return Container(
-      decoration: BoxDecoration(color: Colors.black.withValues(alpha: 0.03), borderRadius: BorderRadius.circular(15), border: Border.all(color: Colors.black.withValues(alpha: 0.05))),
-      child: DropdownButtonFormField<String>(
-        dropdownColor: Colors.white, iconEnabledColor: const Color(0xFF6C63FF),
-        style: const TextStyle(color: Color(0xFF2D3436), fontSize: 14),
-        validator: validator,
-        decoration: InputDecoration(
-          hintText: hint, hintStyle: const TextStyle(color: Colors.black26, fontSize: 12, letterSpacing: 1),
-          prefixIcon: Icon(icon, color: const Color(0xFF6C63FF), size: 20),
-          border: InputBorder.none, contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-          errorStyle: const TextStyle(fontSize: 10, height: 0.8),
+    return DropdownButtonFormField<String>(
+      value: value,
+      dropdownColor: Colors.white, 
+      iconEnabledColor: const Color(0xFF6C63FF),
+      style: const TextStyle(color: Color(0xFF2D3436), fontSize: 14),
+      validator: validator,
+      decoration: InputDecoration(
+        labelText: labelText,
+        hintText: hint, 
+        hintStyle: const TextStyle(color: Colors.black38, fontSize: 12),
+        prefixIcon: Icon(icon, color: const Color(0xFF6C63FF), size: 20),
+        isDense: true,
+        filled: true,
+        fillColor: Colors.black.withValues(alpha: 0.02),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(15),
+          borderSide: BorderSide(color: Colors.black.withValues(alpha: 0.08)),
         ),
-        items: items.map((i) => DropdownMenuItem(value: i, child: Text(i))).toList(),
-        onChanged: onChanged,
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(15),
+          borderSide: BorderSide(color: Colors.black.withValues(alpha: 0.08)),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(15),
+          borderSide: const BorderSide(color: Color(0xFF6C63FF), width: 1.5),
+        ),
+        errorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(15),
+          borderSide: const BorderSide(color: Colors.red, width: 1.0),
+        ),
+        focusedErrorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(15),
+          borderSide: const BorderSide(color: Colors.red, width: 1.5),
+        ),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 15),
+      ),
+      items: items.map((i) {
+        return DropdownMenuItem<String>(
+          value: i, 
+          child: Text(labelText == 'BATCH' ? 'Batch $i' : i),
+        );
+      }).toList(),
+      onChanged: onChanged,
+    );
+  }
+
+  Widget _buildUnivIdHelper() {
+    return Padding(
+      padding: const EdgeInsets.only(top: 4.0, left: 4.0),
+      child: RichText(
+        text: const TextSpan(
+          style: TextStyle(
+            fontSize: 11,
+            color: Colors.black54,
+            height: 1.2,
+          ),
+          children: [
+            TextSpan(text: 'Format: '),
+            TextSpan(
+              text: '54/21',
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                color: Color(0xFF6C63FF),
+              ),
+            ),
+            TextSpan(text: '|CSE-10 (Enter University ID part)'),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildClassRollHelper() {
+    return Padding(
+      padding: const EdgeInsets.only(top: 4.0, left: 4.0),
+      child: RichText(
+        text: const TextSpan(
+          style: TextStyle(
+            fontSize: 11,
+            color: Colors.black54,
+            height: 1.2,
+          ),
+          children: [
+            TextSpan(text: 'Format: 54/21|'),
+            TextSpan(
+              text: 'CSE-10',
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                color: Color(0xFF6C63FF),
+              ),
+            ),
+            TextSpan(text: ' (Enter Class Roll part)'),
+          ],
+        ),
       ),
     );
   }
 
   @override
   void dispose() {
-    _controller.dispose(); _backgroundController.dispose(); _signupFieldsController.dispose();
+    _controller.dispose(); 
+    _backgroundController.dispose(); 
+    _signupFieldsController.dispose();
+    _loginEmailController.dispose();
+    _loginPasswordController.dispose();
+    _signupEmailController.dispose();
+    _signupPasswordController.dispose();
+    _signupConfirmPasswordController.dispose();
+    _signupFirstNameController.dispose();
+    _signupLastNameController.dispose();
+    _signupUniversityIdController.dispose();
+    _signupClassRollController.dispose();
+    _signupDuRegController.dispose();
+    _signupPhoneController.dispose();
     super.dispose();
   }
 }
@@ -523,9 +733,14 @@ class _GlowButton extends StatelessWidget {
     return InkWell(
       onTap: onTap,
       child: Container(
-        width: double.infinity, height: 70,
+        width: double.infinity, height: 60,
         decoration: const BoxDecoration(gradient: LinearGradient(colors: [Color(0xFF00ADB5), Color(0xFF6C63FF)])),
-        child: Center(child: Text(text, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w900, letterSpacing: 2, fontSize: 16))),
+        child: Center(
+          child: Text(
+            text, 
+            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w900, letterSpacing: 2, fontSize: 15),
+          ),
+        ),
       ),
     );
   }
@@ -537,7 +752,14 @@ class _GlowOrb extends StatelessWidget {
   const _GlowOrb({required this.color, required this.size});
   @override
   Widget build(BuildContext context) {
-    return Container(width: size, height: size, decoration: BoxDecoration(shape: BoxShape.circle, boxShadow: [BoxShadow(color: color, blurRadius: size * 0.5, spreadRadius: 0)]));
+    return Container(
+      width: size, 
+      height: size, 
+      decoration: BoxDecoration(
+        shape: BoxShape.circle, 
+        boxShadow: [BoxShadow(color: color, blurRadius: size * 0.5, spreadRadius: 0)],
+      ),
+    );
   }
 }
 
@@ -557,7 +779,9 @@ class LightCosmicPainter extends CustomPainter {
       final p = (progress + i * 0.25) % 1.0;
       final x = math.sin(p * 2 * math.pi) * 30 + size.width * (i / 4);
       final y = size.height * (1 - p);
-      final glowPaint = Paint()..color = (i % 2 == 0 ? const Color(0xFF00ADB5) : const Color(0xFF6C63FF)).withValues(alpha: 0.03)..maskFilter = const MaskFilter.blur(BlurStyle.normal, 30);
+      final glowPaint = Paint()
+        ..color = (i % 2 == 0 ? const Color(0xFF00ADB5) : const Color(0xFF6C63FF)).withValues(alpha: 0.03)
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 30);
       canvas.drawCircle(Offset(x, y), 60 + i * 15, glowPaint);
     }
   }

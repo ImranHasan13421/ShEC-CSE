@@ -18,7 +18,7 @@ class ValidationRules {
   static final RegExp _sessionRegex = RegExp(r'^\d{4}-\d{4}$');
 
   /// Regular expression for DU Registration number format (typically 10 digits).
-  static final RegExp _duRegRegex = RegExp(r'^\d{6,12}$');
+  static final RegExp _duRegRegex = RegExp(r'^\d{3,10}$');
 
   /// Regular expression for URL verification (e.g. apply links, github urls).
   static final RegExp _urlRegex = RegExp(
@@ -104,7 +104,7 @@ class ValidationRules {
     }
     final duReg = value.trim();
     if (!_duRegRegex.hasMatch(duReg)) {
-      return 'Enter valid DU Registration (6-12 digits)';
+      return 'Enter valid DU Registration (3-10 digits)';
     }
     return null;
   }

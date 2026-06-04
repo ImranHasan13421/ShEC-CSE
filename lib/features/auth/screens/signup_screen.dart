@@ -2,10 +2,10 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:ShEC_CSE/features/dashboard/presentation/widgets/ambient_background.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:ShEC_CSE/core/services/storage_service.dart';
 import 'package:ShEC_CSE/core/services/image_processing_service.dart';
 import 'package:image_cropper/image_cropper.dart';
+import 'package:ShEC_CSE/core/utils/validation_rules.dart';
 import '../../../backend/services/auth_service.dart';
 import '../../../features/auth/screens/pending_approval_screen.dart';
 
@@ -18,6 +18,8 @@ class SignupScreen extends StatefulWidget {
 
 class _SignupScreenState extends State<SignupScreen> {
   final _formKey = GlobalKey<FormState>();
+  
+  // Controllers
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
@@ -34,17 +36,31 @@ class _SignupScreenState extends State<SignupScreen> {
 
   List<Map<String, dynamic>> _sessions = [];
   String? _selectedSession;
-  String? _selectedBatch; // Changed to String for dropdown
+  String? _selectedBatch; 
   bool _isSessionsLoading = true;
-
   File? _profileImageFile;
 
+  // Max 10 batches as requested
   final List<String> _batches = List.generate(10, (index) => (index + 1).toString());
 
   @override
   void initState() {
     super.initState();
     _fetchSessions();
+  }
+
+  @override
+  void dispose() {
+    _emailController.dispose();
+    _passwordController.dispose();
+    _confirmPasswordController.dispose();
+    _firstNameController.dispose();
+    _lastNameController.dispose();
+    _universityIdController.dispose();
+    _classRollController.dispose();
+    _duRegController.dispose();
+    _phoneController.dispose();
+    super.dispose();
   }
 
   Future<void> _fetchSessions() async {
@@ -91,7 +107,6 @@ class _SignupScreenState extends State<SignupScreen> {
       if (picked != null) {
         if (!mounted) return;
         
-        // 1. Crop Image (Square for profile)
         final cropped = await ImageProcessingService.cropImage(
           context, 
           File(picked.path),
@@ -99,7 +114,6 @@ class _SignupScreenState extends State<SignupScreen> {
         );
         
         if (cropped != null) {
-          // 2. Compress and Convert to WebP
           final processed = await ImageProcessingService.processAndConvert(cropped);
           if (processed != null) {
             setState(() => _profileImageFile = processed);
@@ -118,11 +132,15 @@ class _SignupScreenState extends State<SignupScreen> {
   Future<void> _signUp() async {
     if (!_formKey.currentState!.validate()) return;
     if (_selectedSession == null) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please select a session')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please select a session'), behavior: SnackBarBehavior.floating),
+      );
       return;
     }
     if (_selectedBatch == null) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please select a batch')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please select a batch'), behavior: SnackBarBehavior.floating),
+      );
       return;
     }
 
@@ -150,7 +168,10 @@ class _SignupScreenState extends State<SignupScreen> {
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Registration submitted! Waiting for approval.')),
+          const SnackBar(
+            content: Text('Registration submitted! Waiting for approval.'),
+            behavior: SnackBarBehavior.floating,
+          ),
         );
         Navigator.pushAndRemoveUntil(
           context,
@@ -161,7 +182,11 @@ class _SignupScreenState extends State<SignupScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+          SnackBar(
+            content: Text('Error: $e'),
+            backgroundColor: Colors.red,
+            behavior: SnackBarBehavior.floating,
+          ),
         );
       }
     } finally {
@@ -169,15 +194,205 @@ class _SignupScreenState extends State<SignupScreen> {
     }
   }
 
-  InputDecoration _decoration(String label, {IconData? prefixIcon, Widget? suffix}) {
-    return InputDecoration(
-      labelText: label,
-      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-      prefixIcon: prefixIcon != null ? Icon(prefixIcon) : null,
-      suffixIcon: suffix,
-      isDense: true,
-      filled: true,
-      fillColor: Colors.grey.withOpacity(0.05),
+  // Common Custom Field Renderer for unified premium styling
+  Widget _buildTextField({
+    required TextEditingController controller,
+    required String labelText,
+    required String hintText,
+    required IconData prefixIcon,
+    bool obscureText = false,
+    Widget? suffixIcon,
+    String? Function(String?)? validator,
+    Widget? helper,
+    TextInputType? keyboardType,
+  }) {
+    final colors = Theme.of(context).colorScheme;
+    return TextFormField(
+      controller: controller,
+      obscureText: obscureText,
+      keyboardType: keyboardType,
+      validator: validator,
+      style: TextStyle(color: colors.onSurface, fontSize: 14),
+      decoration: InputDecoration(
+        labelText: labelText,
+        hintText: hintText,
+        hintStyle: TextStyle(color: colors.onSurface.withValues(alpha: 0.4), fontSize: 13),
+        prefixIcon: Icon(prefixIcon, color: colors.primary, size: 20),
+        suffixIcon: suffixIcon,
+        helper: helper,
+        helperMaxLines: 2,
+        isDense: true,
+        filled: true,
+        fillColor: colors.surfaceContainerHighest.withValues(alpha: 0.15),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(16)),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: BorderSide(color: colors.onSurface.withValues(alpha: 0.1)),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: BorderSide(color: colors.primary, width: 1.5),
+        ),
+        errorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: BorderSide(color: colors.error, width: 1.0),
+        ),
+        focusedErrorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: BorderSide(color: colors.error, width: 1.5),
+        ),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+      ),
+    );
+  }
+
+  Widget _buildDropdownField<T>({
+    required T? value,
+    required String labelText,
+    required String hintText,
+    required IconData prefixIcon,
+    required List<DropdownMenuItem<T>> items,
+    required ValueChanged<T?> onChanged,
+    String? Function(T?)? validator,
+  }) {
+    final colors = Theme.of(context).colorScheme;
+    return DropdownButtonFormField<T>(
+      value: value,
+      items: items,
+      onChanged: onChanged,
+      validator: validator,
+      dropdownColor: colors.surface,
+      style: TextStyle(color: colors.onSurface, fontSize: 14),
+      decoration: InputDecoration(
+        labelText: labelText,
+        hintText: hintText,
+        hintStyle: TextStyle(color: colors.onSurface.withValues(alpha: 0.4), fontSize: 13),
+        prefixIcon: Icon(prefixIcon, color: colors.primary, size: 20),
+        isDense: true,
+        filled: true,
+        fillColor: colors.surfaceContainerHighest.withValues(alpha: 0.15),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(16)),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: BorderSide(color: colors.onSurface.withValues(alpha: 0.1)),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: BorderSide(color: colors.primary, width: 1.5),
+        ),
+        errorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: BorderSide(color: colors.error, width: 1.0),
+        ),
+        focusedErrorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: BorderSide(color: colors.error, width: 1.5),
+        ),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+      ),
+    );
+  }
+
+  // Highlights format "54/21" for University ID
+  Widget _buildUnivIdHelper() {
+    final colors = Theme.of(context).colorScheme;
+    return Padding(
+      padding: const EdgeInsets.only(top: 4.0, left: 4.0),
+      child: RichText(
+        text: TextSpan(
+          style: TextStyle(
+            fontSize: 11,
+            color: colors.onSurface.withValues(alpha: 0.6),
+            height: 1.2,
+          ),
+          children: [
+            const TextSpan(text: 'Format: '),
+            TextSpan(
+              text: '54/21',
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                color: colors.primary,
+              ),
+            ),
+            const TextSpan(text: '|CSE-10 (Enter University ID part)'),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // Highlights format "CSE-10" for Class Roll
+  Widget _buildClassRollHelper() {
+    final colors = Theme.of(context).colorScheme;
+    return Padding(
+      padding: const EdgeInsets.only(top: 4.0, left: 4.0),
+      child: RichText(
+        text: TextSpan(
+          style: TextStyle(
+            fontSize: 11,
+            color: colors.onSurface.withValues(alpha: 0.6),
+            height: 1.2,
+          ),
+          children: [
+            const TextSpan(text: 'Format: 54/21|'),
+            TextSpan(
+              text: 'CSE-10',
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                color: colors.primary,
+              ),
+            ),
+            const TextSpan(text: ' (Enter Class Roll part)'),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCardContainer({required String title, required IconData icon, required List<Widget> children}) {
+    final colors = Theme.of(context).colorScheme;
+    final isDark = colors.brightness == Brightness.dark;
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 20),
+      padding: const EdgeInsets.all(20.0),
+      decoration: BoxDecoration(
+        color: colors.surfaceContainerLowest.withValues(alpha: isDark ? 0.35 : 0.65),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: colors.onSurface.withValues(alpha: 0.08)),
+        boxShadow: [
+          BoxShadow(
+            color: colors.shadow.withValues(alpha: isDark ? 0.05 : 0.02),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          )
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              Icon(icon, color: colors.primary, size: 20),
+              const SizedBox(width: 10),
+              Text(
+                title,
+                style: TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.bold,
+                  color: colors.onSurface,
+                  letterSpacing: 0.3,
+                ),
+              ),
+            ],
+          ),
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: 10.0),
+            child: Divider(thickness: 1, height: 1),
+          ),
+          ...children,
+        ],
+      ),
     );
   }
 
@@ -188,208 +403,294 @@ class _SignupScreenState extends State<SignupScreen> {
     return AmbientTimeBackground(
       child: Scaffold(
         backgroundColor: Colors.transparent,
-      appBar: AppBar(
-        title: const Text('Create an Account'),
-        elevation: 0,
-      ),
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24.0),
-          child: Form(
-            key: _formKey,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                const Text(
-                  'Join ShEC CSE',
-                  style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 24),
+        appBar: AppBar(
+          title: const Text('Create an Account'),
+          elevation: 0,
+          backgroundColor: Colors.transparent,
+          foregroundColor: colors.onSurface,
+        ),
+        body: SafeArea(
+          child: Center(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 12.0),
+              child: Form(
+                key: _formKey,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    // Dynamic Header
+                    Text(
+                      'Join ShEC CSE',
+                      style: TextStyle(
+                        fontSize: 28, 
+                        fontWeight: FontWeight.bold,
+                        color: colors.onSurface,
+                        letterSpacing: 0.5,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      'Fill in your details to register for access approval',
+                      style: TextStyle(
+                        fontSize: 13, 
+                        color: colors.onSurface.withValues(alpha: 0.6),
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 24),
 
-                Center(
-                  child: GestureDetector(
-                    onTap: _pickProfileImage,
-                    child: Stack(
+                    // Card 1: Personal Details
+                    _buildCardContainer(
+                      title: 'Personal Details',
+                      icon: Icons.person_outline_rounded,
                       children: [
-                        CircleAvatar(
-                          radius: 50,
-                          backgroundColor: colors.primaryContainer,
-                          backgroundImage: _profileImageFile != null ? FileImage(_profileImageFile!) : null,
-                          child: _profileImageFile == null
-                              ? Icon(Icons.person, size: 48, color: colors.onPrimaryContainer)
-                              : null,
+                        Center(
+                          child: GestureDetector(
+                            onTap: _pickProfileImage,
+                            child: Stack(
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.all(3),
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    border: Border.all(
+                                      color: colors.primary.withValues(alpha: 0.4),
+                                      width: 2,
+                                    ),
+                                  ),
+                                  child: CircleAvatar(
+                                    radius: 46,
+                                    backgroundColor: colors.primary.withValues(alpha: 0.1),
+                                    backgroundImage: _profileImageFile != null ? FileImage(_profileImageFile!) : null,
+                                    child: _profileImageFile == null
+                                        ? Icon(Icons.add_a_photo_outlined, size: 36, color: colors.primary)
+                                        : null,
+                                  ),
+                                ),
+                                Positioned(
+                                  bottom: 2,
+                                  right: 2,
+                                  child: Container(
+                                    decoration: BoxDecoration(
+                                      color: colors.primary,
+                                      shape: BoxShape.circle,
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: Colors.black.withValues(alpha: 0.1),
+                                          blurRadius: 4,
+                                        ),
+                                      ],
+                                    ),
+                                    padding: const EdgeInsets.all(6),
+                                    child: const Icon(Icons.camera_alt, color: Colors.white, size: 14),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
                         ),
-                        Positioned(
-                          bottom: 0, right: 0,
-                          child: Container(
-                            decoration: BoxDecoration(color: colors.primary, shape: BoxShape.circle),
-                            padding: const EdgeInsets.all(6),
-                            child: const Icon(Icons.camera_alt, color: Colors.white, size: 16),
+                        const SizedBox(height: 20),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: _buildTextField(
+                                controller: _firstNameController,
+                                labelText: 'First Name',
+                                hintText: 'e.g. John',
+                                prefixIcon: Icons.person,
+                                validator: (v) => ValidationRules.validateRequired(v, 'First name'),
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: _buildTextField(
+                                controller: _lastNameController,
+                                labelText: 'Last Name',
+                                hintText: 'e.g. Doe',
+                                prefixIcon: Icons.person_outline,
+                                validator: (v) => ValidationRules.validateRequired(v, 'Last name'),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+
+                    // Card 2: Academic Details
+                    _buildCardContainer(
+                      title: 'Academic Details',
+                      icon: Icons.school_outlined,
+                      children: [
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Expanded(
+                              child: _buildTextField(
+                                controller: _universityIdController,
+                                labelText: 'University ID',
+                                hintText: 'e.g. 54/21',
+                                prefixIcon: Icons.badge_outlined,
+                                validator: ValidationRules.validateUniversityId,
+                                helper: _buildUnivIdHelper(),
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: _buildTextField(
+                                controller: _classRollController,
+                                labelText: 'Class Roll',
+                                hintText: 'e.g. CSE-10',
+                                prefixIcon: Icons.format_list_numbered,
+                                validator: ValidationRules.validateClassRoll,
+                                helper: _buildClassRollHelper(),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 16),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: _buildDropdownField<String>(
+                                value: _selectedSession,
+                                labelText: 'Session',
+                                hintText: _isSessionsLoading ? 'Loading...' : 'Select Session',
+                                prefixIcon: Icons.calendar_today_outlined,
+                                items: _sessions.map((s) {
+                                  final sessionVal = s['session'] as String;
+                                  return DropdownMenuItem<String>(
+                                    value: sessionVal,
+                                    child: Text(sessionVal),
+                                  );
+                                }).toList(),
+                                onChanged: (val) => setState(() => _selectedSession = val),
+                                validator: (v) => v == null ? 'Session is required' : null,
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: _buildDropdownField<String>(
+                                value: _selectedBatch,
+                                labelText: 'Batch',
+                                hintText: 'Select Batch',
+                                prefixIcon: Icons.group_outlined,
+                                items: _batches.map((b) {
+                                  return DropdownMenuItem<String>(
+                                    value: b,
+                                    child: Text('Batch $b'),
+                                  );
+                                }).toList(),
+                                onChanged: (val) => setState(() => _selectedBatch = val),
+                                validator: (v) => v == null ? 'Batch is required' : null,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 16),
+                        _buildTextField(
+                          controller: _duRegController,
+                          labelText: 'DU Registration No.',
+                          hintText: 'e.g. 568',
+                          prefixIcon: Icons.app_registration_rounded,
+                          keyboardType: TextInputType.number,
+                          validator: ValidationRules.validateDuReg,
+                        ),
+                      ],
+                    ),
+
+                    // Card 3: Account & Contact Security
+                    _buildCardContainer(
+                      title: 'Contact & Security',
+                      icon: Icons.lock_outline_rounded,
+                      children: [
+                        _buildTextField(
+                          controller: _phoneController,
+                          labelText: 'Phone Number',
+                          hintText: 'e.g. 01712345678',
+                          prefixIcon: Icons.phone_android_outlined,
+                          keyboardType: TextInputType.phone,
+                          validator: ValidationRules.validatePhone,
+                        ),
+                        const SizedBox(height: 16),
+                        _buildTextField(
+                          controller: _emailController,
+                          labelText: 'Email Address',
+                          hintText: 'e.g. student@du.ac.bd',
+                          prefixIcon: Icons.email_outlined,
+                          keyboardType: TextInputType.emailAddress,
+                          validator: ValidationRules.validateEmail,
+                        ),
+                        const SizedBox(height: 16),
+                        _buildTextField(
+                          controller: _passwordController,
+                          labelText: 'Password',
+                          hintText: 'Min. 6 chars, alphanumeric',
+                          prefixIcon: Icons.lock_outline_rounded,
+                          obscureText: !_passwordVisible,
+                          validator: (v) => ValidationRules.validatePassword(v, isSignup: true),
+                          suffixIcon: IconButton(
+                            icon: Icon(
+                              _passwordVisible ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+                              color: colors.primary,
+                            ),
+                            onPressed: () => setState(() => _passwordVisible = !_passwordVisible),
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        _buildTextField(
+                          controller: _confirmPasswordController,
+                          labelText: 'Confirm Password',
+                          hintText: 'Re-enter your password',
+                          prefixIcon: Icons.lock_reset_rounded,
+                          obscureText: !_confirmPasswordVisible,
+                          validator: (v) {
+                            if (v == null || v.isEmpty) return 'Confirm Password is required';
+                            if (v != _passwordController.text) return 'Passwords do not match';
+                            return null;
+                          },
+                          suffixIcon: IconButton(
+                            icon: Icon(
+                              _confirmPasswordVisible ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+                              color: colors.primary,
+                            ),
+                            onPressed: () => setState(() => _confirmPasswordVisible = !_confirmPasswordVisible),
                           ),
                         ),
                       ],
                     ),
-                  ),
-                ),
-                const SizedBox(height: 32),
+                    const SizedBox(height: 8),
 
-                _sectionLabel('Personal Information'),
-                const SizedBox(height: 12),
-                Row(children: [
-                  Expanded(
-                    child: TextFormField(
-                      controller: _firstNameController,
-                      decoration: _decoration('First Name'),
-                      validator: (v) => v == null || v.isEmpty ? 'Required' : null,
+                    // Submit Registration Button
+                    ElevatedButton(
+                      onPressed: _isLoading ? null : _signUp,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: colors.primary,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                        elevation: 2,
+                        shadowColor: colors.primary.withValues(alpha: 0.3),
+                      ),
+                      child: _isLoading
+                          ? const SizedBox(
+                              height: 20, 
+                              width: 20, 
+                              child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5),
+                            )
+                          : const Text(
+                              'Create Account', 
+                              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                            ),
                     ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: TextFormField(
-                      controller: _lastNameController,
-                      decoration: _decoration('Last Name'),
-                      validator: (v) => v == null || v.isEmpty ? 'Required' : null,
-                    ),
-                  ),
-                ]),
-                const SizedBox(height: 16),
-
-                _sectionLabel('Academic Information'),
-                const SizedBox(height: 12),
-                Row(children: [
-                  Expanded(
-                    child: TextFormField(
-                      controller: _universityIdController,
-                      decoration: _decoration('Univ ID (54/21)'),
-                      validator: (v) => v == null || v.isEmpty ? 'Required' : null,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: TextFormField(
-                      controller: _classRollController,
-                      decoration: _decoration('Roll (CSE-10)'),
-                      validator: (v) => v == null || v.isEmpty ? 'Required' : null,
-                    ),
-                  ),
-                ]),
-                const SizedBox(height: 16),
-
-                Row(children: [
-                  Expanded(
-                    child: DropdownButtonFormField<String>(
-                      value: _selectedSession,
-                      decoration: _decoration('Session'),
-                      isExpanded: true,
-                      hint: Text(_isSessionsLoading ? 'Loading...' : 'Select Session'),
-                      items: _sessions.map((s) {
-                        return DropdownMenuItem<String>(
-                          value: s['session'] as String,
-                          child: Text(s['session'] as String),
-                        );
-                      }).toList(),
-                      onChanged: (value) => setState(() => _selectedSession = value),
-                      validator: (v) => v == null ? 'Required' : null,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: DropdownButtonFormField<String>(
-                      value: _selectedBatch,
-                      decoration: _decoration('Batch'),
-                      isExpanded: true,
-                      items: _batches.map((b) {
-                        return DropdownMenuItem<String>(
-                          value: b,
-                          child: Text('Batch $b'),
-                        );
-                      }).toList(),
-                      onChanged: (value) => setState(() => _selectedBatch = value),
-                      validator: (v) => v == null ? 'Required' : null,
-                    ),
-                  ),
-                ]),
-                const SizedBox(height: 16),
-
-                TextFormField(
-                  controller: _duRegController,
-                  decoration: _decoration('DU Registration No.'),
-                  validator: (v) => v == null || v.isEmpty ? 'Required' : null,
+                    const SizedBox(height: 36),
+                  ],
                 ),
-                const SizedBox(height: 24),
-
-                _sectionLabel('Contact & Account'),
-                const SizedBox(height: 12),
-                TextFormField(
-                  controller: _phoneController,
-                  decoration: _decoration('Phone Number', prefixIcon: Icons.phone),
-                  keyboardType: TextInputType.phone,
-                  validator: (v) => v == null || v.isEmpty ? 'Required' : null,
-                ),
-                const SizedBox(height: 16),
-                TextFormField(
-                  controller: _emailController,
-                  decoration: _decoration('Email Address', prefixIcon: Icons.email),
-                  keyboardType: TextInputType.emailAddress,
-                  validator: (v) => v == null || !v.contains('@') ? 'Enter valid email' : null,
-                ),
-                const SizedBox(height: 16),
-                TextFormField(
-                  controller: _passwordController,
-                  obscureText: !_passwordVisible,
-                  decoration: _decoration(
-                    'Password',
-                    prefixIcon: Icons.lock,
-                    suffix: IconButton(
-                      icon: Icon(_passwordVisible ? Icons.visibility_off : Icons.visibility),
-                      onPressed: () => setState(() => _passwordVisible = !_passwordVisible),
-                    ),
-                  ),
-                  validator: (v) => v == null || v.length < 6 ? 'Min 6 characters' : null,
-                ),
-                const SizedBox(height: 16),
-                TextFormField(
-                  controller: _confirmPasswordController,
-                  obscureText: !_confirmPasswordVisible,
-                  decoration: _decoration(
-                    'Confirm Password',
-                    prefixIcon: Icons.lock_outline,
-                    suffix: IconButton(
-                      icon: Icon(_confirmPasswordVisible ? Icons.visibility_off : Icons.visibility),
-                      onPressed: () => setState(() => _confirmPasswordVisible = !_confirmPasswordVisible),
-                    ),
-                  ),
-                  validator: (v) => v != _passwordController.text ? 'Passwords do not match' : null,
-                ),
-                const SizedBox(height: 32),
-
-                ElevatedButton(
-                  onPressed: _isLoading ? null : _signUp,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: colors.primary,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                  ),
-                  child: _isLoading
-                      ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                      : const Text('Create Account', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                ),
-                const SizedBox(height: 40),
-              ],
+              ),
             ),
           ),
         ),
       ),
-    ),
-  );
-}
-
-  Widget _sectionLabel(String text) {
-    return Text(
-      text,
-      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Theme.of(context).colorScheme.primary, letterSpacing: 0.5),
     );
   }
 }
