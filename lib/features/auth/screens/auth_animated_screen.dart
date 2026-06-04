@@ -11,6 +11,8 @@ import '../screens/pending_approval_screen.dart';
 import '../../dashboard/screens/main_screen.dart';
 import 'forgot_password_screen.dart';
 import '../../../core/utils/validation_rules.dart';
+import '../../../core/utils/snackbar_utils.dart';
+
 
 class AuthAnimatedScreen extends StatefulWidget {
   const AuthAnimatedScreen({super.key});
@@ -114,12 +116,7 @@ class _AuthAnimatedScreenState extends State<AuthAnimatedScreen> with TickerProv
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error: $e'),
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
+        SnackBarUtils.showError(context, e.toString());
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -129,15 +126,11 @@ class _AuthAnimatedScreenState extends State<AuthAnimatedScreen> with TickerProv
   Future<void> _signUp() async {
     if (!_signupFormKey.currentState!.validate()) return;
     if (_selectedSession == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please select a session'), behavior: SnackBarBehavior.floating),
-      );
+      SnackBarUtils.showError(context, 'Please select a session');
       return;
     }
     if (_selectedBatch == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please select a batch'), behavior: SnackBarBehavior.floating),
-      );
+      SnackBarUtils.showError(context, 'Please select a batch');
       return;
     }
 
@@ -158,19 +151,14 @@ class _AuthAnimatedScreenState extends State<AuthAnimatedScreen> with TickerProv
         phone: _signupPhoneController.text.trim(),
         profilePic: profilePicUrl,
         universityId: _signupUniversityIdController.text.trim(),
-        classRoll: _signupClassRollController.text.trim(),
+        classRoll: ValidationRules.formatClassRoll(_signupClassRollController.text),
       );
       if (mounted) {
         Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const PendingApprovalScreen()));
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error: $e'),
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
+        SnackBarUtils.showError(context, e.toString());
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);

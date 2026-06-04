@@ -6,6 +6,7 @@ import 'package:ShEC_CSE/features/auth/presentation/bloc/auth_bloc.dart';
 import 'package:ShEC_CSE/features/auth/presentation/bloc/auth_event.dart';
 import 'package:ShEC_CSE/features/auth/presentation/bloc/auth_state.dart';
 import 'package:ShEC_CSE/core/utils/validation_rules.dart';
+import 'package:ShEC_CSE/core/utils/snackbar_utils.dart';
 import 'forgot_password_screen.dart';
 import 'signup_screen.dart';
 
@@ -56,13 +57,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 MaterialPageRoute(builder: (context) => const HomeLayout()),
               );
             } else if (state is AuthError) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text('Error: ${state.message}'),
-                  backgroundColor: colors.error,
-                  behavior: SnackBarBehavior.floating,
-                ),
-              );
+              SnackBarUtils.showError(context, state.message);
             }
           },
           builder: (context, state) {

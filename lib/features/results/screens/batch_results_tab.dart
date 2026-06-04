@@ -134,8 +134,10 @@ class _BatchResultsTabState extends State<BatchResultsTab> {
             final pA = groupedResults[idA]!.first.profile;
             final pB = groupedResults[idB]!.first.profile;
             
-            final rollA = int.tryParse(pA.classRoll) ?? 999999;
-            final rollB = int.tryParse(pB.classRoll) ?? 999999;
+            final cleanRollA = pA.classRoll.replaceAll(RegExp(r'\D'), '');
+            final cleanRollB = pB.classRoll.replaceAll(RegExp(r'\D'), '');
+            final rollA = int.tryParse(cleanRollA) ?? 999999;
+            final rollB = int.tryParse(cleanRollB) ?? 999999;
             if (rollA != rollB) {
               return rollA.compareTo(rollB);
             }

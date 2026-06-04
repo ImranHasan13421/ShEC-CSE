@@ -97,6 +97,21 @@ class ValidationRules {
     return null;
   }
 
+  /// Formats/normalizes the Class Roll.
+  /// If the input is just digits (e.g. "10"), it automatically prepends "CSE-".
+  /// It also converts the input to uppercase.
+  static String formatClassRoll(String rawRoll) {
+    final roll = rawRoll.trim().toUpperCase();
+    if (roll.isEmpty) return '';
+    if (RegExp(r'^\d+$').hasMatch(roll)) {
+      return 'CSE-$roll';
+    }
+    if (roll.startsWith('CSE') && !roll.startsWith('CSE-')) {
+      return 'CSE-${roll.substring(3)}';
+    }
+    return roll;
+  }
+
   /// Validates DU Registration format.
   static String? validateDuReg(String? value) {
     if (value == null || value.trim().isEmpty) {

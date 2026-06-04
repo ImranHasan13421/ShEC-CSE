@@ -6,6 +6,7 @@ import 'package:ShEC_CSE/core/services/storage_service.dart';
 import 'package:ShEC_CSE/core/services/image_processing_service.dart';
 import 'package:image_cropper/image_cropper.dart';
 import 'package:ShEC_CSE/core/utils/validation_rules.dart';
+import 'package:ShEC_CSE/core/utils/snackbar_utils.dart';
 import '../../../backend/services/auth_service.dart';
 import '../../../features/auth/screens/pending_approval_screen.dart';
 
@@ -163,16 +164,11 @@ class _SignupScreenState extends State<SignupScreen> {
         phone: _phoneController.text.trim(),
         profilePic: profilePicUrl,
         universityId: _universityIdController.text.trim(),
-        classRoll: _classRollController.text.trim(),
+        classRoll: ValidationRules.formatClassRoll(_classRollController.text),
       );
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Registration submitted! Waiting for approval.'),
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
+        SnackBarUtils.showSuccess(context, 'Registration submitted! Waiting for approval.');
         Navigator.pushAndRemoveUntil(
           context,
           MaterialPageRoute(builder: (_) => const PendingApprovalScreen()),
@@ -181,13 +177,7 @@ class _SignupScreenState extends State<SignupScreen> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error: $e'),
-            backgroundColor: Colors.red,
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
+        SnackBarUtils.showError(context, e.toString());
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);

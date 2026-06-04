@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../profile/models/profile_state.dart';
+import '../../../../core/utils/validation_rules.dart';
 
 class DesignationPickerSheet extends StatelessWidget {
   final ProfileData member;
@@ -178,7 +179,7 @@ class _EditMemberSheetState extends State<EditMemberSheet> {
                     lastName: lastNameController.text.trim(),
                     name: '${firstNameController.text.trim()} ${lastNameController.text.trim()}',
                     universityId: universityIdController.text.trim(),
-                    classRoll: classRollController.text.trim(),
+                    classRoll: ValidationRules.formatClassRoll(classRollController.text),
                     duRegNo: duRegController.text.trim(),
                     phone: phoneController.text.trim(),
                     session: selectedSession,

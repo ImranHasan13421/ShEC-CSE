@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:ShEC_CSE/core/utils/snackbar_utils.dart';
 
 class SetNewPasswordScreen extends StatefulWidget {
   const SetNewPasswordScreen({super.key});
@@ -19,16 +20,12 @@ class _SetNewPasswordScreenState extends State<SetNewPasswordScreen> {
     final confirm = _confirmController.text.trim();
 
     if (password.isEmpty || password.length < 6) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Password must be at least 6 characters')),
-      );
+      SnackBarUtils.showError(context, 'Password must be at least 6 characters');
       return;
     }
 
     if (password != confirm) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Passwords do not match')),
-      );
+      SnackBarUtils.showError(context, 'Passwords do not match');
       return;
     }
 
@@ -39,17 +36,13 @@ class _SetNewPasswordScreenState extends State<SetNewPasswordScreen> {
       );
       
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Password updated successfully! Please login.')),
-        );
+        SnackBarUtils.showSuccess(context, 'Password updated successfully! Please login.');
         // Clear all routes and go to login
         Navigator.of(context).pushNamedAndRemoveUntil('/', (route) => false);
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: ${e.toString()}')),
-        );
+        SnackBarUtils.showError(context, e.toString());
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);

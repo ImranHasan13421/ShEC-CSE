@@ -4,6 +4,8 @@ import '../../../backend/services/feedback_service.dart';
 import '../presentation/widgets/ambient_background.dart';
 import 'feedback_screen.dart';
 import 'package:intl/intl.dart';
+import 'package:ShEC_CSE/core/utils/snackbar_utils.dart';
+
 
 class FeedbackListScreen extends StatefulWidget {
   const FeedbackListScreen({super.key});
@@ -77,22 +79,10 @@ class _FeedbackListScreenState extends State<FeedbackListScreen> {
       await HapticFeedback.mediumImpact();
       try {
         await FeedbackService.deleteFeedback(id);
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Feedback deleted successfully.'),
-            backgroundColor: Colors.green,
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
+        SnackBarUtils.showSuccess(context, 'Feedback deleted successfully.');
         _fetchData();
       } catch (e) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error deleting feedback: $e'),
-            backgroundColor: Colors.redAccent,
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
+        SnackBarUtils.showError(context, e.toString());
       }
     }
   }

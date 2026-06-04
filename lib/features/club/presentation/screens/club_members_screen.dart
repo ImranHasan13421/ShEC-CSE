@@ -10,6 +10,7 @@ import '../widgets/member_card.dart';
 import '../widgets/member_details_sheet.dart';
 import '../widgets/member_edit_sheets.dart';
 import 'package:ShEC_CSE/features/dashboard/presentation/widgets/ambient_background.dart';
+import 'package:ShEC_CSE/core/utils/snackbar_utils.dart';
 
 class ClubMembersScreen extends StatefulWidget {
   const ClubMembersScreen({super.key});
@@ -222,7 +223,7 @@ class _ClubMembersScreenState extends State<ClubMembersScreen> with SingleTicker
       final members = await AuthService.fetchAllMembers();
       if (mounted) setState(() => _allMembers = members);
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+      if (mounted) SnackBarUtils.showError(context, e.toString());
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -456,14 +457,14 @@ class _ClubMembersScreenState extends State<ClubMembersScreen> with SingleTicker
     try {
       await AuthService.updateUserRole(member.id, newRole, designation: designation);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Updated successfully')));
+        SnackBarUtils.showSuccess(context, 'Updated successfully');
         if (newRole == UserRole.committeeMember) {
           _showCommitteePrivilegesDialog(member);
         }
         _fetchMembers();
       }
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+      if (mounted) SnackBarUtils.showError(context, e.toString());
     }
   }
 
@@ -474,7 +475,7 @@ class _ClubMembersScreenState extends State<ClubMembersScreen> with SingleTicker
         await AuthService.deleteUser(member.id);
         _fetchMembers();
       } catch (e) {
-        if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+        if (mounted) SnackBarUtils.showError(context, e.toString());
       }
     }
   }
@@ -522,11 +523,11 @@ class _ClubMembersScreenState extends State<ClubMembersScreen> with SingleTicker
             await AuthService.updateAnyProfile(updatedMember);
             if (context.mounted) {
               Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Info updated successfully')));
+              SnackBarUtils.showSuccess(context, 'Info updated successfully');
               _fetchMembers();
             }
           } catch (e) {
-            if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+            if (context.mounted) SnackBarUtils.showError(context, e.toString());
           }
         },
       ),
@@ -577,7 +578,7 @@ class _ClubMembersScreenState extends State<ClubMembersScreen> with SingleTicker
                 await AuthService.moveToAlumni(member);
                 _fetchMembers();
               } catch (e) {
-                if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+                if (mounted) SnackBarUtils.showError(context, e.toString());
               }
             }
           },

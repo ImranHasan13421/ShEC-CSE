@@ -13,6 +13,8 @@ import 'package:ShEC_CSE/features/notices/presentation/bloc/notice_state.dart';
 import 'package:ShEC_CSE/core/services/image_processing_service.dart';
 import '../models/notice_state.dart';
 import '../../../backend/services/notice_service.dart';
+import 'package:ShEC_CSE/core/utils/snackbar_utils.dart';
+
 import '../widgets/notice_card.dart';
 import 'package:ShEC_CSE/core/utils/validation_rules.dart';
 
@@ -40,9 +42,7 @@ class _NoticesScreenState extends State<NoticesScreen> {
     context.read<NoticeBloc>().add(
       DeleteNoticeRequested(notice: notice, category: category),
     );
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Deleting notice...')),
-    );
+    SnackBarUtils.showInfo(context, 'Deleting notice...');
   }
 
   void _showNoticeForm(BuildContext context, String defaultCategory, {NoticeItem? existingNotice}) {
@@ -305,13 +305,9 @@ class _NoticesScreenState extends State<NoticesScreen> {
         body: BlocListener<NoticeBloc, NoticeState>(
           listener: (context, state) {
             if (state is NoticeError) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text('Error: ${state.message}'), backgroundColor: Colors.red),
-              );
+              SnackBarUtils.showError(context, state.message);
             } else if (state is NoticeOperationSuccess) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Notice updated successfully!'), backgroundColor: Colors.green),
-              );
+              SnackBarUtils.showSuccess(context, 'Notice updated successfully!');
             }
           },
           child: BlocBuilder<NoticeBloc, NoticeState>(

@@ -7,6 +7,7 @@ import 'package:intl/intl.dart';
 import '../presentation/bloc/chat_bloc.dart';
 import '../presentation/bloc/chat_event.dart';
 import '../presentation/bloc/chat_state.dart';
+import 'package:ShEC_CSE/core/utils/snackbar_utils.dart';
 
 class ChatScreen extends StatefulWidget {
   final String roomId;
@@ -118,9 +119,7 @@ class _ChatScreenState extends State<ChatScreen> {
                 if (state is ChatHistoryLoaded) {
                   _scrollToBottom();
                 } else if (state is ChatError) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text(state.message), backgroundColor: Colors.red),
-                  );
+                  SnackBarUtils.showError(context, state.message);
                 }
               },
               builder: (context, state) {

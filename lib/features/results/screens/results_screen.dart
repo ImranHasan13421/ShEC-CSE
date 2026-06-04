@@ -11,6 +11,7 @@ import '../presentation/bloc/result_event.dart';
 import '../presentation/bloc/result_state.dart';
 import 'cgpa_prediction_chart.dart';
 import 'batch_results_tab.dart';
+import 'package:ShEC_CSE/core/utils/snackbar_utils.dart';
 
 class ResultsScreen extends StatefulWidget {
   const ResultsScreen({super.key});
@@ -82,14 +83,10 @@ class _ResultsScreenState extends State<ResultsScreen> with SingleTickerProvider
           _isSyncing = true;
         } else if (!state.isSyncing && _isSyncing && state.errorMessage == null) {
           _isSyncing = false;
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Sync complete!')),
-          );
+          SnackBarUtils.showSuccess(context, 'Sync complete!');
         } else if (state.errorMessage != null) {
           _isSyncing = false;
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(state.errorMessage!), backgroundColor: Colors.red),
-          );
+          SnackBarUtils.showError(context, state.errorMessage!);
         }
       },
       builder: (context, state) {
@@ -358,13 +355,9 @@ class _ResultsScreenState extends State<ResultsScreen> with SingleTickerProvider
                   await ResultService.addSessionId(name, id);
                 }
                 navigator.pop();
-                messenger.showSnackBar(
-                  SnackBar(content: Text('$type ID saved successfully')),
-                );
+                SnackBarUtils.showSuccess(context, '$type ID saved successfully');
               } catch (e) {
-                messenger.showSnackBar(
-                  SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
-                );
+                SnackBarUtils.showError(context, e.toString());
               }
             },
             child: const Text('Save'),
@@ -676,14 +669,10 @@ class _ManageExamsDialogState extends State<_ManageExamsDialog> {
                   await ResultService.deleteExamId(examId);
                   navigator.pop(); // Close confirm dialog
                   _loadExams(); // Refresh list
-                  messenger.showSnackBar(
-                    const SnackBar(content: Text('Exam ID deleted successfully')),
-                  );
+                  SnackBarUtils.showSuccess(context, 'Exam ID deleted successfully');
                 } catch (e) {
                   navigator.pop();
-                  messenger.showSnackBar(
-                    SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
-                  );
+                  SnackBarUtils.showError(context, e.toString());
                 }
               },
               child: const Text('Delete', style: TextStyle(color: Colors.white)),
@@ -855,24 +844,19 @@ class _AddEditExamDialogState extends State<_AddEditExamDialog> {
     final semester = _selectedSemester;
 
     if (name.isEmpty || id.isEmpty || session == null || session.isEmpty || semester == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please fill all fields')),
-      );
+      SnackBarUtils.showError(context, 'Please fill all fields');
       return;
     }
 
     setState(() => _isSaving = true);
     final navigator = Navigator.of(context);
-    final messenger = ScaffoldMessenger.of(context);
 
     try {
       await ResultService.addExamId(name, id, session, semester);
       navigator.pop(true); // Return true to indicate successful save
     } catch (e) {
       setState(() => _isSaving = false);
-      messenger.showSnackBar(
-        SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
-      );
+      SnackBarUtils.showError(context, e.toString());
     }
   }
 }

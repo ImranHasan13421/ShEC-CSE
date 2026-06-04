@@ -12,6 +12,7 @@ import '../presentation/bloc/gallery_state.dart';
 import '../../../backend/services/gallery_service.dart';
 import 'gallery_detail_screen.dart';
 import 'package:ShEC_CSE/core/utils/validation_rules.dart';
+import 'package:ShEC_CSE/core/utils/snackbar_utils.dart';
 
 class GalleryScreen extends StatefulWidget {
   const GalleryScreen({super.key});
@@ -55,9 +56,7 @@ class _GalleryScreenState extends State<GalleryScreen> {
 
             Future<void> pickImage() async {
               if (mediaList.length >= 5) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('You can upload up to 5 images.'))
-                );
+                SnackBarUtils.showError(context, 'You can upload up to 5 images.');
                 return;
               }
               final picker = ImagePicker();
@@ -244,7 +243,7 @@ class _GalleryScreenState extends State<GalleryScreen> {
                             onPressed: () async {
                               if (!formKey.currentState!.validate()) return;
                               if (mediaList.isEmpty) {
-                                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please select at least one image')));
+                                SnackBarUtils.showError(context, 'Please select at least one image');
                                 return;
                               }
     
@@ -276,7 +275,7 @@ class _GalleryScreenState extends State<GalleryScreen> {
                               } catch (e) {
                                 if (context.mounted) {
                                   setModalState(() => isUploading = false);
-                                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: ${e.toString()}')));
+                                  SnackBarUtils.showError(context, e.toString());
                                 }
                                 return;
                               }
@@ -284,7 +283,7 @@ class _GalleryScreenState extends State<GalleryScreen> {
                               if (!context.mounted) return;
                               if (finalUrls.isEmpty) {
                                 setModalState(() => isUploading = false);
-                                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Asset uploads failed. Try again.')));
+                                SnackBarUtils.showError(context, 'Asset uploads failed. Try again.');
                                 return;
                               }
     
@@ -538,7 +537,7 @@ class _GalleryScreenState extends State<GalleryScreen> {
                       GestureDetector(
                         onTap: () {
                           context.read<GalleryBloc>().add(ApproveGalleryItemRequested(itemId: item.id));
-                          _showToast(context, 'Gallery item approved!', isError: false);
+                          SnackBarUtils.showSuccess(context, 'Gallery item approved!');
                         },
                         child: const Tooltip(
                           message: 'Approve Gallery Item',
@@ -550,7 +549,7 @@ class _GalleryScreenState extends State<GalleryScreen> {
                     GestureDetector(
                       onTap: () {
                         context.read<GalleryBloc>().add(ToggleGalleryVisibilityRequested(itemId: item.id, isVisible: !item.isVisible));
-                        _showToast(context, item.isVisible ? 'Gallery item hidden!' : 'Gallery item is now visible!', isError: false);
+                        SnackBarUtils.showSuccess(context, item.isVisible ? 'Gallery item hidden!' : 'Gallery item is now visible!');
                       },
                       child: Tooltip(
                         message: item.isVisible ? 'Hide Item' : 'Show Item',
@@ -569,7 +568,7 @@ class _GalleryScreenState extends State<GalleryScreen> {
                     GestureDetector(
                       onTap: () {
                         context.read<GalleryBloc>().add(DeleteGalleryItemRequested(item: item));
-                        _showToast(context, 'Gallery item deleted successfully!', isError: false);
+                        SnackBarUtils.showSuccess(context, 'Gallery item deleted successfully!');
                       },
                       child: const Tooltip(
                         message: 'Delete Item',
@@ -594,25 +593,5 @@ class _GalleryScreenState extends State<GalleryScreen> {
     } catch (e) {
       debugPrint('Error deleting cached file: $e');
     }
-  }
-
-  void _showToast(BuildContext context, String message, {required bool isError}) {
-    ScaffoldMessenger.of(context).hideCurrentSnackBar();
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Row(
-          children: [
-            Icon(isError ? Icons.error_outline : Icons.check_circle_outline, color: Colors.white, size: 20),
-            const SizedBox(width: 10),
-            Expanded(child: Text(message, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13))),
-          ],
-        ),
-        backgroundColor: isError ? Colors.redAccent : Colors.teal,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-        margin: const EdgeInsets.all(16),
-        duration: const Duration(seconds: 2),
-      ),
-    );
   }
 }

@@ -13,6 +13,7 @@ import 'package:ShEC_CSE/features/auth/presentation/bloc/auth_state.dart';
 import 'package:ShEC_CSE/core/services/image_processing_service.dart';
 import 'package:image_cropper/image_cropper.dart';
 import 'package:ShEC_CSE/core/utils/validation_rules.dart';
+import 'package:ShEC_CSE/core/utils/snackbar_utils.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -160,7 +161,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         imagePath: finalImageUrl,
         // Allow superusers to save these fields too
         universityId: isSuperuser ? _universityIdController.text.trim() : profile.universityId,
-        classRoll: isSuperuser ? _classRollController.text.trim() : profile.classRoll,
+        classRoll: isSuperuser ? ValidationRules.formatClassRoll(_classRollController.text) : profile.classRoll,
         session: isSuperuser ? (_selectedSession ?? profile.session) : profile.session,
         batch: isSuperuser ? (_selectedBatch ?? profile.batch) : profile.batch,
         phone: isSuperuser ? _phoneController.text.trim() : profile.phone,
@@ -180,9 +181,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     } catch (e) {
       setState(() => _isSubmitting = false);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
-        );
+        SnackBarUtils.showError(context, e.toString());
       }
     }
   }
@@ -211,15 +210,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
           if (_isSubmitting) {
             if (state is AuthAuthenticated) {
               setState(() => _isSubmitting = false);
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Profile updated successfully!'), backgroundColor: Colors.green),
-              );
+              SnackBarUtils.showSuccess(context, 'Profile updated successfully!');
               Navigator.pop(context);
             } else if (state is AuthError) {
               setState(() => _isSubmitting = false);
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text('Error: ${state.message}'), backgroundColor: Colors.red),
-              );
+              SnackBarUtils.showError(context, state.message);
             }
           }
         },

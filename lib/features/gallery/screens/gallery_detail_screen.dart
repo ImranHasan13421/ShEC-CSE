@@ -5,6 +5,7 @@ import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as p;
 import '../models/gallery_state.dart';
+import 'package:ShEC_CSE/core/utils/snackbar_utils.dart';
 
 class GalleryDetailScreen extends StatefulWidget {
   final GalleryItem item;
@@ -307,10 +308,10 @@ class _FullScreenImageViewerState extends State<FullScreenImageViewer> {
       }
 
       if (!mounted) return;
-      _showToast(context, 'Successfully saved to gallery folder "ShEC CSE"!', isError: false);
+      SnackBarUtils.showSuccess(context, 'Successfully saved to gallery folder "ShEC CSE"!');
     } catch (e) {
       if (!mounted) return;
-      _showToast(context, 'Save failed: ${e.toString().replaceAll('Exception: ', '')}', isError: true);
+      SnackBarUtils.showError(context, e.toString());
     } finally {
       if (mounted) {
         setState(() {
@@ -318,31 +319,6 @@ class _FullScreenImageViewerState extends State<FullScreenImageViewer> {
         });
       }
     }
-  }
-
-  void _showToast(BuildContext context, String message, {required bool isError}) {
-    ScaffoldMessenger.of(context).hideCurrentSnackBar();
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Row(
-          children: [
-            Icon(isError ? Icons.error_outline : Icons.check_circle_outline, color: Colors.white, size: 20),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Text(
-                message,
-                style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13, color: Colors.white),
-              ),
-            ),
-          ],
-        ),
-        backgroundColor: isError ? Colors.redAccent : Colors.teal,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        margin: const EdgeInsets.all(16),
-        duration: const Duration(seconds: 3),
-      ),
-    );
   }
 
   @override

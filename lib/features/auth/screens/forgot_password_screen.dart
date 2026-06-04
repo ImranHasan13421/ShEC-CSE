@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:ShEC_CSE/core/utils/snackbar_utils.dart';
 
 class ForgotPasswordScreen extends StatefulWidget {
   const ForgotPasswordScreen({super.key});
@@ -15,9 +16,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
   Future<void> _resetPassword() async {
     final email = _emailController.text.trim();
     if (email.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter your email address')),
-      );
+      SnackBarUtils.showError(context, 'Please enter your email address');
       return;
     }
 
@@ -28,16 +27,12 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
         redirectTo: 'sheccse://reset-password',
       );
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Password reset link sent to your email!')),
-        );
+        SnackBarUtils.showSuccess(context, 'Password reset link sent to your email!');
         Navigator.pop(context);
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: ${e.toString()}')),
-        );
+        SnackBarUtils.showError(context, e.toString());
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);
