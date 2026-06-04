@@ -167,13 +167,16 @@ class _DrawerAccordionGroupState extends State<DrawerAccordionGroup> {
               color: widget.isExpanded ? Colors.white : Colors.white.withValues(alpha: 0.85),
             ),
           ),
-          trailing: AnimatedRotation(
-            turns: widget.isExpanded ? 0.5 : 0.0,
-            duration: const Duration(milliseconds: 200),
-            child: Icon(
-              Icons.expand_more, 
-              color: widget.isExpanded ? colors.primary.withValues(alpha: 0.8) : Colors.white60, 
-              size: 18
+          trailing: Padding(
+            padding: const EdgeInsets.only(right: 10.0),
+            child: AnimatedRotation(
+              turns: widget.isExpanded ? 0.5 : 0.0,
+              duration: const Duration(milliseconds: 200),
+              child: Icon(
+                Icons.expand_more, 
+                color: widget.isExpanded ? colors.primary.withValues(alpha: 0.8) : Colors.white60, 
+                size: 18
+              ),
             ),
           ),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -696,7 +699,7 @@ class _MainDrawerMenuState extends State<MainDrawerMenu> {
                   Expanded(
                     child: SingleChildScrollView(
                       physics: const BouncingScrollPhysics(),
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      padding: const EdgeInsets.only(left: 16, right: 30, top: 12, bottom: 12),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
