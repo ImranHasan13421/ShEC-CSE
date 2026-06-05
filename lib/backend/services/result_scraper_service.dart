@@ -100,8 +100,19 @@ class ResultScraperService {
     }
   }
 
+  static double? _parseDbNumeric(dynamic value) {
+    if (value == null) return null;
+    if (value is num) return value.toDouble();
+    final str = value.toString().trim();
+    if (str.isEmpty || str == 'null') return null;
+    return double.tryParse(str);
+  }
+
   static Future<void> _saveResultToDB(String userId, String regNo, String examId, String sessId, String examName, Map<String, dynamic> data) async {
     try {
+      final parsedGpa = _parseDbNumeric(data['gpa']);
+      final parsedCgpa = _parseDbNumeric(data['cgpa']);
+
       // 1. Insert/Update the main result record with user_id, exam_id onConflict target
       final resultResponse = await _client.from('results').upsert({
         'user_id': userId,
@@ -109,8 +120,8 @@ class ResultScraperService {
         'exam_id': examId,
         'sess_id': sessId,
         'exam_name': examName,
-        'gpa': data['gpa'],
-        'cgpa': data['cgpa'],
+        'gpa': parsedGpa,
+        'cgpa': parsedCgpa,
       }, onConflict: 'user_id,exam_id').select('id').single();
 
       final String resultId = resultResponse['id'];
@@ -128,7 +139,7 @@ class ResultScraperService {
           'subject_code': s['code'],
           'subject_name': s['name'],
           'grade': s['grade'],
-          'point': s['point'],
+          'point': _parseDbNumeric(s['point']),
         }).toList();
 
         await _client.from('subject_results').insert(subjectData);
