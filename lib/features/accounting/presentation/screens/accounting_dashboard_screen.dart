@@ -49,10 +49,9 @@ class _AccountingDashboardScreenState extends State<AccountingDashboardScreen> {
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final tabLabelColor = isDark ? colors.primary : Colors.white;
-    final tabUnselectedColor = isDark ? colors.onSurface.withValues(alpha: 0.6) : Colors.white.withValues(alpha: 0.7);
-    final tabIndicatorColor = isDark ? colors.primary : Colors.white;
+    final tabLabelColor = colors.primary;
+    final tabUnselectedColor = colors.onSurface.withValues(alpha: 0.6);
+    final tabIndicatorColor = colors.primary;
 
     return Stack(
       children: [

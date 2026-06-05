@@ -628,10 +628,9 @@ class _ClubMembersScreenState extends State<ClubMembersScreen> with SingleTicker
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final tabLabelColor = isDark ? colors.primary : Colors.white;
-    final tabUnselectedColor = isDark ? colors.onSurface.withOpacity(0.6) : Colors.white.withOpacity(0.7);
-    final tabIndicatorColor = isDark ? colors.primary : Colors.white;
+    final tabLabelColor = colors.primary;
+    final tabUnselectedColor = colors.onSurface.withOpacity(0.6);
+    final tabIndicatorColor = colors.primary;
 
     final filteredAll = _allMembers.where((m) {
       final matchesSearch = m.name.toLowerCase().contains(_searchQuery.toLowerCase()) || 
