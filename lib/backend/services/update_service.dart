@@ -10,7 +10,7 @@ class UpdateService extends ChangeNotifier {
   static final SupabaseClient _client = Supabase.instance.client;
 
   // Local static build information
-  static const int currentBuildNumber = 5;
+  static const int currentBuildNumber = 7;
   static const String currentVersion = '0.9.2';
 
   // State
@@ -139,6 +139,29 @@ class UpdateService extends ChangeNotifier {
       await launchUrl(uri, mode: LaunchMode.externalApplication);
     } else {
       throw Exception('Could not launch update URL: $_downloadUrl');
+    }
+  }
+
+  // Update History State
+  List<Map<String, dynamic>> _updateHistory = [];
+  List<Map<String, dynamic>> get updateHistory => _updateHistory;
+  bool _isHistoryLoading = false;
+  bool get isHistoryLoading => _isHistoryLoading;
+
+  Future<void> fetchUpdateHistory() async {
+    _isHistoryLoading = true;
+    notifyListeners();
+    try {
+      final data = await _client
+          .from('app_updates')
+          .select()
+          .order('created_at', ascending: false);
+      _updateHistory = List<Map<String, dynamic>>.from(data as List);
+    } catch (e) {
+      debugPrint('Error fetching update history: $e');
+    } finally {
+      _isHistoryLoading = false;
+      notifyListeners();
     }
   }
 

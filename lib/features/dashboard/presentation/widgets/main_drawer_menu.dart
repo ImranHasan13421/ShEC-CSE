@@ -212,6 +212,7 @@ class MainDrawerMenu extends StatefulWidget {
   static void showUpdateDialog(BuildContext parentContext, {bool force = false}) {
     final colors = Theme.of(parentContext).colorScheme;
     final updateService = UpdateService.instance;
+    updateService.fetchUpdateHistory();
 
     showDialog(
       context: parentContext,
@@ -409,12 +410,13 @@ class MainDrawerMenu extends StatefulWidget {
                             if (isLoading) {
                               return const Padding(
                                 padding: EdgeInsets.symmetric(vertical: 40),
-                                child: CircularProgressIndicator(),
+                                child: Center(child: CircularProgressIndicator()),
                               );
                             }
 
+                            final Widget mainContent;
                             if (hasUpdate) {
-                              return Column(
+                              mainContent = Column(
                                 children: [
                                   Container(
                                     padding: const EdgeInsets.all(12),
@@ -516,52 +518,60 @@ class MainDrawerMenu extends StatefulWidget {
                                   ],
                                 ],
                               );
+                            } else {
+                              mainContent = Column(
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(vertical: 20),
+                                    child: Column(
+                                      children: [
+                                        Container(
+                                          padding: const EdgeInsets.all(12),
+                                          decoration: BoxDecoration(
+                                            shape: BoxShape.circle,
+                                            color: Colors.green.withValues(alpha: 0.1),
+                                          ),
+                                          child: const Icon(Icons.check_circle, color: Colors.green, size: 48),
+                                        ),
+                                        const SizedBox(height: 15),
+                                        const Text(
+                                          'You are on the latest version!',
+                                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                                        ),
+                                        const SizedBox(height: 4),
+                                        Text(
+                                          'Current Version: v${UpdateService.currentVersion} (${UpdateService.currentBuildNumber})',
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            color: colors.onSurface.withValues(alpha: 0.5),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  const SizedBox(height: 10),
+                                  OutlinedButton.icon(
+                                    onPressed: () async {
+                                      await updateService.checkForUpdates();
+                                    },
+                                    icon: const Icon(Icons.refresh, size: 16),
+                                    label: const Text('Check for Updates'),
+                                    style: OutlinedButton.styleFrom(
+                                      foregroundColor: colors.primary,
+                                      side: BorderSide(color: colors.primary.withValues(alpha: 0.5)),
+                                      minimumSize: const Size(double.infinity, 40),
+                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                    ),
+                                  ),
+                                ],
+                              );
                             }
 
                             return Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Container(
-                                  padding: const EdgeInsets.symmetric(vertical: 20),
-                                  child: Column(
-                                    children: [
-                                      Container(
-                                        padding: const EdgeInsets.all(12),
-                                        decoration: BoxDecoration(
-                                          shape: BoxShape.circle,
-                                          color: Colors.green.withValues(alpha: 0.1),
-                                        ),
-                                        child: const Icon(Icons.check_circle, color: Colors.green, size: 48),
-                                      ),
-                                      const SizedBox(height: 15),
-                                      const Text(
-                                        'You are on the latest version!',
-                                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
-                                      ),
-                                      const SizedBox(height: 4),
-                                      Text(
-                                        'Current Version: v${UpdateService.currentVersion} (${UpdateService.currentBuildNumber})',
-                                        style: TextStyle(
-                                          fontSize: 12,
-                                          color: colors.onSurface.withValues(alpha: 0.5),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                                const SizedBox(height: 10),
-                                OutlinedButton.icon(
-                                  onPressed: () async {
-                                    await updateService.checkForUpdates();
-                                  },
-                                  icon: const Icon(Icons.refresh, size: 16),
-                                  label: const Text('Check for Updates'),
-                                  style: OutlinedButton.styleFrom(
-                                    foregroundColor: colors.primary,
-                                    side: BorderSide(color: colors.primary.withValues(alpha: 0.5)),
-                                    minimumSize: const Size(double.infinity, 40),
-                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                                  ),
-                                ),
+                                mainContent,
+                                _buildUpdateHistorySection(context, updateService, colors),
                               ],
                             );
                           },
@@ -627,6 +637,160 @@ class MainDrawerMenu extends StatefulWidget {
             ),
           ),
         ),
+      ],
+    );
+  }
+
+  static Widget _buildUpdateHistorySection(
+    BuildContext context,
+    UpdateService updateService,
+    ColorScheme colors,
+  ) {
+    if (updateService.isHistoryLoading && updateService.updateHistory.isEmpty) {
+      return const Center(
+        child: Padding(
+          padding: EdgeInsets.symmetric(vertical: 20),
+          child: SizedBox(
+            width: 24,
+            height: 24,
+            child: CircularProgressIndicator(strokeWidth: 2),
+          ),
+        ),
+      );
+    }
+
+    if (updateService.updateHistory.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Divider(height: 32, thickness: 0.5),
+        Row(
+          children: [
+            Icon(Icons.history, size: 18, color: colors.onSurface.withValues(alpha: 0.6)),
+            const SizedBox(width: 8),
+            Text(
+              'Update History',
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.bold,
+                color: colors.onSurface.withValues(alpha: 0.8),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        ...updateService.updateHistory.map((update) {
+          final String version = update['version'] ?? 'N/A';
+          final int buildNumber = update['build_number'] ?? 0;
+          final String notes = update['release_notes'] ?? '';
+          final bool isMajor = update['is_major'] ?? false;
+          final String downloadUrl = update['download_url'] ?? '';
+          
+          // Parse date if available
+          String dateStr = '';
+          if (update['created_at'] != null) {
+            try {
+              final date = DateTime.parse(update['created_at'].toString()).toLocal();
+              dateStr = '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
+            } catch (_) {}
+          }
+
+          return Container(
+            margin: const EdgeInsets.only(bottom: 10),
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: colors.onSurface.withValues(alpha: 0.02),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: colors.onSurface.withValues(alpha: 0.06)),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Text(
+                                'v$version (Build $buildNumber)',
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 13,
+                                ),
+                              ),
+                              if (isMajor) ...[
+                                const SizedBox(width: 8),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                  decoration: BoxDecoration(
+                                    color: Colors.red.withValues(alpha: 0.1),
+                                    borderRadius: BorderRadius.circular(6),
+                                  ),
+                                  child: const Text(
+                                    'Major',
+                                    style: TextStyle(
+                                      color: Colors.red,
+                                      fontSize: 9,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ],
+                          ),
+                          if (dateStr.isNotEmpty) ...[
+                            const SizedBox(height: 2),
+                            Text(
+                              dateStr,
+                              style: TextStyle(
+                                fontSize: 10,
+                                color: colors.onSurface.withValues(alpha: 0.4),
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                    if (downloadUrl.isNotEmpty)
+                      IconButton(
+                        icon: Icon(Icons.download_rounded, size: 18, color: colors.primary),
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(),
+                        onPressed: () async {
+                          final Uri uri = Uri.parse(downloadUrl);
+                          try {
+                            if (await canLaunchUrl(uri)) {
+                              await launchUrl(uri, mode: LaunchMode.externalApplication);
+                            }
+                          } catch (e) {
+                            debugPrint('Error downloading update: $e');
+                          }
+                        },
+                        tooltip: 'Download this build',
+                      ),
+                  ],
+                ),
+                if (notes.isNotEmpty) ...[
+                  const SizedBox(height: 8),
+                  Text(
+                    notes,
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: colors.onSurface.withValues(alpha: 0.6),
+                      height: 1.3,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          );
+        }),
       ],
     );
   }
