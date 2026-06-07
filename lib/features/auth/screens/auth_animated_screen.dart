@@ -198,19 +198,27 @@ class _AuthAnimatedScreenState extends State<AuthAnimatedScreen> with TickerProv
           ),
           Positioned(top: size.height * 0.1, left: -50, child: _GlowOrb(color: Colors.blue.withValues(alpha: 0.1), size: 300)),
           Positioned(bottom: size.height * 0.1, right: -100, child: _GlowOrb(color: Colors.pink.withValues(alpha: 0.05), size: 400)),
-          Positioned(
-            top: size.height * 0.1,
-            child: AnimatedBuilder(
-              animation: _controller,
-              builder: (context, child) {
-                return Stack(
-                  alignment: Alignment.center,
-                  children: [
-                    _buildCard(size: size, title: 'Login', isActive: _isLoginActive, child: _buildLoginForm(), offsetMultiplier: 1),
-                    _buildCard(size: size, title: 'Sign Up', isActive: !_isLoginActive, child: _buildSignupForm(), offsetMultiplier: -1),
-                  ],
-                );
-              },
+          Positioned.fill(
+            child: Align(
+              alignment: Alignment.center,
+              child: SingleChildScrollView(
+                physics: const ClampingScrollPhysics(),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 24.0),
+                  child: AnimatedBuilder(
+                    animation: _controller,
+                    builder: (context, child) {
+                      return Stack(
+                        alignment: Alignment.center,
+                        children: [
+                          _buildCard(size: size, title: 'Login', isActive: _isLoginActive, child: _buildLoginForm(), offsetMultiplier: 1),
+                          _buildCard(size: size, title: 'Sign Up', isActive: !_isLoginActive, child: _buildSignupForm(), offsetMultiplier: -1),
+                        ],
+                      );
+                    },
+                  ),
+                ),
+              ),
             ),
           ),
           if (!isKeyboardOpen)
@@ -269,6 +277,13 @@ class _AuthAnimatedScreenState extends State<AuthAnimatedScreen> with TickerProv
       }
     }
 
+    final isKeyboardOpen = MediaQuery.of(context).viewInsets.bottom > 0;
+    final keyboardInset = MediaQuery.of(context).viewInsets.bottom;
+    final double maxAvailableHeight = size.height - keyboardInset - 48.0;
+    final double cardMaxHeight = title == 'Login'
+        ? (isKeyboardOpen ? 320.0 : 360.0).clamp(200.0, maxAvailableHeight)
+        : (isKeyboardOpen ? maxAvailableHeight.clamp(240.0, size.height * 0.76) : size.height * 0.76);
+
     return AnimatedOpacity(
       duration: const Duration(milliseconds: 400),
       opacity: opacity,
@@ -283,7 +298,9 @@ class _AuthAnimatedScreenState extends State<AuthAnimatedScreen> with TickerProv
             ..scale(scale),
           child: Container(
             width: size.width * 0.88,
-            height: size.height * 0.76, 
+            constraints: BoxConstraints(
+              maxHeight: cardMaxHeight,
+            ),
             decoration: BoxDecoration(
               color: Colors.white.withValues(alpha: 0.75),
               borderRadius: BorderRadius.circular(30),
@@ -298,6 +315,7 @@ class _AuthAnimatedScreenState extends State<AuthAnimatedScreen> with TickerProv
               child: BackdropFilter(
                 filter: ui.ImageFilter.blur(sigmaX: 20, sigmaY: 20),
                 child: Column(
+                  mainAxisSize: MainAxisSize.min,
                   children: [
                     Container(
                       width: double.infinity,
@@ -309,7 +327,7 @@ class _AuthAnimatedScreenState extends State<AuthAnimatedScreen> with TickerProv
                         style: const TextStyle(color: Color(0xFF2D3436), fontSize: 20, fontWeight: FontWeight.w900, letterSpacing: 4),
                       ),
                     ),
-                    Expanded(
+                    Flexible(
                       child: SingleChildScrollView(
                         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12), 
                         child: child,
