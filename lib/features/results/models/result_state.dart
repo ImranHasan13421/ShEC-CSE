@@ -17,14 +17,25 @@ class SubjectResult {
   });
 
   factory SubjectResult.fromJson(Map<String, dynamic> json) {
-    final codeVal = json['subject_code'] ?? json['code'] ?? '';
-    final creditsVal = json['credits'] != null ? (json['credits'] as num).toDouble() : null;
+    final subInfo = json['subject_information'] as Map<String, dynamic>?;
+    final codeVal = subInfo?['code'] ?? json['subject_code'] ?? json['code'] ?? '';
+    final nameVal = subInfo?['subject_name'] ?? json['subject_name'] ?? json['name'] ?? '';
+    
+    double creditsVal = 3.0;
+    if (subInfo?['credits'] != null) {
+      creditsVal = (subInfo!['credits'] as num).toDouble();
+    } else if (json['credits'] != null) {
+      creditsVal = (json['credits'] as num).toDouble();
+    } else {
+      creditsVal = SubjectInformation.getCredits(codeVal);
+    }
+    
     return SubjectResult(
       code: codeVal,
-      name: json['subject_name'] ?? json['name'] ?? '',
+      name: nameVal,
       grade: json['grade'] ?? '',
       point: json['point']?.toString() ?? '',
-      credits: creditsVal ?? SubjectInformation.getCredits(codeVal),
+      credits: creditsVal,
     );
   }
 

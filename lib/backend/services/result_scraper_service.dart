@@ -135,20 +135,29 @@ class ResultScraperService {
         // Delete old subject results for this specific exam if any (due to upsert logic)
         await _client.from('subject_results').delete().eq('result_id', resultId);
         
-        final List<Map<String, dynamic>> subjectData = subjects.map((s) {
+        final List<Map<String, dynamic>> subjectData = [];
+        
+        for (var s in subjects) {
           final String originalCode = (s['code'] ?? '').toString();
           final String normalizedCode = originalCode.toUpperCase().replaceAll(' ', '-').trim();
+          final String subjectName = (s['name'] ?? '').toString();
           
-          return {
+          // Dynamic upsert subject details to subject_information to obtain its UUID id
+          final subjectInfo = await _client.from('subject_information').upsert({
+            'code': normalizedCode,
+            'subject_name': subjectName,
+            'credits': SubjectInformation.getCredits(normalizedCode),
+          }, onConflict: 'code').select('id').single();
+          
+          final String subjectId = subjectInfo['id'];
+          
+          subjectData.add({
             'result_id': resultId,
-            'subject_code': normalizedCode,
-            'subject_name': s['name'],
+            'subject_id': subjectId,
             'grade': s['grade'],
             'point': _parseDbNumeric(s['point']),
-            'credits': SubjectInformation.getCredits(normalizedCode),
-            'subject_id': SubjectInformation.getSubjectId(normalizedCode),
-          };
-        }).toList();
+          });
+        }
 
         await _client.from('subject_results').insert(subjectData);
       }

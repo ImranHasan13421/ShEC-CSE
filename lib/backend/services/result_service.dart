@@ -37,10 +37,10 @@ class ResultService {
 
     try {
       debugPrint('Loading results for user ID: ${profile.id}');
-      // Fetch results and matching subject_results in a single query
+      // Fetch results and matching subject_results with subject_information in a single query
       final resultsResponse = await _client
           .from('results')
-          .select('*, DUCMC_exams_id(semester), subject_results(*)')
+          .select('*, DUCMC_exams_id(semester), subject_results(*, subject_information(*))')
           .eq('user_id', profile.id)
           .order('created_at', ascending: false);
       
@@ -141,10 +141,10 @@ class ResultService {
 
       final List<String> userIds = profiles.map((p) => p.id).toList();
 
-      // Fetch all results for these users
+      // Fetch all results for these users with subject_information
       final resultsResponse = await _client
           .from('results')
-          .select('*, DUCMC_exams_id(semester), subject_results(*)')
+          .select('*, DUCMC_exams_id(semester), subject_results(*, subject_information(*))')
           .inFilter('user_id', userIds)
           .order('created_at', ascending: false);
 
