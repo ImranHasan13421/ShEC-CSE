@@ -3,6 +3,9 @@ import 'package:url_launcher/url_launcher.dart'; // Required for making the link
 import 'package:ShEC_CSE/features/dashboard/presentation/widgets/ambient_background.dart';
 import 'package:ShEC_CSE/core/services/tour_service.dart';
 import 'package:ShEC_CSE/features/dashboard/presentation/widgets/guided_tour_overlay.dart';
+import 'package:ShEC_CSE/features/results/models/result_state.dart';
+import 'package:ShEC_CSE/backend/services/result_service.dart';
+import 'package:ShEC_CSE/core/utils/subject_information.dart';
 
 // --- Data Models ---
 class CourseData {
@@ -35,7 +38,8 @@ class SemesterData {
 }
 
 class CGPACalculatorScreen extends StatefulWidget {
-  const CGPACalculatorScreen({super.key});
+  final List<ExamResult>? initialResults;
+  const CGPACalculatorScreen({super.key, this.initialResults});
 
   @override
   State<CGPACalculatorScreen> createState() => _CGPACalculatorScreenState();
@@ -55,6 +59,9 @@ class _CGPACalculatorScreenState extends State<CGPACalculatorScreen> {
   @override
   void initState() {
     super.initState();
+    if (widget.initialResults != null) {
+      _populateFromResults(widget.initialResults!);
+    }
     TourService.instance.hasCompletedScreenTour('cgpa_calculator').then((completed) {
       if (!completed) {
         WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -68,6 +75,103 @@ class _CGPACalculatorScreenState extends State<CGPACalculatorScreen> {
         });
       }
     });
+  }
+
+  void _populateFromResults(List<ExamResult> results) {
+    if (results.isEmpty) return;
+
+    // Sort results by semester ascending
+    final sortedResults = List<ExamResult>.from(results);
+    sortedResults.sort((a, b) {
+      if (a.semester != null && b.semester != null) {
+        return a.semester!.compareTo(b.semester!);
+      }
+      return a.examName.compareTo(b.examName);
+    });
+
+    final List<SemesterData> loadedSemesters = [];
+    for (var result in sortedResults) {
+      final List<CourseData> courses = [];
+      for (var subject in result.subjects) {
+        final courseName = subject.name.isEmpty 
+            ? subject.code 
+            : '${subject.code}: ${subject.name}';
+        
+        courses.add(CourseData(
+          name: courseName,
+          credit: subject.credits,
+          grade: SubjectInformation.parseGradeToPoint(subject.grade),
+        ));
+      }
+      
+      if (courses.isEmpty) {
+        courses.add(CourseData(name: 'Course 1'));
+      }
+      
+      loadedSemesters.add(SemesterData(
+        name: result.examName,
+        courses: courses,
+      ));
+    }
+
+    setState(() {
+      semesters = loadedSemesters;
+    });
+  }
+
+  Future<void> _importStoredResults() async {
+    try {
+      final results = await ResultService.loadResultsFromDB();
+      if (!mounted) return;
+
+      if (results.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('No saved results found. Please sync your results first on the Academic Results page.'),
+            backgroundColor: Colors.orange,
+          ),
+        );
+        return;
+      }
+
+      final bool? confirm = await showDialog<bool>(
+        context: context,
+        builder: (dialogCtx) => AlertDialog(
+          title: const Text('Import Results'),
+          content: Text(
+            'This will overwrite all current entries in the calculator with your official ${results.length} semester results. Do you want to proceed?',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogCtx, false),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.pop(dialogCtx, true),
+              child: const Text('Import'),
+            ),
+          ],
+        ),
+      );
+
+      if (confirm == true) {
+        _populateFromResults(results);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Successfully imported results!'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      debugPrint('Error importing results: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to import results: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
   }
 
   // Standard UGC Grading Scale for Dropdowns
@@ -140,6 +244,109 @@ class _CGPACalculatorScreenState extends State<CGPACalculatorScreen> {
     }
   }
 
+  Widget _buildOverallDashboardCard(BuildContext context, ColorScheme colors) {
+    return Card(
+      key: _cgpaHeaderKey,
+      elevation: 0,
+      margin: EdgeInsets.zero,
+      color: colors.primary,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(20.0),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceAround,
+          children: [
+            Column(
+              children: [
+                Text(
+                  'Total Credits',
+                  style: TextStyle(color: Colors.white.withValues(alpha: 0.8), fontSize: 14),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  overallCredits.toStringAsFixed(2),
+                  style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold),
+                ),
+              ],
+            ),
+            Container(width: 1, height: 40, color: Colors.white30),
+            Column(
+              children: [
+                Text(
+                  'Cumulative GPA',
+                  style: TextStyle(color: Colors.white.withValues(alpha: 0.8), fontSize: 14),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  overallCGPA.toStringAsFixed(2),
+                  style: const TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.w900),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildImportResultsCard(BuildContext context, ColorScheme colors) {
+    return Card(
+      elevation: 0,
+      margin: EdgeInsets.zero,
+      color: colors.primary.withValues(alpha: 0.08),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: BorderSide(color: colors.primary.withValues(alpha: 0.3), width: 1.5),
+      ),
+      child: InkWell(
+        onTap: _importStoredResults,
+        borderRadius: BorderRadius.circular(16),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 20.0),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: colors.primary.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(Icons.download_rounded, color: colors.primary, size: 28),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Import Saved Results',
+                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: colors.onSurface),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Load your official synced grades from DB',
+                      style: TextStyle(color: colors.onSurface.withValues(alpha: 0.7), fontSize: 13),
+                    ),
+                  ],
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: colors.primary,
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.sync_alt, size: 16, color: Colors.white),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
@@ -153,61 +360,40 @@ class _CGPACalculatorScreenState extends State<CGPACalculatorScreen> {
               elevation: 0,
               title: const Text('CGPA Calculator'),
             ),
-            body: Column(
+            body: ListView(
+              padding: const EdgeInsets.all(16),
               children: [
-                // Sticky Header for Overall Result
-                Container(
-                  key: _cgpaHeaderKey,
-                  padding: const EdgeInsets.all(20),
-                  decoration: BoxDecoration(
-                    color: colors.primary,
-                    boxShadow: [
-                      BoxShadow(
-                        color: colors.primary.withValues(alpha: 0.3),
-                        blurRadius: 10,
-                        offset: const Offset(0, 4),
-                      )
-                    ],
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceAround,
-                    children: [
-                      Column(
-                        children: [
-                          Text('Total Credits', style: TextStyle(color: Colors.white.withValues(alpha: 0.8), fontSize: 14)),
-                          const SizedBox(height: 4),
-                          Text(overallCredits.toStringAsFixed(2), style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold)),
-                        ],
-                      ),
-                      Container(width: 1, height: 40, color: Colors.white30),
-                      Column(
-                        children: [
-                          Text('Cumulative GPA', style: TextStyle(color: Colors.white.withValues(alpha: 0.8), fontSize: 14)),
-                          const SizedBox(height: 4),
-                          Text(overallCGPA.toStringAsFixed(2), style: const TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.w900)),
-                        ],
-                      ),
-                    ],
-                  ),
+                // 1. Overall Result Dashboard Card
+                _buildOverallDashboardCard(context, colors),
+                const SizedBox(height: 16),
+
+                // 2. Check Your Result Card
+                _buildResultButton(context),
+                const SizedBox(height: 16),
+
+                // 3. Import Stored Results Card
+                _buildImportResultsCard(context, colors),
+                const SizedBox(height: 24),
+
+                // 4. Semesters List Title
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'Semesters Breakdown',
+                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: colors.onSurface),
+                    ),
+                  ],
                 ),
-        
-                // --- NEW: Check Result Button Banner ---
-                Padding(
-                  key: _resultButtonKey,
-                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
-                  child: _buildResultButton(context),
-                ),
-        
-                // List of Semesters
-                Expanded(
-                  child: ListView.builder(
-                    padding: const EdgeInsets.all(16),
-                    itemCount: semesters.length,
-                    itemBuilder: (context, semIndex) {
-                      return _buildSemesterCard(context, semIndex, colors);
-                    },
-                  ),
-                ),
+                const SizedBox(height: 12),
+
+                // 5. List of Semesters
+                ...List.generate(semesters.length, (semIndex) {
+                  return _buildSemesterCard(context, semIndex, colors);
+                }),
+                
+                // Add padding at the bottom to avoid floating action button overlap
+                const SizedBox(height: 80),
               ],
             ),
             floatingActionButton: FloatingActionButton.extended(
@@ -256,6 +442,7 @@ class _CGPACalculatorScreenState extends State<CGPACalculatorScreen> {
   Widget _buildResultButton(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
     return Card(
+      key: _resultButtonKey,
       elevation: 0,
       margin: EdgeInsets.zero,
       color: colors.primary.withValues(alpha: 0.08),
@@ -395,7 +582,18 @@ class _CGPACalculatorScreenState extends State<CGPACalculatorScreen> {
                           contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
                           border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
                         ),
-                        onChanged: (val) => course.name = val,
+                        onChanged: (val) {
+                          course.name = val;
+                          final cleanCode = val.toUpperCase().replaceAll(' ', '-').trim();
+                          // Match subject code patterns like CSE-1101 or CSE 1101 or ECO-4201
+                          final regExp = RegExp(r'^[A-Z]{2,4}[- ]?\d{4}$', caseSensitive: false);
+                          if (regExp.hasMatch(cleanCode)) {
+                            final matchedCredits = SubjectInformation.getCredits(cleanCode);
+                            setState(() {
+                              course.credit = matchedCredits;
+                            });
+                          }
+                        },
                       ),
                     ),
                     const SizedBox(width: 8),
@@ -404,6 +602,7 @@ class _CGPACalculatorScreenState extends State<CGPACalculatorScreen> {
                     Expanded(
                       flex: 2,
                       child: TextFormField(
+                        key: ValueKey('${semIndex}_${courseIndex}_${course.credit}'),
                         initialValue: course.credit.toString(),
                         keyboardType: const TextInputType.numberWithOptions(decimal: true),
                         decoration: InputDecoration(

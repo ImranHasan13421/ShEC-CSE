@@ -1,23 +1,30 @@
 
+import '../../../core/utils/subject_information.dart';
+
 class SubjectResult {
   final String code;
   final String name;
   final String grade;
   final String point;
+  final double credits;
 
   SubjectResult({
     required this.code,
     required this.name,
     required this.grade,
     required this.point,
+    this.credits = 3.0,
   });
 
   factory SubjectResult.fromJson(Map<String, dynamic> json) {
+    final codeVal = json['subject_code'] ?? json['code'] ?? '';
+    final creditsVal = json['credits'] != null ? (json['credits'] as num).toDouble() : null;
     return SubjectResult(
-      code: json['subject_code'] ?? json['code'] ?? '',
+      code: codeVal,
       name: json['subject_name'] ?? json['name'] ?? '',
       grade: json['grade'] ?? '',
       point: json['point']?.toString() ?? '',
+      credits: creditsVal ?? SubjectInformation.getCredits(codeVal),
     );
   }
 
@@ -27,6 +34,7 @@ class SubjectResult {
       'subject_name': name,
       'grade': grade,
       'point': point,
+      'credits': credits,
     };
   }
 }

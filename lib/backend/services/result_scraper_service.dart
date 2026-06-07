@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:ShEC_CSE/core/utils/subject_information.dart';
 
 class ResultScraperService {
   static final SupabaseClient _client = Supabase.instance.client;
@@ -134,12 +135,19 @@ class ResultScraperService {
         // Delete old subject results for this specific exam if any (due to upsert logic)
         await _client.from('subject_results').delete().eq('result_id', resultId);
         
-        final List<Map<String, dynamic>> subjectData = subjects.map((s) => {
-          'result_id': resultId,
-          'subject_code': s['code'],
-          'subject_name': s['name'],
-          'grade': s['grade'],
-          'point': _parseDbNumeric(s['point']),
+        final List<Map<String, dynamic>> subjectData = subjects.map((s) {
+          final String originalCode = (s['code'] ?? '').toString();
+          final String normalizedCode = originalCode.toUpperCase().replaceAll(' ', '-').trim();
+          
+          return {
+            'result_id': resultId,
+            'subject_code': normalizedCode,
+            'subject_name': s['name'],
+            'grade': s['grade'],
+            'point': _parseDbNumeric(s['point']),
+            'credits': SubjectInformation.getCredits(normalizedCode),
+            'subject_id': SubjectInformation.getSubjectId(normalizedCode),
+          };
         }).toList();
 
         await _client.from('subject_results').insert(subjectData);

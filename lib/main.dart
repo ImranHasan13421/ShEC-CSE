@@ -10,6 +10,7 @@ import 'package:ShEC_CSE/backend/services/auth_service.dart';
 
 import 'package:ShEC_CSE/core/services/theme_service.dart';
 import 'package:ShEC_CSE/features/dashboard/presentation/widgets/ambient_background.dart';
+import 'package:ShEC_CSE/core/utils/subject_information.dart';
 
 // Import Feature BLoCs
 import 'package:ShEC_CSE/features/auth/presentation/bloc/auth_bloc.dart';
@@ -58,6 +59,9 @@ Future<void> main() async {
     url: dotenv.env['SUPABASE_URL']!,
     anonKey: dotenv.env['SUPABASE_ANON_KEY']!,
   );
+
+  // Initialize Subject Information Database
+  await SubjectInformation.init();
 
   // Initialize Theme Service
   await ThemeService.instance.init();

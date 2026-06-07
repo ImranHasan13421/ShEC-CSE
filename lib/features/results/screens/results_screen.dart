@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:ShEC_CSE/features/dashboard/presentation/widgets/ambient_background.dart';
 import 'package:ShEC_CSE/core/services/tour_service.dart';
 import 'package:ShEC_CSE/features/dashboard/presentation/widgets/guided_tour_overlay.dart';
+import 'package:ShEC_CSE/features/cgpa_calculator/screens/cgpa_calculator_screen.dart';
 import '../../profile/models/profile_state.dart';
 import '../models/result_state.dart';
 import '../../../backend/services/result_service.dart';
@@ -289,6 +290,10 @@ class _ResultsScreenState extends State<ResultsScreen> with SingleTickerProvider
         CgpaPredictionChart(key: _chartKey, results: results),
         const SizedBox(height: 20),
 
+        // CGPA Calculator Redirection Banner
+        _buildCgpaCalculatorBanner(context, results),
+        const SizedBox(height: 20),
+
         // 2. Header
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 4.0, vertical: 8.0),
@@ -508,6 +513,77 @@ class _ResultsScreenState extends State<ResultsScreen> with SingleTickerProvider
             ],
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildCgpaCalculatorBanner(BuildContext context, List<ExamResult> results) {
+    final colors = Theme.of(context).colorScheme;
+    return Card(
+      elevation: 0,
+      margin: EdgeInsets.zero,
+      color: colors.primary.withValues(alpha: 0.08),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: BorderSide(color: colors.primary.withValues(alpha: 0.2), width: 1.5),
+      ),
+      child: InkWell(
+        onTap: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => CGPACalculatorScreen(initialResults: results),
+            ),
+          );
+        },
+        borderRadius: BorderRadius.circular(16),
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: colors.primary.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(Icons.calculate_rounded, color: colors.primary, size: 28),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Analyze in CGPA Calculator',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: colors.onSurface,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Simulate future grades using your official results',
+                      style: TextStyle(
+                        color: colors.onSurface.withValues(alpha: 0.6),
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: colors.primary,
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.arrow_forward_rounded, size: 16, color: Colors.white),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
