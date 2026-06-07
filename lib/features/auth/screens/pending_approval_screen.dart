@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:ShEC_CSE/backend/services/auth_service.dart';
-import 'package:ShEC_CSE/features/auth/screens/login_screen.dart';
+import 'package:ShEC_CSE/features/auth/screens/auth_animated_screen.dart';
 
 class PendingApprovalScreen extends StatelessWidget {
   const PendingApprovalScreen({super.key});
@@ -38,7 +38,7 @@ class PendingApprovalScreen extends StatelessWidget {
                   if (context.mounted) {
                     Navigator.pushAndRemoveUntil(
                       context,
-                      MaterialPageRoute(builder: (_) => const LoginScreen()),
+                      MaterialPageRoute(builder: (_) => const AuthAnimatedScreen()),
                       (route) => false,
                     );
                   }
