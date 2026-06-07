@@ -43,13 +43,18 @@ class _CgpaPredictionChartState extends State<CgpaPredictionChart> {
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
 
-    // 1. Group actual GPAs by semester
+    // 1. Group actual GPAs and CGPAs by semester
     final Map<int, double> completedGpas = {};
+    final Map<int, double> completedCgpas = {};
     for (var r in widget.results) {
       final sem = r.semester ?? _parseSemesterNumber(r.examName);
       final gpaVal = double.tryParse(r.gpa) ?? 0.0;
+      final cgpaVal = double.tryParse(r.cgpa) ?? 0.0;
       if (gpaVal > 0.0) {
         completedGpas[sem] = gpaVal;
+      }
+      if (cgpaVal > 0.0) {
+        completedCgpas[sem] = cgpaVal;
       }
     }
 
@@ -69,24 +74,19 @@ class _CgpaPredictionChartState extends State<CgpaPredictionChart> {
       if (completedGpas.containsKey(s)) {
         actualSum += completedGpas[s]!;
         actualCount++;
-        final cgpaVal = actualSum / actualCount;
+        final cgpaVal = completedCgpas[s] ?? (actualSum / actualCount);
         actualCgpas[s - 1] = cgpaVal;
         projectedCgpas[s - 1] = cgpaVal;
       } else {
-        if (s > K && K > 0) {
-          // Future semester
-          actualSum += _targetFutureGpa;
-          actualCount++;
-          projectedCgpas[s - 1] = actualSum / actualCount;
+        if (s == 1) {
+          projectedCgpas[s - 1] = _targetFutureGpa;
         } else {
-          // Missing intermediate semester, or no results at all
-          if (K > 0) {
-            final currentAvg = actualCount > 0 ? actualSum / actualCount : 3.00;
-            actualSum += currentAvg;
-            actualCount++;
-            projectedCgpas[s - 1] = actualSum / actualCount;
+          if (s > K && K > 0) {
+            // Future semester prediction using the previous cumulative CGPA
+            projectedCgpas[s - 1] = (projectedCgpas[s - 2] * (s - 1) + _targetFutureGpa) / s;
           } else {
-            projectedCgpas[s - 1] = _targetFutureGpa;
+            // Missing intermediate semester, or no results at all
+            projectedCgpas[s - 1] = projectedCgpas[s - 2];
           }
         }
       }
