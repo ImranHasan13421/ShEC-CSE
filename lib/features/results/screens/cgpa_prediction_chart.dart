@@ -66,6 +66,8 @@ class _CgpaPredictionChartState extends State<CgpaPredictionChart> {
     // 3. Compute actual and projected CGPAs for semesters 1-8
     final List<double?> actualCgpas = List.filled(8, null);
     final List<double> projectedCgpas = List.filled(8, 0.0);
+    final List<double?> actualGpas = List.filled(8, null);
+    final List<double> projectedGpas = List.filled(8, 0.0);
 
     double actualSum = 0.0;
     int actualCount = 0;
@@ -77,7 +79,13 @@ class _CgpaPredictionChartState extends State<CgpaPredictionChart> {
         final cgpaVal = completedCgpas[s] ?? (actualSum / actualCount);
         actualCgpas[s - 1] = cgpaVal;
         projectedCgpas[s - 1] = cgpaVal;
+        
+        actualGpas[s - 1] = completedGpas[s]!;
+        projectedGpas[s - 1] = completedGpas[s]!;
       } else {
+        actualGpas[s - 1] = null;
+        projectedGpas[s - 1] = _targetFutureGpa;
+        
         if (s == 1) {
           projectedCgpas[s - 1] = _targetFutureGpa;
         } else {
@@ -158,10 +166,29 @@ class _CgpaPredictionChartState extends State<CgpaPredictionChart> {
                 painter: CgpaLineChartPainter(
                   actualCgpas: actualCgpas,
                   projectedCgpas: projectedCgpas,
+                  actualGpas: actualGpas,
+                  projectedGpas: projectedGpas,
                   lastActualIndex: K - 1,
                   themeColors: colors,
                 ),
               ),
+            ),
+            const SizedBox(height: 16),
+
+            // Legend
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                _buildLegendItem(
+                  colors.primary,
+                  'Cumulative CGPA',
+                ),
+                const SizedBox(width: 20),
+                _buildLegendItem(
+                  colors.secondary,
+                  'Semester GPA',
+                ),
+              ],
             ),
             const SizedBox(height: 16),
 
@@ -249,17 +276,47 @@ class _CgpaPredictionChartState extends State<CgpaPredictionChart> {
       ),
     );
   }
+
+  Widget _buildLegendItem(Color color, String label) {
+    final colors = Theme.of(context).colorScheme;
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: 14,
+          height: 3,
+          decoration: BoxDecoration(
+            color: color,
+            borderRadius: BorderRadius.circular(1.5),
+          ),
+        ),
+        const SizedBox(width: 6),
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 10,
+            fontWeight: FontWeight.w600,
+            color: colors.onSurface.withValues(alpha: 0.6),
+          ),
+        ),
+      ],
+    );
+  }
 }
 
 class CgpaLineChartPainter extends CustomPainter {
   final List<double?> actualCgpas;
   final List<double> projectedCgpas;
+  final List<double?> actualGpas;
+  final List<double> projectedGpas;
   final int lastActualIndex; // -1 means none completed
   final ColorScheme themeColors;
 
   CgpaLineChartPainter({
     required this.actualCgpas,
     required this.projectedCgpas,
+    required this.actualGpas,
+    required this.projectedGpas,
     required this.lastActualIndex,
     required this.themeColors,
   });
@@ -337,6 +394,10 @@ class CgpaLineChartPainter extends CustomPainter {
     // Draw chart elements only if data is present
     final List<Offset> actualPoints = [];
     final List<Offset> projectedPoints = [];
+    final List<Offset> actualGpaPoints = [];
+    final List<Offset> projectedGpaPoints = [];
+
+    final Color gpaLineColor = themeColors.secondary;
 
     for (int i = 0; i < 8; i++) {
       final double xPos = paddingLeft + (i * xStep);
@@ -352,26 +413,67 @@ class CgpaLineChartPainter extends CustomPainter {
       final double normalizedProjY = (projectedCgpas[i] - 2.0) / 2.0;
       final double yProjPos = size.height - paddingBottom - (normalizedProjY.clamp(0.0, 1.0) * chartHeight);
       projectedPoints.add(Offset(xPos, yProjPos));
+
+      // Actual GPA plotting
+      if (i <= lastActualIndex && actualGpas[i] != null) {
+        final double normalizedY = (actualGpas[i]! - 2.0) / 2.0;
+        final double yPos = size.height - paddingBottom - (normalizedY.clamp(0.0, 1.0) * chartHeight);
+        actualGpaPoints.add(Offset(xPos, yPos));
+      }
+
+      // Projected GPA plotting
+      final double normalizedProjGpaY = (projectedGpas[i] - 2.0) / 2.0;
+      final double yProjGpaPos = size.height - paddingBottom - (normalizedProjGpaY.clamp(0.0, 1.0) * chartHeight);
+      projectedGpaPoints.add(Offset(xPos, yProjGpaPos));
     }
 
-    // 3. Draw Projected Line (Dashed)
+    // 3. Draw Projected GPA Line (Dashed)
+    if (projectedGpaPoints.length > 1) {
+      final Paint projectedGpaPaint = Paint()
+        ..color = gpaLineColor.withValues(alpha: 0.35)
+        ..strokeWidth = 2.0
+        ..style = PaintingStyle.stroke;
+
+      final Path path = Path();
+      path.moveTo(projectedGpaPoints[0].dx, projectedGpaPoints[0].dy);
+      for (int i = 1; i < projectedGpaPoints.length; i++) {
+        path.lineTo(projectedGpaPoints[i].dx, projectedGpaPoints[i].dy);
+      }
+      _drawDashedPath(canvas, path, projectedGpaPaint, [6, 5]);
+    }
+
+    // 4. Draw Projected CGPA Line (Dashed)
     if (projectedPoints.length > 1) {
       final Paint projectedPaint = Paint()
         ..color = themeColors.primary.withValues(alpha: 0.4)
-        ..strokeWidth = 3
+        ..strokeWidth = 3.0
         ..style = PaintingStyle.stroke;
 
-      // Custom dashed line implementation
       final Path path = Path();
       path.moveTo(projectedPoints[0].dx, projectedPoints[0].dy);
       for (int i = 1; i < projectedPoints.length; i++) {
         path.lineTo(projectedPoints[i].dx, projectedPoints[i].dy);
       }
-
       _drawDashedPath(canvas, path, projectedPaint, [8, 6]);
     }
 
-    // 4. Draw Actual Line (Gradient & Solid)
+    // 5. Draw Actual GPA Line (Solid)
+    if (actualGpaPoints.isNotEmpty) {
+      final Paint actualGpaPaint = Paint()
+        ..color = gpaLineColor.withValues(alpha: 0.75)
+        ..strokeWidth = 2.5
+        ..style = PaintingStyle.stroke
+        ..strokeCap = StrokeCap.round;
+
+      final Path actualGpaPath = Path();
+      actualGpaPath.moveTo(actualGpaPoints[0].dx, actualGpaPoints[0].dy);
+      for (int i = 1; i < actualGpaPoints.length; i++) {
+        actualGpaPath.lineTo(actualGpaPoints[i].dx, actualGpaPoints[i].dy);
+      }
+      canvas.drawPath(actualGpaPath, actualGpaPaint);
+    }
+
+    // 6. Draw Actual CGPA Line (Gradient & Solid)
     if (actualPoints.isNotEmpty) {
       final Paint actualPaint = Paint()
         ..shader = ui.Gradient.linear(
@@ -379,7 +481,7 @@ class CgpaLineChartPainter extends CustomPainter {
           actualPoints.last,
           [themeColors.primary, themeColors.primary.withRed(150)],
         )
-        ..strokeWidth = 4
+        ..strokeWidth = 4.0
         ..style = PaintingStyle.stroke
         ..strokeCap = StrokeCap.round;
 
@@ -404,43 +506,87 @@ class CgpaLineChartPainter extends CustomPainter {
         ..shader = ui.Gradient.linear(
           Offset(0, paddingTop),
           Offset(0, size.height - paddingBottom),
-          [themeColors.primary.withValues(alpha: 0.18), themeColors.primary.withValues(alpha: 0.0)],
+          [themeColors.primary.withValues(alpha: 0.12), themeColors.primary.withValues(alpha: 0.0)],
         )
         ..style = PaintingStyle.fill;
       
       canvas.drawPath(fillPath, fillPaint);
     }
 
-    // 5. Draw dots
+    // 7. Draw dots and values
     final Paint activeDotPaint = Paint()
       ..color = themeColors.primary
       ..style = PaintingStyle.fill;
 
     final Paint borderDotPaint = Paint()
       ..color = themeColors.surface
-      ..strokeWidth = 2
+      ..strokeWidth = 2.0
       ..style = PaintingStyle.stroke;
 
     final Paint projectedDotPaint = Paint()
       ..color = themeColors.primary.withValues(alpha: 0.6)
-      ..strokeWidth = 2
+      ..strokeWidth = 2.0
+      ..style = PaintingStyle.stroke;
+
+    final Paint gpaDotPaint = Paint()
+      ..color = gpaLineColor
+      ..style = PaintingStyle.fill;
+
+    final Paint projectedGpaDotPaint = Paint()
+      ..color = gpaLineColor.withValues(alpha: 0.6)
+      ..strokeWidth = 1.5
       ..style = PaintingStyle.stroke;
 
     for (int i = 0; i < 8; i++) {
-      final Offset pt = projectedPoints[i];
+      final Offset ptCgpa = projectedPoints[i];
+      final Offset ptGpa = projectedGpaPoints[i];
+      
       final double cgpaVal = i <= lastActualIndex ? (actualCgpas[i] ?? 0.0) : projectedCgpas[i];
+      final double gpaVal = i <= lastActualIndex ? (actualGpas[i] ?? 0.0) : projectedGpas[i];
 
+      // Draw GPA dots
       if (i <= lastActualIndex) {
-        // Actual dot (Solid)
-        canvas.drawCircle(pt, 5.5, activeDotPaint);
-        canvas.drawCircle(pt, 5.5, borderDotPaint);
+        canvas.drawCircle(ptGpa, 4.0, gpaDotPaint);
+        canvas.drawCircle(ptGpa, 4.0, borderDotPaint);
       } else {
-        // Projected dot (Hollow)
-        canvas.drawCircle(pt, 4.5, Paint()..color = themeColors.surface..style = PaintingStyle.fill);
-        canvas.drawCircle(pt, 4.5, projectedDotPaint);
+        canvas.drawCircle(ptGpa, 3.0, Paint()..color = themeColors.surface..style = PaintingStyle.fill);
+        canvas.drawCircle(ptGpa, 3.0, projectedGpaDotPaint);
       }
 
-      // Draw CGPA number on top of the point
+      // Draw CGPA dots
+      if (i <= lastActualIndex) {
+        canvas.drawCircle(ptCgpa, 5.5, activeDotPaint);
+        canvas.drawCircle(ptCgpa, 5.5, borderDotPaint);
+      } else {
+        canvas.drawCircle(ptCgpa, 4.5, Paint()..color = themeColors.surface..style = PaintingStyle.fill);
+        canvas.drawCircle(ptCgpa, 4.5, projectedDotPaint);
+      }
+
+      // Dynamic collision avoidance: determine label directions based on vertical ordering
+      // ptCgpa.dy > ptGpa.dy means CGPA is lower on the screen than GPA
+      final bool cgpaIsLower = ptCgpa.dy > ptGpa.dy;
+
+      final double cgpaLabelY = cgpaIsLower ? ptCgpa.dy + 6 : ptCgpa.dy - 16;
+      final double gpaLabelY = cgpaIsLower ? ptGpa.dy - 16 : ptGpa.dy + 6;
+
+      // Draw GPA label
+      if (gpaVal > 0.0) {
+        textPainter.text = TextSpan(
+          text: gpaVal.toStringAsFixed(2),
+          style: TextStyle(
+            color: i <= lastActualIndex ? gpaLineColor : gpaLineColor.withValues(alpha: 0.6),
+            fontSize: 8.5,
+            fontWeight: FontWeight.w600,
+          ),
+        );
+        textPainter.layout();
+        textPainter.paint(
+          canvas,
+          Offset(ptGpa.dx - textPainter.width / 2, gpaLabelY),
+        );
+      }
+
+      // Draw CGPA label
       if (cgpaVal > 0.0) {
         textPainter.text = TextSpan(
           text: cgpaVal.toStringAsFixed(2),
@@ -453,7 +599,7 @@ class CgpaLineChartPainter extends CustomPainter {
         textPainter.layout();
         textPainter.paint(
           canvas,
-          Offset(pt.dx - textPainter.width / 2, pt.dy - 16),
+          Offset(ptCgpa.dx - textPainter.width / 2, cgpaLabelY),
         );
       }
     }
@@ -484,6 +630,8 @@ class CgpaLineChartPainter extends CustomPainter {
   bool shouldRepaint(covariant CgpaLineChartPainter oldDelegate) {
     return oldDelegate.actualCgpas != actualCgpas ||
         oldDelegate.projectedCgpas != projectedCgpas ||
+        oldDelegate.actualGpas != actualGpas ||
+        oldDelegate.projectedGpas != projectedGpas ||
         oldDelegate.lastActualIndex != lastActualIndex ||
         oldDelegate.themeColors != themeColors;
   }
