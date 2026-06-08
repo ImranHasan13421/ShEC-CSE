@@ -50,6 +50,7 @@ class _CGPACalculatorScreenState extends State<CGPACalculatorScreen> {
   final GlobalKey _resultButtonKey = GlobalKey();
   final GlobalKey _addSemesterKey = GlobalKey();
   bool _showTour = false;
+  int? _expandedSemesterIndex = 0;
 
   // Initialize with one semester and one course
   List<SemesterData> semesters = [
@@ -116,6 +117,7 @@ class _CGPACalculatorScreenState extends State<CGPACalculatorScreen> {
 
     setState(() {
       semesters = loadedSemesters;
+      _expandedSemesterIndex = loadedSemesters.isNotEmpty ? 0 : null;
     });
   }
 
@@ -214,6 +216,7 @@ class _CGPACalculatorScreenState extends State<CGPACalculatorScreen> {
       semesters.add(SemesterData(
           name: 'Semester ${semesters.length + 1}',
           courses: [CourseData(name: 'Course 1')]));
+      _expandedSemesterIndex = semesters.length - 1;
     });
   }
 
@@ -233,6 +236,11 @@ class _CGPACalculatorScreenState extends State<CGPACalculatorScreen> {
   void _removeSemester(int semIndex) {
     setState(() {
       semesters.removeAt(semIndex);
+      if (_expandedSemesterIndex == semIndex) {
+        _expandedSemesterIndex = semesters.isNotEmpty ? semesters.length - 1 : null;
+      } else if (_expandedSemesterIndex != null && _expandedSemesterIndex! > semIndex) {
+        _expandedSemesterIndex = _expandedSemesterIndex! - 1;
+      }
     });
   }
 
@@ -347,6 +355,70 @@ class _CGPACalculatorScreenState extends State<CGPACalculatorScreen> {
     );
   }
 
+  double getCumulativeCgpaUpTo(int maxSemIndex) {
+    double totalPoints = 0;
+    double totalCredits = 0;
+    for (int i = 0; i <= maxSemIndex; i++) {
+      final sem = semesters[i];
+      for (var course in sem.courses) {
+        totalPoints += (course.credit * course.grade);
+        totalCredits += course.credit;
+      }
+    }
+    return totalCredits == 0 ? 0.0 : totalPoints / totalCredits;
+  }
+
+  void _showRenameSemesterDialog(int semIndex) {
+    final controller = TextEditingController(text: semesters[semIndex].name);
+    showDialog(
+      context: context,
+      builder: (dialogCtx) => AlertDialog(
+        title: const Text('Rename Semester'),
+        content: TextField(
+          controller: controller,
+          decoration: const InputDecoration(
+            labelText: 'Semester Name',
+            border: OutlineInputBorder(),
+          ),
+          autofocus: true,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogCtx),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              final newName = controller.text.trim();
+              if (newName.isNotEmpty) {
+                setState(() {
+                  semesters[semIndex].name = newName;
+                });
+              }
+              Navigator.pop(dialogCtx);
+            },
+            child: const Text('Save'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildScoreChip(BuildContext context, String text, MaterialColor color) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      decoration: BoxDecoration(
+        color: color.shade100.withValues(alpha: 0.5),
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: color.shade300),
+      ),
+      child: Text(
+        text,
+        style: TextStyle(color: color.shade900, fontSize: 11, fontWeight: FontWeight.bold),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
@@ -360,40 +432,42 @@ class _CGPACalculatorScreenState extends State<CGPACalculatorScreen> {
               elevation: 0,
               title: const Text('CGPA Calculator'),
             ),
-            body: ListView(
-              padding: const EdgeInsets.all(16),
+            body: Column(
               children: [
-                // 1. Overall Result Dashboard Card
-                _buildOverallDashboardCard(context, colors),
-                const SizedBox(height: 16),
-
-                // 2. Check Your Result Card
-                _buildResultButton(context),
-                const SizedBox(height: 16),
-
-                // 3. Import Stored Results Card
-                _buildImportResultsCard(context, colors),
-                const SizedBox(height: 24),
-
-                // 4. Semesters List Title
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      'Semesters Breakdown',
-                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: colors.onSurface),
-                    ),
-                  ],
+                // 1. Overall Result Dashboard Card (Fixed / Non-Scrollable)
+                Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: _buildOverallDashboardCard(context, colors),
                 ),
-                const SizedBox(height: 12),
+                Expanded(
+                  child: ListView(
+                    padding: const EdgeInsets.symmetric(horizontal: 16).copyWith(bottom: 16),
+                    children: [
+                      // 2. Check Your Result Card
+                      _buildResultButton(context),
+                      const SizedBox(height: 16),
 
-                // 5. List of Semesters
-                ...List.generate(semesters.length, (semIndex) {
-                  return _buildSemesterCard(context, semIndex, colors);
-                }),
-                
-                // Add padding at the bottom to avoid floating action button overlap
-                const SizedBox(height: 80),
+                      // 3. Import Stored Results Card
+                      _buildImportResultsCard(context, colors),
+                      const SizedBox(height: 24),
+
+                      // 4. Semesters List Title
+                      Text(
+                        'Semesters Breakdown',
+                        style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: colors.onSurface),
+                      ),
+                      const SizedBox(height: 12),
+
+                      // 5. List of Semesters
+                      ...List.generate(semesters.length, (semIndex) {
+                        return _buildSemesterCard(context, semIndex, colors);
+                      }),
+                      
+                      // Add padding at the bottom to avoid floating action button overlap
+                      const SizedBox(height: 80),
+                    ],
+                  ),
+                ),
               ],
             ),
             floatingActionButton: FloatingActionButton.extended(
@@ -512,44 +586,72 @@ class _CGPACalculatorScreenState extends State<CGPACalculatorScreen> {
     final semester = semesters[semIndex];
 
     return Card(
-      margin: const EdgeInsets.only(bottom: 24),
+      margin: const EdgeInsets.only(bottom: 16),
       elevation: 0,
       color: colors.surface,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
         side: BorderSide(color: colors.outline.withValues(alpha: 0.2), width: 1),
       ),
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Semester Header
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      child: Theme(
+        data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+        child: ExpansionTile(
+          key: Key('sem_${semIndex}_${semIndex == _expandedSemesterIndex}'),
+          initiallyExpanded: semIndex == _expandedSemesterIndex,
+          onExpansionChanged: (expanded) {
+            setState(() {
+              if (expanded) {
+                _expandedSemesterIndex = semIndex;
+              } else if (_expandedSemesterIndex == semIndex) {
+                _expandedSemesterIndex = null;
+              }
+            });
+          },
+          tilePadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          childrenPadding: const EdgeInsets.all(16).copyWith(top: 0),
+          title: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Expanded(
+                child: Row(
+                  children: [
+                    Flexible(
+                      child: Text(
+                        semester.name,
+                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    IconButton(
+                      icon: Icon(Icons.edit, size: 16, color: colors.primary.withValues(alpha: 0.6)),
+                      tooltip: 'Rename Semester',
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(),
+                      onPressed: () => _showRenameSemesterDialog(semIndex),
+                    ),
+                  ],
+                ),
+              ),
+              if (semesters.length > 1)
+                IconButton(
+                  icon: Icon(Icons.delete_outline, color: colors.error, size: 20),
+                  onPressed: () => _removeSemester(semIndex),
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(),
+                ),
+            ],
+          ),
+          subtitle: Padding(
+            padding: const EdgeInsets.only(top: 8.0),
+            child: Row(
               children: [
-                Expanded(
-                  child: TextFormField(
-                    initialValue: semester.name,
-                    style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                    decoration: const InputDecoration(border: InputBorder.none, isDense: true, contentPadding: EdgeInsets.zero),
-                    onChanged: (val) => semester.name = val,
-                  ),
-                ),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                  decoration: BoxDecoration(color: colors.primary.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(8)),
-                  child: Text('GPA: ${semester.semesterGPA.toStringAsFixed(2)}', style: TextStyle(color: colors.primary, fontWeight: FontWeight.bold)),
-                ),
-                if (semesters.length > 1)
-                  IconButton(
-                    icon: Icon(Icons.delete_outline, color: colors.error),
-                    onPressed: () => _removeSemester(semIndex),
-                    padding: const EdgeInsets.only(left: 8),
-                    constraints: const BoxConstraints(),
-                  )
+                _buildScoreChip(context, 'GPA: ${semester.semesterGPA.toStringAsFixed(2)}', Colors.blue),
+                const SizedBox(width: 8),
+                _buildScoreChip(context, 'Cumulative: ${getCumulativeCgpaUpTo(semIndex).toStringAsFixed(2)}', Colors.green),
               ],
             ),
+          ),
+          children: [
             const Divider(height: 24),
 
             // Header Row for Courses
@@ -585,7 +687,6 @@ class _CGPACalculatorScreenState extends State<CGPACalculatorScreen> {
                         onChanged: (val) {
                           course.name = val;
                           final cleanCode = val.toUpperCase().replaceAll(' ', '-').trim();
-                          // Match subject code patterns like CSE-1101 or CSE 1101 or ECO-4201
                           final regExp = RegExp(r'^[A-Z]{2,4}[- ]?\d{4}$', caseSensitive: false);
                           if (regExp.hasMatch(cleanCode)) {
                             final matchedCredits = SubjectInformation.getCredits(cleanCode);
@@ -612,7 +713,6 @@ class _CGPACalculatorScreenState extends State<CGPACalculatorScreen> {
                         ),
                         onChanged: (val) {
                           setState(() {
-                            // Safely convert text to double. If blank or invalid, default to 0.0
                             course.credit = double.tryParse(val) ?? 0.0;
                           });
                         },
