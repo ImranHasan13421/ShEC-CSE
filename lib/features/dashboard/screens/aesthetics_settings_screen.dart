@@ -478,6 +478,8 @@ class _AestheticsSettingsScreenState extends State<AestheticsSettingsScreen> wit
 
   String _getStyleTitle(String styleId) {
     switch (styleId) {
+      case 'shec':
+        return 'ShEC CSE';
       case 'aurora':
         return 'Aurora';
       case 'cyberpunk':

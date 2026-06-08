@@ -5,7 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 final ValueNotifier<double> ambientAnimationSpeed = ValueNotifier(1.0); // Ranges from 0.2x to 3.0x
 final ValueNotifier<int> ambientSparkleDensity = ValueNotifier(65); // Ranges from 10 to 150 particles
 final ValueNotifier<bool> ambientBackgroundEnabled = ValueNotifier(true); // Toggle to completely turn off the ambient background
-final ValueNotifier<String> ambientStyle = ValueNotifier('aurora'); // Options: aurora, cyberpunk, cosmic, ocean, autumn
+final ValueNotifier<String> ambientStyle = ValueNotifier('shec'); // Options: aurora, cyberpunk, cosmic, ocean, autumn, shec
 final ValueNotifier<String> ambientPattern = ValueNotifier('none'); // Options: none, dots, grid, waves, stripes
 final ValueNotifier<bool> ambientAuroraEnabled = ValueNotifier(true); // Toggle on/off for aesthetic dynamic blobs
 final ValueNotifier<String> ambientWallpaper = ValueNotifier('none'); // Options: none, starry, geometric, wave, tech_grid
@@ -19,7 +19,7 @@ class AmbientSettings {
       ambientAnimationSpeed.value = prefs.getDouble('ambient_animation_speed') ?? 1.0;
       ambientSparkleDensity.value = prefs.getInt('ambient_sparkle_density') ?? 65;
       ambientBackgroundEnabled.value = prefs.getBool('ambient_background_enabled') ?? true;
-      ambientStyle.value = prefs.getString('ambient_style') ?? 'aurora';
+      ambientStyle.value = prefs.getString('ambient_style') ?? 'shec';
       ambientPattern.value = prefs.getString('ambient_pattern') ?? 'none';
       ambientAuroraEnabled.value = prefs.getBool('ambient_aurora_enabled') ?? true;
       ambientWallpaper.value = prefs.getString('ambient_wallpaper') ?? 'none';

@@ -242,6 +242,7 @@ class VisualsTab extends StatelessWidget {
 
   Widget _buildStyleSelectionGrid(ColorScheme previewScheme) {
     final stylesList = [
+      {'id': 'shec', 'title': 'ShEC CSE', 'desc': 'College brand-color sparkles and floating digital code', 'icon': Icons.school},
       {'id': 'aurora', 'title': 'Time Aurora', 'desc': 'Time-based gradients & rising sparkles', 'icon': Icons.auto_awesome},
       {'id': 'cyberpunk', 'title': 'Cyber Neon', 'desc': 'Digital code grids & horizontal tracks', 'icon': Icons.terminal},
       {'id': 'cosmic', 'title': 'Cosmic Space', 'desc': 'Deep purple nebula & expanding stars', 'icon': Icons.brightness_3},

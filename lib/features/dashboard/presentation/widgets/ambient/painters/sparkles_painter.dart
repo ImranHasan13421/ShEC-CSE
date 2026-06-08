@@ -84,6 +84,16 @@ class SparklesPainter extends CustomPainter {
           particle.y = -15;
           particle.x = math.Random().nextDouble() * (size.width + 100);
         }
+      } else if (style == 'shec') {
+        // ShEC floating particles (slow upward drift)
+        particle.y -= particle.speed * speedFactor * 0.8;
+        particle.x += math.sin(animationValue * 2 * math.pi + particle.randomOffset) * 0.35;
+
+        // Reset if off-screen
+        if (particle.y < -15) {
+          particle.y = size.height + 15;
+          particle.x = math.Random().nextDouble() * size.width;
+        }
       } else {
         // Default Aurora drift upward
         particle.y -= particle.speed * speedFactor;
@@ -115,6 +125,14 @@ class SparklesPainter extends CustomPainter {
               : i % 3 == 1 
                   ? const Color(0xFFC48600) // Deep gold
                   : const Color(0xFF8B0000); // Deep crimson
+        } else if (style == 'shec') {
+          pColor = i % 4 == 0 
+              ? const Color(0xFF1E5631) // Forest Green (darker)
+              : i % 4 == 1 
+                  ? const Color(0xFF0D47A1) // Royal Blue (darker)
+                  : i % 4 == 2
+                      ? const Color(0xFF8B0000) // Deep Red (darker)
+                      : const Color(0xFF333333); // Off-Black
         } else {
           // Default time-based: ensure it has rich visibility
           pColor = sparkleColor.withValues(alpha: 1.0);
@@ -133,6 +151,14 @@ class SparklesPainter extends CustomPainter {
               : i % 3 == 1 
                   ? const Color(0xFFFFB300)
                   : const Color(0xFFC0392B);
+        } else if (style == 'shec') {
+          pColor = i % 4 == 0 
+              ? const Color(0xFF228B22) // Forest Green
+              : i % 4 == 1 
+                  ? const Color(0xFF4169E1) // Royal Blue
+                  : i % 4 == 2
+                      ? const Color(0xFFE53935) // Deep Red
+                      : const Color(0xFFFAF9F6); // Off-White
         }
       }
 
@@ -161,6 +187,53 @@ class SparklesPainter extends CustomPainter {
           ..lineTo(particle.x - particle.size * 0.8, particle.y)
           ..close();
         canvas.drawPath(leafPath, paint);
+      } else if (style == 'shec') {
+        // Draw alternate 4-pointed star sparkles and digital ShEC code characters
+        if (i % 2 == 0) {
+          canvas.save();
+          canvas.translate(particle.x, particle.y);
+          canvas.rotate(animationValue * 2 * math.pi + particle.randomOffset);
+
+          final Path starPath = Path();
+          final double half = (particle.size * 1.5) / 2; // slightly larger stars
+
+          starPath.moveTo(0, -half);
+          starPath.quadraticBezierTo(0, 0, half, 0);
+          starPath.quadraticBezierTo(0, 0, 0, half);
+          starPath.quadraticBezierTo(0, 0, -half, 0);
+          starPath.quadraticBezierTo(0, 0, 0, -half);
+          starPath.close();
+
+          // Draw soft glow behind the star
+          final glowPaint = Paint()
+            ..color = pColor.withValues(alpha: paint.color.opacity * 0.35)
+            ..maskFilter = MaskFilter.blur(BlurStyle.normal, particle.size * 0.4);
+          canvas.drawCircle(Offset.zero, half * 0.8, glowPaint);
+
+          canvas.drawPath(starPath, paint);
+          canvas.restore();
+        } else {
+          // Digital ShEC / Code Characters
+          final String word = const ['ShEC', '01', '{}', '</>', ';'][i % 5];
+          final textPainter = TextPainter(
+            text: TextSpan(
+              text: word,
+              style: TextStyle(
+                color: pColor.withValues(alpha: paint.color.opacity * 0.75),
+                fontSize: 11.0 + particle.size * 3.5,
+                fontWeight: FontWeight.w900,
+                fontFamily: 'monospace',
+              ),
+            ),
+            textDirection: TextDirection.ltr,
+          )..layout();
+
+          canvas.save();
+          canvas.translate(particle.x, particle.y);
+          canvas.rotate(animationValue * 0.5 * math.pi + particle.randomOffset);
+          textPainter.paint(canvas, Offset(-textPainter.width / 2, -textPainter.height / 2));
+          canvas.restore();
+        }
       } else {
         // Circular sparkly sparkles
         canvas.drawCircle(Offset(particle.x, particle.y), particle.size, paint);

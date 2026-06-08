@@ -34,6 +34,8 @@ class AuroraBlobsPainter extends CustomPainter {
       baseBg = const Color(0xFF040A12); // Deep abyssal ocean blue-black
     } else if (style == 'autumn' && auroraEnabled) {
       baseBg = const Color(0xFF0F0A06); // Deep rich forest bark brown-black
+    } else if (style == 'shec' && auroraEnabled) {
+      baseBg = const Color(0xFF030805); // Deep green-black
     }
     
     paint.color = baseBg;
@@ -120,6 +122,27 @@ class AuroraBlobsPainter extends CustomPainter {
         final double dy3 = size.height * 0.5 + (math.sin(t * 1.15) * 0.12 + math.cos(t * 0.75) * 0.04) * size.height;
         paint.shader = RadialGradient(colors: [autumnRed, autumnRed.withValues(alpha: 0.0)]).createShader(Rect.fromCircle(center: Offset(dx3, dy3), radius: size.width * 0.75));
         canvas.drawCircle(Offset(dx3, dy3), size.width * 0.75, paint);
+
+      } else if (style == 'shec') {
+        // ShEC Brand color nebulae (Forest Green, Royal Blue, and Deep Red)
+        final Color shecGreen = const Color(0xFF228B22).withValues(alpha: isDark ? 0.16 : 0.28);
+        final Color shecBlue = const Color(0xFF4169E1).withValues(alpha: isDark ? 0.18 : 0.30);
+        final Color shecRed = const Color(0xFF8B0000).withValues(alpha: isDark ? 0.10 : 0.20);
+
+        final double dx1 = size.width * 0.3 + (math.cos(t * 0.7) * 0.18 + math.sin(t * 1.3) * 0.07) * size.width;
+        final double dy1 = size.height * 0.35 + (math.sin(t * 1.1) * 0.12 + math.cos(t * 0.5) * 0.05) * size.height;
+        paint.shader = RadialGradient(colors: [shecGreen, shecGreen.withValues(alpha: 0.0)]).createShader(Rect.fromCircle(center: Offset(dx1, dy1), radius: size.width * 0.8));
+        canvas.drawCircle(Offset(dx1, dy1), size.width * 0.8, paint);
+
+        final double dx2 = size.width * 0.7 + (math.sin(t * 0.9) * 0.18 + math.cos(t * 1.5) * 0.07) * size.width;
+        final double dy2 = size.height * 0.65 + (math.cos(t * 1.3) * 0.12 + math.sin(t * 0.8) * 0.05) * size.height;
+        paint.shader = RadialGradient(colors: [shecBlue, shecBlue.withValues(alpha: 0.0)]).createShader(Rect.fromCircle(center: Offset(dx2, dy2), radius: size.width * 0.85));
+        canvas.drawCircle(Offset(dx2, dy2), size.width * 0.85, paint);
+
+        final double dx3 = size.width * 0.5 + (math.cos(t * 0.8) * 0.14 + math.sin(t * 1.4) * 0.05) * size.width;
+        final double dy3 = size.height * 0.5 + (math.sin(t * 1.2) * 0.12 + math.cos(t * 0.6) * 0.05) * size.height;
+        paint.shader = RadialGradient(colors: [shecRed, shecRed.withValues(alpha: 0.0)]).createShader(Rect.fromCircle(center: Offset(dx3, dy3), radius: size.width * 0.7));
+        canvas.drawCircle(Offset(dx3, dy3), size.width * 0.7, paint);
 
       } else {
         // DEFAULT TIME-BASED AURORA
