@@ -24,6 +24,7 @@ class ResultsScreen extends StatefulWidget {
 class _ResultsScreenState extends State<ResultsScreen> with SingleTickerProviderStateMixin {
   late TabController _tabController;
   bool _isSyncing = false;
+  String? _expandedResultId;
 
   // Guided Tour keys and control state
   final GlobalKey _syncButtonKey = GlobalKey();
@@ -283,6 +284,13 @@ class _ResultsScreenState extends State<ResultsScreen> with SingleTickerProvider
       );
     }
 
+    final sortedResults = List<ExamResult>.from(results)
+      ..sort((a, b) {
+        final semA = a.semester ?? _parseSemesterNumber(a.examName);
+        final semB = b.semester ?? _parseSemesterNumber(b.examName);
+        return semA.compareTo(semB);
+      });
+
     return ListView(
       padding: const EdgeInsets.all(16.0),
       children: [
@@ -311,7 +319,7 @@ class _ResultsScreenState extends State<ResultsScreen> with SingleTickerProvider
         const SizedBox(height: 8),
 
         // 3. Semester results cards
-        ...results.map((result) => _buildResultCard(context, result)),
+        ...sortedResults.map((result) => _buildResultCard(context, result)),
       ],
     );
   }
@@ -374,6 +382,7 @@ class _ResultsScreenState extends State<ResultsScreen> with SingleTickerProvider
 
   Widget _buildResultCard(BuildContext context, ExamResult result) {
     final colors = Theme.of(context).colorScheme;
+    final semNum = result.semester ?? _parseSemesterNumber(result.examName);
 
     return Card(
       margin: const EdgeInsets.only(bottom: 16),
@@ -386,14 +395,35 @@ class _ResultsScreenState extends State<ResultsScreen> with SingleTickerProvider
       child: Theme(
         data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
         child: ExpansionTile(
+          key: Key('${result.id}_${result.id == _expandedResultId}'),
+          initiallyExpanded: result.id == _expandedResultId,
+          onExpansionChanged: (expanded) {
+            setState(() {
+              if (expanded) {
+                _expandedResultId = result.id;
+              } else if (_expandedResultId == result.id) {
+                _expandedResultId = null;
+              }
+            });
+          },
           tilePadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
           childrenPadding: const EdgeInsets.all(16).copyWith(top: 0),
           title: Row(
             children: [
               Expanded(
-                child: Text(
-                  result.examName,
-                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Semester $semNum',
+                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      result.examName,
+                      style: TextStyle(fontSize: 12, color: colors.onSurface.withValues(alpha: 0.5)),
+                    ),
+                  ],
                 ),
               ),
               IconButton(
@@ -586,6 +616,29 @@ class _ResultsScreenState extends State<ResultsScreen> with SingleTickerProvider
         ),
       ),
     );
+  }
+
+  int _parseSemesterNumber(String examName) {
+    final name = examName.toLowerCase();
+    if (name.contains('1st year 1st') || name.contains('1st sem') || name.contains('1-1') || (name.contains('1st year') && name.contains('1st'))) return 1;
+    if (name.contains('1st year 2nd') || name.contains('2nd sem') || name.contains('1-2') || (name.contains('1st year') && name.contains('2nd'))) return 2;
+    if (name.contains('2nd year 1st') || name.contains('3rd sem') || name.contains('2-1') || (name.contains('2nd year') && name.contains('1st'))) return 3;
+    if (name.contains('2nd year 2nd') || name.contains('4th sem') || name.contains('2-2') || (name.contains('2nd year') && name.contains('2nd'))) return 4;
+    if (name.contains('3rd year 1st') || name.contains('5th sem') || name.contains('3-1') || (name.contains('3rd year') && name.contains('1st'))) return 5;
+    if (name.contains('3rd year 2nd') || name.contains('6th sem') || name.contains('3-2') || (name.contains('3rd year') && name.contains('2nd'))) return 6;
+    if (name.contains('4th year 1st') || name.contains('7th sem') || name.contains('4-1') || (name.contains('4th year') && name.contains('1st'))) return 7;
+    if (name.contains('4th year 2nd') || name.contains('8th sem') || name.contains('4-2') || (name.contains('4th year') && name.contains('2nd'))) return 8;
+
+    if (name.contains('1st')) return 1;
+    if (name.contains('2nd')) return 2;
+    if (name.contains('3rd')) return 3;
+    if (name.contains('4th')) return 4;
+    if (name.contains('5th')) return 5;
+    if (name.contains('6th')) return 6;
+    if (name.contains('7th')) return 7;
+    if (name.contains('8th')) return 8;
+
+    return 1;
   }
 }
 

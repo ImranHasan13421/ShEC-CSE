@@ -22,7 +22,22 @@ class _BatchResultsTabState extends State<BatchResultsTab> {
   String _selectedSemester = 'All';
   String _subjectSearchQuery = '';
 
+  final TextEditingController _studentSearchController = TextEditingController();
+  final TextEditingController _subjectSearchController = TextEditingController();
+
+  // Accordion state
+  String? _expandedStudentId;
+  int? _expandedYear;
+  String? _expandedSemesterResultId;
+
   List<String> _availableSessions = [];
+
+  @override
+  void dispose() {
+    _studentSearchController.dispose();
+    _subjectSearchController.dispose();
+    super.dispose();
+  }
 
   @override
   void initState() {
@@ -152,7 +167,10 @@ class _BatchResultsTabState extends State<BatchResultsTab> {
                   // 1. Filtration Panel
                   _buildFiltrationPanel(colors, isCommittee, availableSemesters),
 
-                  // 2. Dynamic Performance Insights Panel
+                  // 2. Batch Performance Metrics (Visual Insights)
+                  _buildBatchPerformanceMetricsCard(state.batchResults, studentIds, groupedResults, colors),
+
+                  // 3. Dynamic Performance Insights Panel
                   if (_selectedSemester != 'All' && _subjectSearchQuery.isNotEmpty)
                     _buildGradeDistributionAnalysisCard(filteredResults, colors),
 
@@ -189,6 +207,8 @@ class _BatchResultsTabState extends State<BatchResultsTab> {
   }
 
   Widget _buildFiltrationPanel(ColorScheme colors, bool isCommittee, List<String> availableSemesters) {
+    final hasActiveFilters = _studentSearchQuery.isNotEmpty || _selectedSemester != 'All' || _subjectSearchQuery.isNotEmpty;
+
     return Card(
       margin: const EdgeInsets.all(16),
       elevation: 0,
@@ -201,6 +221,32 @@ class _BatchResultsTabState extends State<BatchResultsTab> {
         padding: const EdgeInsets.all(16.0),
         child: Column(
           children: [
+            if (hasActiveFilters) ...[
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  TextButton.icon(
+                    style: TextButton.styleFrom(
+                      padding: EdgeInsets.zero,
+                      minimumSize: Size.zero,
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    ),
+                    icon: const Icon(Icons.clear_all, size: 16),
+                    label: const Text('Clear Filters', style: TextStyle(fontSize: 12)),
+                    onPressed: () {
+                      setState(() {
+                        _studentSearchController.clear();
+                        _subjectSearchController.clear();
+                        _studentSearchQuery = '';
+                        _selectedSemester = 'All';
+                        _subjectSearchQuery = '';
+                      });
+                    },
+                  ),
+                ],
+              ),
+              const SizedBox(height: 10),
+            ],
             // Row 1: Session Selector (If Admin) & Student Search
             Row(
               children: [
@@ -226,6 +272,13 @@ class _BatchResultsTabState extends State<BatchResultsTab> {
                           setState(() {
                             _selectedSession = val;
                             _selectedSemester = 'All'; // Reset filters
+                            _studentSearchController.clear();
+                            _subjectSearchController.clear();
+                            _studentSearchQuery = '';
+                            _subjectSearchQuery = '';
+                            _expandedStudentId = null;
+                            _expandedYear = null;
+                            _expandedSemesterResultId = null;
                           });
                           _fetchBatchResults();
                         }
@@ -237,6 +290,7 @@ class _BatchResultsTabState extends State<BatchResultsTab> {
                 Expanded(
                   flex: 3,
                   child: TextField(
+                    controller: _studentSearchController,
                     decoration: const InputDecoration(
                       labelText: 'Search Student',
                       hintText: 'Name or Roll No',
@@ -259,7 +313,7 @@ class _BatchResultsTabState extends State<BatchResultsTab> {
                 Expanded(
                   child: DropdownButtonFormField<String>(
                     isExpanded: true,
-                    initialValue: _selectedSemester,
+                    value: _selectedSemester,
                     decoration: const InputDecoration(
                       labelText: 'Semester Filter',
                       border: OutlineInputBorder(),
@@ -278,6 +332,7 @@ class _BatchResultsTabState extends State<BatchResultsTab> {
                 const SizedBox(width: 12),
                 Expanded(
                   child: TextField(
+                    controller: _subjectSearchController,
                     decoration: const InputDecoration(
                       labelText: 'Filter Subject',
                       hintText: 'Code or Name',
@@ -404,6 +459,142 @@ class _BatchResultsTabState extends State<BatchResultsTab> {
     );
   }
 
+  Widget _buildBatchPerformanceMetricsCard(
+    List<BatchMemberResult> batchResults,
+    List<String> studentIds,
+    Map<String, List<BatchMemberResult>> groupedResults,
+    ColorScheme colors,
+  ) {
+    if (studentIds.isEmpty) return const SizedBox.shrink();
+
+    // 1. Calculate Average CGPA
+    final studentCgpas = studentIds
+        .map((id) => _getLatestStudentCgpa(id, batchResults))
+        .where((cgpa) => cgpa > 0.0)
+        .toList();
+    final avgCgpa = studentCgpas.isEmpty 
+        ? 0.0 
+        : studentCgpas.reduce((a, b) => a + b) / studentCgpas.length;
+
+    // 2. Find Top Performer
+    double topCgpa = 0.0;
+    String topStudentName = '';
+    for (var id in studentIds) {
+      final cgpa = _getLatestStudentCgpa(id, batchResults);
+      if (cgpa > topCgpa) {
+        topCgpa = cgpa;
+        topStudentName = groupedResults[id]!.first.profile.name;
+      }
+    }
+    // Truncate name if too long
+    if (topStudentName.length > 12) {
+      topStudentName = '${topStudentName.substring(0, 10)}...';
+    }
+
+    return Card(
+      margin: const EdgeInsets.symmetric(horizontal: 16.0).copyWith(bottom: 16),
+      elevation: 0,
+      color: colors.primary.withValues(alpha: 0.06),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: BorderSide(color: colors.primary.withValues(alpha: 0.15)),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.analytics_outlined, size: 18, color: colors.primary),
+                const SizedBox(width: 8),
+                Text(
+                  'Batch Summary based on filter (${_selectedSession}) ',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: colors.primary),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                _buildMetricItem(
+                  colors,
+                  'Synced Students',
+                  '${studentIds.length}',
+                  Icons.people_outline,
+                ),
+                _buildMetricDivider(colors),
+                _buildMetricItem(
+                  colors,
+                  'Batch Avg CGPA',
+                  avgCgpa > 0 ? avgCgpa.toStringAsFixed(2) : 'N/A',
+                  Icons.star_half_rounded,
+                ),
+                _buildMetricDivider(colors),
+                _buildMetricItem(
+                  colors,
+                  'Top Performer',
+                  topCgpa > 0 ? '${topCgpa.toStringAsFixed(2)} ($topStudentName)' : 'N/A',
+                  Icons.workspace_premium_outlined,
+                  isPrimary: true,
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMetricDivider(ColorScheme colors) {
+    return Container(
+      height: 30,
+      width: 1,
+      color: colors.outline.withValues(alpha: 0.15),
+    );
+  }
+
+  Widget _buildMetricItem(
+    ColorScheme colors,
+    String label,
+    String value,
+    IconData icon, {
+    bool isPrimary = false,
+  }) {
+    return Expanded(
+      child: Column(
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(icon, size: 12, color: isPrimary ? colors.primary : colors.onSurface.withValues(alpha: 0.5)),
+              const SizedBox(width: 4),
+              Flexible(
+                child: Text(
+                  label,
+                  style: TextStyle(fontSize: 10, color: colors.onSurface.withValues(alpha: 0.5), fontWeight: FontWeight.w500),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.bold,
+              color: isPrimary ? colors.primary : colors.onSurface,
+            ),
+            textAlign: TextAlign.center,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ],
+      ),
+    );
+  }
+
   int _parseSemesterNumber(String examName) {
     final name = examName.toLowerCase();
     if (name.contains('1st year 1st') || name.contains('1st sem') || name.contains('1-1') || (name.contains('1st year') && name.contains('1st'))) return 1;
@@ -509,6 +700,19 @@ class _BatchResultsTabState extends State<BatchResultsTab> {
       child: Theme(
         data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
         child: ExpansionTile(
+          key: Key('${profile.id}_${profile.id == _expandedStudentId}'),
+          initiallyExpanded: profile.id == _expandedStudentId,
+          onExpansionChanged: (expanded) {
+            setState(() {
+              if (expanded) {
+                _expandedStudentId = profile.id;
+                _expandedYear = null;
+                _expandedSemesterResultId = null;
+              } else if (_expandedStudentId == profile.id) {
+                _expandedStudentId = null;
+              }
+            });
+          },
           tilePadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
           childrenPadding: const EdgeInsets.only(bottom: 12),
           leading: CircleAvatar(
@@ -546,7 +750,7 @@ class _BatchResultsTabState extends State<BatchResultsTab> {
                     border: Border.all(color: Colors.green.withValues(alpha: 0.2)),
                   ),
                   child: Text(
-                    'CGPA: ${latestCgpa > 0.0 ? latestCgpa.toStringAsFixed(2) : "N/A"}',
+                     'CGPA: ${latestCgpa > 0.0 ? latestCgpa.toStringAsFixed(2) : "N/A"}',
                     style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.green),
                   ),
                 ),
@@ -577,6 +781,18 @@ class _BatchResultsTabState extends State<BatchResultsTab> {
                   child: Theme(
                     data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
                     child: ExpansionTile(
+                      key: Key('${profile.id}_year_${yearNum}_${yearNum == _expandedYear}'),
+                      initiallyExpanded: yearNum == _expandedYear,
+                      onExpansionChanged: (expanded) {
+                        setState(() {
+                          if (expanded) {
+                            _expandedYear = yearNum;
+                            _expandedSemesterResultId = null;
+                          } else if (_expandedYear == yearNum) {
+                            _expandedYear = null;
+                          }
+                        });
+                      },
                       title: Text(
                         yearLabel,
                         style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: colors.primary),
@@ -607,6 +823,8 @@ class _BatchResultsTabState extends State<BatchResultsTab> {
       }
     }
 
+    final semNum = item.result.semester ?? _parseSemesterNumber(item.result.examName);
+
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6).copyWith(bottom: 10),
       elevation: 0,
@@ -618,49 +836,70 @@ class _BatchResultsTabState extends State<BatchResultsTab> {
       child: Theme(
         data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
         child: ExpansionTile(
+          key: Key('${item.profile.id}_sem_${item.result.id}_${item.result.id == _expandedSemesterResultId}'),
+          initiallyExpanded: item.result.id == _expandedSemesterResultId,
+          onExpansionChanged: (expanded) {
+            setState(() {
+              if (expanded) {
+                _expandedSemesterResultId = item.result.id;
+              } else if (_expandedSemesterResultId == item.result.id) {
+                _expandedSemesterResultId = null;
+              }
+            });
+          },
           tilePadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
           childrenPadding: const EdgeInsets.all(12).copyWith(top: 0),
           title: Text(
-            item.result.examName,
-            style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+            'Semester $semNum',
+            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
           ),
           subtitle: Padding(
             padding: const EdgeInsets.only(top: 4.0),
-            child: Row(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
-                  decoration: BoxDecoration(
-                    color: Colors.blue.withValues(alpha: 0.08),
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                  child: Text(
-                    'GPA: ${item.result.gpa}',
-                    style: const TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: Colors.blue),
-                  ),
+                Text(
+                  item.result.examName,
+                  style: TextStyle(fontSize: 10, color: colors.onSurface.withValues(alpha: 0.5)),
                 ),
-                const SizedBox(width: 6),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
-                  decoration: BoxDecoration(
-                    color: Colors.green.withValues(alpha: 0.08),
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                  child: Text(
-                    'CGPA: ${item.result.cgpa}',
-                    style: const TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: Colors.green),
-                  ),
-                ),
-                if (searchedSubject != null) ...[
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      '${searchedSubject.code}: ${searchedSubject.grade}',
-                      style: TextStyle(fontSize: 9, fontWeight: FontWeight.w600, color: colors.primary),
-                      overflow: TextOverflow.ellipsis,
+                const SizedBox(height: 4),
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
+                      decoration: BoxDecoration(
+                        color: Colors.blue.withValues(alpha: 0.08),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Text(
+                        'GPA: ${item.result.gpa}',
+                        style: const TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: Colors.blue),
+                      ),
                     ),
-                  ),
-                ],
+                    const SizedBox(width: 6),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
+                      decoration: BoxDecoration(
+                        color: Colors.green.withValues(alpha: 0.08),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Text(
+                        'CGPA: ${item.result.cgpa}',
+                        style: const TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: Colors.green),
+                      ),
+                    ),
+                    if (searchedSubject != null) ...[
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          '${searchedSubject.code}: ${searchedSubject.grade}',
+                          style: TextStyle(fontSize: 9, fontWeight: FontWeight.w600, color: colors.primary),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
               ],
             ),
           ),
