@@ -1,9 +1,54 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:ShEC_CSE/backend/services/auth_service.dart';
 import 'package:ShEC_CSE/features/auth/screens/auth_animated_screen.dart';
+import 'package:ShEC_CSE/features/profile/models/profile_state.dart';
+import 'package:ShEC_CSE/features/dashboard/screens/main_screen.dart';
 
-class PendingApprovalScreen extends StatelessWidget {
+class PendingApprovalScreen extends StatefulWidget {
   const PendingApprovalScreen({super.key});
+
+  @override
+  State<PendingApprovalScreen> createState() => _PendingApprovalScreenState();
+}
+
+class _PendingApprovalScreenState extends State<PendingApprovalScreen> {
+  Timer? _pollingTimer;
+
+  @override
+  void initState() {
+    super.initState();
+    currentProfile.addListener(_profileListener);
+    _startPolling();
+  }
+
+  void _startPolling() {
+    _pollingTimer = Timer.periodic(const Duration(seconds: 4), (timer) async {
+      try {
+        await AuthService.fetchCurrentUserProfile();
+      } catch (e) {
+        debugPrint('Polling user profile error: $e');
+      }
+    });
+  }
+
+  void _profileListener() {
+    if (currentProfile.value.isApproved && mounted) {
+      _pollingTimer?.cancel();
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(builder: (_) => const HomeLayout()),
+        (route) => false,
+      );
+    }
+  }
+
+  @override
+  void dispose() {
+    currentProfile.removeListener(_profileListener);
+    _pollingTimer?.cancel();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
