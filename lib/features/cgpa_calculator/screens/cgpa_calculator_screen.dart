@@ -670,86 +670,12 @@ class _CGPACalculatorScreenState extends State<CGPACalculatorScreen> {
             // Courses List
             ...List.generate(semester.courses.length, (courseIndex) {
               final course = semester.courses[courseIndex];
-              return Padding(
-                padding: const EdgeInsets.only(bottom: 12.0),
-                child: Row(
-                  children: [
-                    // Course Name
-                    Expanded(
-                      flex: 3,
-                      child: TextFormField(
-                        initialValue: course.name,
-                        decoration: InputDecoration(
-                          isDense: true,
-                          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                        ),
-                        onChanged: (val) {
-                          course.name = val;
-                          final cleanCode = val.toUpperCase().replaceAll(' ', '-').trim();
-                          final regExp = RegExp(r'^[A-Z]{2,4}[- ]?\d{4}$', caseSensitive: false);
-                          if (regExp.hasMatch(cleanCode)) {
-                            final matchedCredits = SubjectInformation.getCredits(cleanCode);
-                            setState(() {
-                              course.credit = matchedCredits;
-                            });
-                          }
-                        },
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-
-                    // Typable Credits Field
-                    Expanded(
-                      flex: 2,
-                      child: TextFormField(
-                        key: ValueKey('${semIndex}_${courseIndex}_${course.credit}'),
-                        initialValue: course.credit.toString(),
-                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                        decoration: InputDecoration(
-                          isDense: true,
-                          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                        ),
-                        onChanged: (val) {
-                          setState(() {
-                            course.credit = double.tryParse(val) ?? 0.0;
-                          });
-                        },
-                      ),
-                    ),
-
-                    const SizedBox(width: 8),
-                    // Grade Dropdown
-                    Expanded(
-                      flex: 3,
-                      child: DropdownButtonFormField<double>(
-                        value: course.grade,
-                        isExpanded: true,
-                        decoration: InputDecoration(
-                          isDense: true,
-                          contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
-                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                        ),
-                        items: gradeScale.entries.map((entry) {
-                          return DropdownMenuItem(value: entry.value, child: Text(entry.key.split(' ')[0], style: const TextStyle(fontWeight: FontWeight.bold)));
-                        }).toList(),
-                        onChanged: (val) {
-                          if (val != null) setState(() => course.grade = val);
-                        },
-                      ),
-                    ),
-                    // Delete Course Button
-                    SizedBox(
-                      width: 32,
-                      child: IconButton(
-                        icon: Icon(Icons.close, size: 20, color: colors.onSurface.withValues(alpha: 0.4)),
-                        onPressed: semester.courses.length > 1 ? () => _removeCourse(semIndex, courseIndex) : null,
-                        padding: EdgeInsets.zero,
-                      ),
-                    ),
-                  ],
-                ),
+              return CourseRowWidget(
+                key: ValueKey(course),
+                course: course,
+                gradeScale: gradeScale,
+                onUpdated: () => setState(() {}),
+                onDelete: semester.courses.length > 1 ? () => _removeCourse(semIndex, courseIndex) : null,
               );
             }),
 
@@ -762,6 +688,148 @@ class _CGPACalculatorScreenState extends State<CGPACalculatorScreen> {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class CourseRowWidget extends StatefulWidget {
+  final CourseData course;
+  final VoidCallback onUpdated;
+  final VoidCallback? onDelete;
+  final Map<String, double> gradeScale;
+
+  const CourseRowWidget({
+    super.key,
+    required this.course,
+    required this.onUpdated,
+    required this.onDelete,
+    required this.gradeScale,
+  });
+
+  @override
+  State<CourseRowWidget> createState() => _CourseRowWidgetState();
+}
+
+class _CourseRowWidgetState extends State<CourseRowWidget> {
+  late TextEditingController _nameController;
+  late TextEditingController _creditController;
+
+  @override
+  void initState() {
+    super.initState();
+    _nameController = TextEditingController(text: widget.course.name);
+    _creditController = TextEditingController(text: widget.course.credit.toString());
+  }
+
+  @override
+  void didUpdateWidget(covariant CourseRowWidget oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.course.name != _nameController.text) {
+      _nameController.text = widget.course.name;
+    }
+    final parsed = double.tryParse(_creditController.text) ?? 0.0;
+    if (widget.course.credit != parsed && widget.course.credit.toString() != _creditController.text) {
+      _creditController.text = widget.course.credit.toString();
+    }
+  }
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _creditController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12.0),
+      child: Row(
+        children: [
+          // Course Name
+          Expanded(
+            flex: 3,
+            child: TextFormField(
+              controller: _nameController,
+              decoration: InputDecoration(
+                isDense: true,
+                contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+              ),
+              onChanged: (val) {
+                widget.course.name = val;
+                final cleanCode = val.toUpperCase().replaceAll(' ', '-').trim();
+                final regExp = RegExp(r'^[A-Z]{2,4}[- ]?\d{4}$', caseSensitive: false);
+                if (regExp.hasMatch(cleanCode)) {
+                  final matchedCredits = SubjectInformation.getCredits(cleanCode);
+                  widget.course.credit = matchedCredits;
+                  _creditController.text = matchedCredits.toString();
+                  widget.onUpdated();
+                }
+              },
+            ),
+          ),
+          const SizedBox(width: 8),
+
+          // Typable Credits Field
+          Expanded(
+            flex: 2,
+            child: TextFormField(
+              controller: _creditController,
+              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              decoration: InputDecoration(
+                isDense: true,
+                contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+              ),
+              onChanged: (val) {
+                widget.course.credit = double.tryParse(val) ?? 0.0;
+                widget.onUpdated();
+              },
+            ),
+          ),
+
+          const SizedBox(width: 8),
+          // Grade Dropdown
+          Expanded(
+            flex: 3,
+            child: DropdownButtonFormField<double>(
+              value: widget.course.grade,
+              isExpanded: true,
+              decoration: InputDecoration(
+                isDense: true,
+                contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+              ),
+              items: widget.gradeScale.entries.map((entry) {
+                return DropdownMenuItem(
+                  value: entry.value,
+                  child: Text(
+                    entry.key.split(' ')[0],
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                );
+              }).toList(),
+              onChanged: (val) {
+                if (val != null) {
+                  widget.course.grade = val;
+                  widget.onUpdated();
+                }
+              },
+            ),
+          ),
+          // Delete Course Button
+          SizedBox(
+            width: 32,
+            child: IconButton(
+              icon: Icon(Icons.close, size: 20, color: colors.onSurface.withValues(alpha: 0.4)),
+              onPressed: widget.onDelete,
+              padding: EdgeInsets.zero,
+            ),
+          ),
+        ],
       ),
     );
   }
