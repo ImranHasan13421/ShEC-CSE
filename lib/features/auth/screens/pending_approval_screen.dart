@@ -5,6 +5,8 @@ import 'package:ShEC_CSE/features/auth/screens/auth_animated_screen.dart';
 import 'package:ShEC_CSE/features/profile/models/profile_state.dart';
 import 'package:ShEC_CSE/features/dashboard/screens/main_screen.dart';
 
+import 'package:ShEC_CSE/backend/services/result_scraper_service.dart';
+
 class PendingApprovalScreen extends StatefulWidget {
   const PendingApprovalScreen({super.key});
 
@@ -33,8 +35,14 @@ class _PendingApprovalScreenState extends State<PendingApprovalScreen> {
   }
 
   void _profileListener() {
-    if (currentProfile.value.isApproved && mounted) {
+    final profile = currentProfile.value;
+    if (profile.isApproved && mounted) {
       _pollingTimer?.cancel();
+      if (profile.duRegNo.isNotEmpty && profile.session.isNotEmpty) {
+        ResultScraperService.scrapeAndSaveAllResults(profile.id, profile.duRegNo, profile.session)
+            .then((_) => debugPrint('Background auto-scrape complete for self'))
+            .catchError((e) => debugPrint('Background auto-scrape failed: $e'));
+      }
       Navigator.pushAndRemoveUntil(
         context,
         MaterialPageRoute(builder: (_) => const HomeLayout()),

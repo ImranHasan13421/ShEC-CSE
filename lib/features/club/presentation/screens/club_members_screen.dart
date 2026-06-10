@@ -11,6 +11,7 @@ import '../widgets/member_details_sheet.dart';
 import '../widgets/member_edit_sheets.dart';
 import 'package:ShEC_CSE/features/dashboard/presentation/widgets/ambient_background.dart';
 import 'package:ShEC_CSE/core/utils/snackbar_utils.dart';
+import 'package:ShEC_CSE/backend/services/result_scraper_service.dart';
 
 class ClubMembersScreen extends StatefulWidget {
   const ClubMembersScreen({super.key});
@@ -556,6 +557,11 @@ class _ClubMembersScreenState extends State<ClubMembersScreen> with SingleTicker
           onApprove: () async {
             Navigator.pop(context);
             await AuthService.approveUser(member.id);
+            if (member.duRegNo.isNotEmpty && member.session.isNotEmpty) {
+              ResultScraperService.scrapeAndSaveAllResults(member.id, member.duRegNo, member.session)
+                  .then((_) => debugPrint('Background auto-scrape complete for approved user: ${member.id}'))
+                  .catchError((e) => debugPrint('Background auto-scrape failed: $e'));
+            }
             _fetchMembers();
           },
           onUpdateInfo: () {
