@@ -135,54 +135,173 @@ class _MessengerScreenState extends State<MessengerScreen> {
     required VoidCallback onTap,
   }) {
     final colors = Theme.of(context).colorScheme;
+    final isUnread = unreadCount > 0;
 
-    return ListTile(
-      onTap: onTap,
-      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      leading: CircleAvatar(
-        radius: 26,
-        backgroundColor: iconColor.withValues(alpha: 0.1),
-        child: Icon(icon, color: iconColor, size: 28),
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            colors.surfaceContainerLow,
+            isUnread 
+                ? iconColor.withValues(alpha: 0.06) 
+                : colors.surfaceContainer,
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: isUnread 
+              ? iconColor.withValues(alpha: 0.55) 
+              : colors.outline.withValues(alpha: 0.15),
+          width: isUnread ? 1.8 : 1.0,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: isUnread 
+                ? iconColor.withValues(alpha: 0.12) 
+                : colors.shadow.withValues(alpha: 0.03),
+            blurRadius: isUnread ? 12 : 6,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
-      title: Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-      subtitle: Padding(
-        padding: const EdgeInsets.only(top: 4.0),
-        child: Text(
-          subtitle,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: TextStyle(
-            color: unreadCount > 0 ? colors.onSurface : colors.onSurface.withValues(alpha: 0.6),
-            fontWeight: unreadCount > 0 ? FontWeight.bold : FontWeight.normal,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(20),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            child: Row(
+              children: [
+                // Icon Avatar with glowing background
+                Stack(
+                  children: [
+                    Container(
+                      width: 52,
+                      height: 52,
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [
+                            iconColor.withValues(alpha: 0.18),
+                            iconColor.withValues(alpha: 0.05),
+                          ],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: iconColor.withValues(alpha: 0.3),
+                          width: 1.5,
+                        ),
+                      ),
+                      child: Icon(icon, color: iconColor, size: 24),
+                    ),
+                    if (isUnread)
+                      Positioned(
+                        top: 2,
+                        right: 2,
+                        child: Container(
+                          width: 12,
+                          height: 12,
+                          decoration: BoxDecoration(
+                            color: iconColor,
+                            shape: BoxShape.circle,
+                            border: Border.all(color: colors.surface, width: 2),
+                            boxShadow: [
+                              BoxShadow(
+                                color: iconColor.withValues(alpha: 0.5),
+                                blurRadius: 4,
+                                spreadRadius: 1,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+                const SizedBox(width: 14),
+
+                // Title and subtitle
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        title,
+                        style: TextStyle(
+                          fontWeight: isUnread ? FontWeight.bold : FontWeight.w600,
+                          fontSize: 15.5,
+                          color: colors.onSurface,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        subtitle,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color: isUnread 
+                              ? colors.onSurface.withValues(alpha: 0.9) 
+                              : colors.onSurface.withValues(alpha: 0.55),
+                          fontWeight: isUnread ? FontWeight.w600 : FontWeight.normal,
+                          fontSize: 13,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 8),
+
+                // Trailing Time & Badge
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      time,
+                      style: TextStyle(
+                        color: isUnread ? iconColor : colors.onSurface.withValues(alpha: 0.45),
+                        fontSize: 11.5,
+                        fontWeight: isUnread ? FontWeight.bold : FontWeight.normal,
+                      ),
+                    ),
+                    if (isUnread) ...[
+                      const SizedBox(height: 6),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: iconColor,
+                          borderRadius: BorderRadius.circular(10),
+                          boxShadow: [
+                            BoxShadow(
+                              color: iconColor.withValues(alpha: 0.35),
+                              blurRadius: 6,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        child: Text(
+                          '$unreadCount',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 9.5,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ],
+            ),
           ),
         ),
-      ),
-      trailing: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        crossAxisAlignment: CrossAxisAlignment.end,
-        children: [
-          Text(
-            time,
-            style: TextStyle(
-              color: unreadCount > 0 ? iconColor : colors.onSurface.withValues(alpha: 0.5),
-              fontSize: 12,
-              fontWeight: unreadCount > 0 ? FontWeight.bold : FontWeight.normal,
-            ),
-          ),
-          const SizedBox(height: 6),
-          if (unreadCount > 0)
-            Container(
-              padding: const EdgeInsets.all(6),
-              decoration: BoxDecoration(
-                color: iconColor,
-                shape: BoxShape.circle,
-              ),
-              child: Text(
-                unreadCount.toString(),
-                style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
-              ),
-            ),
-        ],
       ),
     );
   }
