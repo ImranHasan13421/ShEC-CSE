@@ -38,6 +38,26 @@ class AuthService {
       throw Exception('Network connection required');
     }
 
+    // Check if email already exists in profiles
+    final emailCheck = await _client
+        .from('profiles')
+        .select('id')
+        .eq('email', email)
+        .maybeSingle();
+    if (emailCheck != null) {
+      throw Exception('This email is already registered.');
+    }
+
+    // Check if DU Registration number already exists in profiles
+    final duRegCheck = await _client
+        .from('profiles')
+        .select('id')
+        .eq('du_reg', duReg)
+        .maybeSingle();
+    if (duRegCheck != null) {
+      throw Exception('This DU Registration number is already registered.');
+    }
+
     final AuthResponse res = await _client.auth.signUp(
       email: email,
       password: password,
@@ -61,6 +81,7 @@ class AuthService {
       'profile_pic': profilePic,
       'role': 'member',
       'is_alumni': false,
+      'email': email,
     });
   }
 
