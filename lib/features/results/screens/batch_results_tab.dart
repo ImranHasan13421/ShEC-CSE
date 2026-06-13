@@ -9,6 +9,7 @@ import '../presentation/bloc/result_event.dart';
 import '../presentation/bloc/result_state.dart';
 import 'cgpa_prediction_chart.dart';
 import 'batch_overview_chart.dart';
+import 'student_results_viewer_screen.dart';
 
 // ──────────────────────────────────────────────────────────────
 //  Enums & helpers
@@ -1434,10 +1435,6 @@ class _StudentAccordionWidget extends StatefulWidget {
 }
 
 class _StudentAccordionWidgetState extends State<_StudentAccordionWidget> {
-  String _selectedYear = 'All';
-  String _selectedSemester = 'All';
-  String? _expandedSemesterResultId;
-
   @override
   Widget build(BuildContext context) {
     final profile = widget.summary.profile;
@@ -1454,30 +1451,6 @@ class _StudentAccordionWidgetState extends State<_StudentAccordionWidget> {
     else if (cgpa >= 2.0)  { cgpaColor = Colors.deepOrange;  perfLabel = 'Fair';       perfIcon = Icons.sentiment_neutral_outlined; }
     else if (cgpa > 0)     { cgpaColor = Colors.red;         perfLabel = 'Needs Work'; perfIcon = Icons.warning_amber_outlined; }
     else                   { cgpaColor = widget.colors.onSurface.withValues(alpha: 0.35); perfLabel = 'No Data'; perfIcon = Icons.help_outline; }
-
-    // Filter results based on year and semester dropdown selection
-    final filteredItems = widget.studentItems.where((item) {
-      final sem = item.result.semester ?? _parseSemesterNumber(item.result.examName);
-      final year = (sem - 1) ~/ 2 + 1; // 1, 2, 3, 4
-      final isOdd = sem % 2 == 1; // 1st Semester of that year
-      
-      bool matchesYear = true;
-      if (_selectedYear == '1st Year') matchesYear = (year == 1);
-      else if (_selectedYear == '2nd Year') matchesYear = (year == 2);
-      else if (_selectedYear == '3rd Year') matchesYear = (year == 3);
-      else if (_selectedYear == '4th Year') matchesYear = (year == 4);
-
-      bool matchesSemester = true;
-      if (_selectedSemester == '1st Semester') matchesSemester = isOdd;
-      else if (_selectedSemester == '2nd Semester') matchesSemester = !isOdd;
-
-      return matchesYear && matchesSemester;
-    }).toList()
-      ..sort((a, b) {
-        final sa = a.result.semester ?? _parseSemesterNumber(a.result.examName);
-        final sb = b.result.semester ?? _parseSemesterNumber(b.result.examName);
-        return sa.compareTo(sb);
-      });
 
     return Card(
       margin: const EdgeInsets.only(bottom: 10),
@@ -1616,186 +1589,38 @@ class _StudentAccordionWidgetState extends State<_StudentAccordionWidget> {
               padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
               child: CgpaPredictionChart(results: studentResults, showPredictions: false),
             ),
-            const Divider(height: 1),
-            
-            // Year & Semester Dropdown selection
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 14.0, vertical: 10.0),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: DropdownButtonFormField<String>(
-                      value: _selectedYear,
-                      decoration: InputDecoration(
-                        labelText: 'Year',
-                        labelStyle: TextStyle(fontSize: 12, color: widget.colors.primary, fontWeight: FontWeight.bold),
-                        isDense: true,
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                        filled: true,
-                        fillColor: widget.colors.surfaceContainerLow,
-                      ),
-                      items: const [
-                        DropdownMenuItem(value: 'All', child: Text('All Years', style: TextStyle(fontSize: 12))),
-                        DropdownMenuItem(value: '1st Year', child: Text('1st Year', style: TextStyle(fontSize: 12))),
-                        DropdownMenuItem(value: '2nd Year', child: Text('2nd Year', style: TextStyle(fontSize: 12))),
-                        DropdownMenuItem(value: '3rd Year', child: Text('3rd Year', style: TextStyle(fontSize: 12))),
-                        DropdownMenuItem(value: '4th Year', child: Text('4th Year', style: TextStyle(fontSize: 12))),
-                      ],
-                      onChanged: (val) {
-                        if (val != null) {
-                          setState(() {
-                            _selectedYear = val;
-                          });
-                        }
-                      },
-                    ),
+              padding: const EdgeInsets.all(16.0),
+              child: SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: widget.colors.primary,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    padding: const EdgeInsets.symmetric(vertical: 14),
                   ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: DropdownButtonFormField<String>(
-                      value: _selectedSemester,
-                      decoration: InputDecoration(
-                        labelText: 'Semester',
-                        labelStyle: TextStyle(fontSize: 12, color: widget.colors.primary, fontWeight: FontWeight.bold),
-                        isDense: true,
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                        filled: true,
-                        fillColor: widget.colors.surfaceContainerLow,
+                  icon: const Icon(Icons.analytics_outlined),
+                  label: const Text('See All Results', style: TextStyle(fontWeight: FontWeight.bold)),
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => StudentResultsViewerScreen(
+                          profile: profile,
+                          results: studentResults,
+                        ),
                       ),
-                      items: const [
-                        DropdownMenuItem(value: 'All', child: Text('All Semesters', style: TextStyle(fontSize: 12))),
-                        DropdownMenuItem(value: '1st Semester', child: Text('1st Sem', style: TextStyle(fontSize: 12))),
-                        DropdownMenuItem(value: '2nd Semester', child: Text('2nd Sem', style: TextStyle(fontSize: 12))),
-                      ],
-                      onChanged: (val) {
-                        if (val != null) {
-                          setState(() {
-                            _selectedSemester = val;
-                          });
-                        }
-                      },
-                    ),
-                  ),
-                ],
+                    );
+                  },
+                ),
               ),
             ),
-
-            // Results List
-            if (filteredItems.isEmpty)
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: 24.0),
-                child: Center(
-                  child: Text(
-                    'No results for selected Year/Semester',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: widget.colors.onSurface.withValues(alpha: 0.45),
-                      fontStyle: FontStyle.italic,
-                    ),
-                  ),
-                ),
-              )
-            else
-              ...filteredItems.map((item) => _buildSemesterSubTile(item, widget.colors)),
           ],
         ),
       ),
-    );
-  }
-
-  Widget _buildSemesterSubTile(BatchMemberResult item, ColorScheme colors) {
-    SubjectResult? searchedSub;
-    if (widget.subjectSearchQuery.isNotEmpty) {
-      for (var s in item.result.subjects) {
-        if (s.code.toLowerCase().contains(widget.subjectSearchQuery.toLowerCase()) ||
-            s.name.toLowerCase().contains(widget.subjectSearchQuery.toLowerCase())) {
-          searchedSub = s;
-          break;
-        }
-      }
-    }
-    final semNum = item.result.semester ?? _parseSemesterNumber(item.result.examName);
-
-    return Card(
-      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 5).copyWith(bottom: 8),
-      elevation: 0,
-      color: colors.surface,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(10),
-        side: BorderSide(color: colors.outline.withValues(alpha: 0.1)),
-      ),
-      child: Theme(
-        data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
-        child: ExpansionTile(
-          key: Key('${item.profile.id}_s${item.result.id}_${item.result.id == _expandedSemesterResultId}'),
-          initiallyExpanded: item.result.id == _expandedSemesterResultId,
-          onExpansionChanged: (exp) => setState(() {
-            if (exp) _expandedSemesterResultId = item.result.id;
-            else if (_expandedSemesterResultId == item.result.id) _expandedSemesterResultId = null;
-          }),
-          tilePadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
-          childrenPadding: const EdgeInsets.all(12).copyWith(top: 0),
-          title: Text('Semester $semNum', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-          subtitle: Padding(
-            padding: const EdgeInsets.only(top: 4),
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text(item.result.examName, style: TextStyle(fontSize: 10, color: colors.onSurface.withValues(alpha: 0.5))),
-              const SizedBox(height: 4),
-              Row(children: [
-                _gpaBadge('GPA: ${item.result.gpa}', Colors.blue),
-                const SizedBox(width: 6),
-                _gpaBadge('CGPA: ${item.result.cgpa}', Colors.green),
-                if (searchedSub != null) ...[
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text('${searchedSub.code}: ${searchedSub.grade}',
-                        style: TextStyle(fontSize: 9, fontWeight: FontWeight.w600, color: colors.primary),
-                        overflow: TextOverflow.ellipsis),
-                  ),
-                ],
-              ]),
-            ]),
-          ),
-          children: [
-            const Divider(height: 1),
-            const SizedBox(height: 8),
-            Text('Reg: ${item.profile.duRegNo.isNotEmpty ? item.profile.duRegNo : "N/A"}',
-                style: TextStyle(fontSize: 10, color: colors.onSurface.withValues(alpha: 0.5))),
-            const SizedBox(height: 8),
-            ...item.result.subjects.map((sub) => _buildSubjectRow(sub, colors)),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _gpaBadge(String text, Color color) => Container(
-    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
-    decoration: BoxDecoration(color: color.withValues(alpha: 0.08), borderRadius: BorderRadius.circular(4)),
-    child: Text(text, style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: color)),
-  );
-
-  Widget _buildSubjectRow(SubjectResult subject, ColorScheme colors) {
-    Color gradeColor = Colors.grey;
-    if (subject.grade.startsWith('A'))     gradeColor = Colors.green;
-    else if (subject.grade.startsWith('B')) gradeColor = Colors.blue;
-    else if (subject.grade.startsWith('C')) gradeColor = Colors.orange;
-    else if (subject.grade == 'F')          gradeColor = Colors.red;
-
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8.0),
-      child: Row(children: [
-        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text(subject.code, style: TextStyle(color: colors.primary, fontSize: 11, fontWeight: FontWeight.bold)),
-          Text(subject.name, style: const TextStyle(fontSize: 12), overflow: TextOverflow.ellipsis),
-        ])),
-        Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
-          Text(subject.grade, style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: gradeColor)),
-          Text(subject.point, style: TextStyle(fontSize: 10, color: colors.onSurface.withValues(alpha: 0.5))),
-        ]),
-      ]),
     );
   }
 }
+
+
