@@ -7,6 +7,7 @@ import '../../../backend/services/result_service.dart';
 import '../presentation/bloc/result_bloc.dart';
 import '../presentation/bloc/result_event.dart';
 import '../presentation/bloc/result_state.dart';
+import 'cgpa_prediction_chart.dart';
 
 class BatchResultsTab extends StatefulWidget {
   const BatchResultsTab({super.key});
@@ -669,6 +670,7 @@ class _BatchResultsTabState extends State<BatchResultsTab> {
   ) {
     final profile = studentItems.first.profile;
     final latestCgpa = _getLatestStudentCgpa(profile.id, allResults);
+    final studentResults = studentItems.map((item) => item.result).toList();
 
     // Group semesters by academic year: 1=1st, 2=2nd, 3=3rd, 4=4th Year
     final Map<int, List<BatchMemberResult>> yearsMap = {};
@@ -759,51 +761,82 @@ class _BatchResultsTabState extends State<BatchResultsTab> {
           ),
           children: [
             const Divider(height: 1),
-            ...sortedYears.map((yearNum) {
-              final yearItems = yearsMap[yearNum]!;
-              // Sort semesters inside yearItems by semester index
-              yearItems.sort((a, b) {
-                final semA = a.result.semester ?? _parseSemesterNumber(a.result.examName);
-                final semB = b.result.semester ?? _parseSemesterNumber(b.result.examName);
-                return semA.compareTo(semB);
-              });
-
-              final yearLabel = '$yearNum${_getOrdinalSuffix(yearNum)} Year';
-
-              return Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 4.0),
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: colors.surfaceContainerLow.withValues(alpha: 0.5),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: colors.outline.withValues(alpha: 0.05)),
-                  ),
-                  child: Theme(
-                    data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
-                    child: ExpansionTile(
-                      key: Key('${profile.id}_year_${yearNum}_${yearNum == _expandedYear}'),
-                      initiallyExpanded: yearNum == _expandedYear,
-                      onExpansionChanged: (expanded) {
-                        setState(() {
-                          if (expanded) {
-                            _expandedYear = yearNum;
-                            _expandedSemesterResultId = null;
-                          } else if (_expandedYear == yearNum) {
-                            _expandedYear = null;
-                          }
-                        });
-                      },
-                      title: Text(
-                        yearLabel,
-                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: colors.primary),
-                      ),
-                      leading: Icon(Icons.school_outlined, size: 18, color: colors.primary),
-                      children: yearItems.map((item) => _buildSemesterSubTile(item, colors)).toList(),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
+              child: CgpaPredictionChart(
+                results: studentResults,
+                showPredictions: false,
+              ),
+            ),
+            const Divider(height: 1),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+              child: Container(
+                decoration: BoxDecoration(
+                  color: colors.primary.withValues(alpha: 0.04),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: colors.primary.withValues(alpha: 0.1)),
+                ),
+                child: Theme(
+                  data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+                  child: ExpansionTile(
+                    title: const Text(
+                      'See All Results',
+                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
                     ),
+                    leading: Icon(Icons.list_alt_rounded, color: colors.primary, size: 20),
+                    childrenPadding: const EdgeInsets.symmetric(horizontal: 8.0).copyWith(bottom: 8.0),
+                    children: [
+                      ...sortedYears.map((yearNum) {
+                        final yearItems = yearsMap[yearNum]!;
+                        // Sort semesters inside yearItems by semester index
+                        yearItems.sort((a, b) {
+                          final semA = a.result.semester ?? _parseSemesterNumber(a.result.examName);
+                          final semB = b.result.semester ?? _parseSemesterNumber(b.result.examName);
+                          return semA.compareTo(semB);
+                        });
+
+                        final yearLabel = '$yearNum${_getOrdinalSuffix(yearNum)} Year';
+
+                        return Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 4.0, vertical: 4.0),
+                          child: Container(
+                            decoration: BoxDecoration(
+                              color: colors.surfaceContainerLow.withValues(alpha: 0.5),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: colors.outline.withValues(alpha: 0.05)),
+                            ),
+                            child: Theme(
+                              data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+                              child: ExpansionTile(
+                                key: Key('${profile.id}_year_${yearNum}_${yearNum == _expandedYear}'),
+                                initiallyExpanded: yearNum == _expandedYear,
+                                onExpansionChanged: (expanded) {
+                                  setState(() {
+                                    if (expanded) {
+                                      _expandedYear = yearNum;
+                                      _expandedSemesterResultId = null;
+                                    } else if (_expandedYear == yearNum) {
+                                      _expandedYear = null;
+                                    }
+                                  });
+                                },
+                                title: Text(
+                                  yearLabel,
+                                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: colors.primary),
+                                ),
+                                leading: Icon(Icons.school_outlined, size: 18, color: colors.primary),
+                                children: yearItems.map((item) => _buildSemesterSubTile(item, colors)).toList(),
+                              ),
+                            ),
+                          ),
+                        );
+                      }),
+                    ],
                   ),
                 ),
-              );
-            }),
+              ),
+            ),
           ],
         ),
       ),

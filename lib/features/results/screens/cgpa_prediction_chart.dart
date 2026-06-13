@@ -4,8 +4,13 @@ import '../models/result_state.dart';
 
 class CgpaPredictionChart extends StatefulWidget {
   final List<ExamResult> results;
+  final bool showPredictions;
 
-  const CgpaPredictionChart({super.key, required this.results});
+  const CgpaPredictionChart({
+    super.key,
+    required this.results,
+    this.showPredictions = true,
+  });
 
   @override
   State<CgpaPredictionChart> createState() => _CgpaPredictionChartState();
@@ -145,13 +150,20 @@ class _CgpaPredictionChartState extends State<CgpaPredictionChart> {
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
                     Text(
-                      'Predicted Final CGPA',
+                      widget.showPredictions ? 'Predicted Final CGPA' : 'Completed Semesters',
                       style: TextStyle(fontSize: 12, color: colors.onSurface.withValues(alpha: 0.6), fontWeight: FontWeight.w500),
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      predictedFinalCgpa.toStringAsFixed(2),
-                      style: TextStyle(fontSize: 26, fontWeight: FontWeight.bold, color: colors.primary, letterSpacing: -0.5),
+                      widget.showPredictions 
+                          ? predictedFinalCgpa.toStringAsFixed(2) 
+                          : '$K / 8',
+                      style: TextStyle(
+                        fontSize: 26, 
+                        fontWeight: FontWeight.bold, 
+                        color: widget.showPredictions ? colors.primary : colors.onSurface, 
+                        letterSpacing: -0.5
+                      ),
                     ),
                   ],
                 ),
@@ -170,6 +182,7 @@ class _CgpaPredictionChartState extends State<CgpaPredictionChart> {
                   projectedGpas: projectedGpas,
                   lastActualIndex: K - 1,
                   themeColors: colors,
+                  showPredictions: widget.showPredictions,
                 ),
               ),
             ),
@@ -193,83 +206,85 @@ class _CgpaPredictionChartState extends State<CgpaPredictionChart> {
             const SizedBox(height: 16),
 
             // Target Slider (Visible only if there are future semesters to predict)
-            if (K < 8) ...[
-              const Divider(),
-              const SizedBox(height: 8),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+            if (widget.showPredictions) ...[
+              if (K < 8) ...[
+                const Divider(),
+                const SizedBox(height: 8),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Expected Future GPA',
+                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            'Set expected GPA for remaining ${8 - K} semesters',
+                            style: TextStyle(fontSize: 11, color: colors.onSurface.withValues(alpha: 0.5)),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: colors.primaryContainer.withValues(alpha: 0.5),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: colors.primary.withValues(alpha: 0.2)),
+                      ),
+                      child: Text(
+                        _targetFutureGpa.toStringAsFixed(2),
+                        style: TextStyle(color: colors.primary, fontWeight: FontWeight.bold, fontSize: 16),
+                      ),
+                    ),
+                  ],
+                ),
+                SliderTheme(
+                  data: SliderThemeData(
+                    activeTrackColor: colors.primary,
+                    inactiveTrackColor: colors.primary.withValues(alpha: 0.15),
+                    thumbColor: colors.primary,
+                    overlayColor: colors.primary.withValues(alpha: 0.1),
+                    trackHeight: 4,
+                  ),
+                  child: Slider(
+                    value: _targetFutureGpa,
+                    min: 2.00,
+                    max: 4.00,
+                    divisions: 40,
+                    onChanged: (val) {
+                      setState(() => _targetFutureGpa = val);
+                    },
+                  ),
+                ),
+              ] else ...[
+                const SizedBox(height: 8),
+                Center(
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: Colors.green.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Colors.green.withValues(alpha: 0.2)),
+                    ),
+                    child: const Row(
+                      mainAxisSize: MainAxisSize.min,
                       children: [
+                        Icon(Icons.check_circle, color: Colors.green, size: 16),
+                        SizedBox(width: 8),
                         Text(
-                          'Expected Future GPA',
-                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          'Set expected GPA for remaining ${8 - K} semesters',
-                          style: TextStyle(fontSize: 11, color: colors.onSurface.withValues(alpha: 0.5)),
+                          'Congratulations! All 8 semesters completed.',
+                          style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold, fontSize: 12),
                         ),
                       ],
                     ),
                   ),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: colors.primaryContainer.withValues(alpha: 0.5),
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: colors.primary.withValues(alpha: 0.2)),
-                    ),
-                    child: Text(
-                      _targetFutureGpa.toStringAsFixed(2),
-                      style: TextStyle(color: colors.primary, fontWeight: FontWeight.bold, fontSize: 16),
-                    ),
-                  ),
-                ],
-              ),
-              SliderTheme(
-                data: SliderThemeData(
-                  activeTrackColor: colors.primary,
-                  inactiveTrackColor: colors.primary.withValues(alpha: 0.15),
-                  thumbColor: colors.primary,
-                  overlayColor: colors.primary.withValues(alpha: 0.1),
-                  trackHeight: 4,
                 ),
-                child: Slider(
-                  value: _targetFutureGpa,
-                  min: 2.00,
-                  max: 4.00,
-                  divisions: 40,
-                  onChanged: (val) {
-                    setState(() => _targetFutureGpa = val);
-                  },
-                ),
-              ),
-            ] else ...[
-              const SizedBox(height: 8),
-              Center(
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  decoration: BoxDecoration(
-                    color: Colors.green.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: Colors.green.withValues(alpha: 0.2)),
-                  ),
-                  child: const Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(Icons.check_circle, color: Colors.green, size: 16),
-                      SizedBox(width: 8),
-                      Text(
-                        'Congratulations! All 8 semesters completed.',
-                        style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold, fontSize: 12),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
+              ],
             ],
           ],
         ),
@@ -311,6 +326,7 @@ class CgpaLineChartPainter extends CustomPainter {
   final List<double> projectedGpas;
   final int lastActualIndex; // -1 means none completed
   final ColorScheme themeColors;
+  final bool showPredictions;
 
   CgpaLineChartPainter({
     required this.actualCgpas,
@@ -319,6 +335,7 @@ class CgpaLineChartPainter extends CustomPainter {
     required this.projectedGpas,
     required this.lastActualIndex,
     required this.themeColors,
+    required this.showPredictions,
   });
 
   @override
@@ -428,7 +445,7 @@ class CgpaLineChartPainter extends CustomPainter {
     }
 
     // 3. Draw Projected GPA Line (Dashed)
-    if (projectedGpaPoints.length > 1) {
+    if (showPredictions && projectedGpaPoints.length > 1) {
       final Paint projectedGpaPaint = Paint()
         ..color = gpaLineColor.withValues(alpha: 0.35)
         ..strokeWidth = 2.0
@@ -443,7 +460,7 @@ class CgpaLineChartPainter extends CustomPainter {
     }
 
     // 4. Draw Projected CGPA Line (Dashed)
-    if (projectedPoints.length > 1) {
+    if (showPredictions && projectedPoints.length > 1) {
       final Paint projectedPaint = Paint()
         ..color = themeColors.primary.withValues(alpha: 0.4)
         ..strokeWidth = 3.0
@@ -538,6 +555,7 @@ class CgpaLineChartPainter extends CustomPainter {
       ..style = PaintingStyle.stroke;
 
     for (int i = 0; i < 8; i++) {
+      if (!showPredictions && i > lastActualIndex) continue;
       final Offset ptCgpa = projectedPoints[i];
       final Offset ptGpa = projectedGpaPoints[i];
       
@@ -633,6 +651,7 @@ class CgpaLineChartPainter extends CustomPainter {
         oldDelegate.actualGpas != actualGpas ||
         oldDelegate.projectedGpas != projectedGpas ||
         oldDelegate.lastActualIndex != lastActualIndex ||
-        oldDelegate.themeColors != themeColors;
+        oldDelegate.themeColors != themeColors ||
+        oldDelegate.showPredictions != showPredictions;
   }
 }

@@ -171,8 +171,8 @@ class _ResultsScreenState extends State<ResultsScreen> with SingleTickerProvider
                     key: _tabBarKey,
                     controller: _tabController,
                     tabs: const [
-                      Tab(text: 'My Dashboard', icon: Icon(Icons.dashboard_outlined)),
-                      Tab(text: 'Batch Directory', icon: Icon(Icons.group_outlined)),
+                      Tab(text: 'My Results', icon: Icon(Icons.dashboard_outlined)),
+                      Tab(text: 'Batch Results', icon: Icon(Icons.group_outlined)),
                     ],
                   ),
                 ),
