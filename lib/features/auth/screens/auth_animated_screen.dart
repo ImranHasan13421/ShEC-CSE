@@ -80,6 +80,8 @@ class _AuthAnimatedScreenState extends State<AuthAnimatedScreen> with TickerProv
               {'session': '2023-2024'},
               {'session': '2022-2023'},
               {'session': '2021-2022'},
+              {'session': '2020-2021'},
+              {'session': '2019-2020'},
             ];
           }
         });
