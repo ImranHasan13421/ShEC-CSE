@@ -1,3 +1,5 @@
+import 'dart:io';
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:ShEC_CSE/features/dashboard/presentation/widgets/ambient_background.dart';
@@ -13,6 +15,9 @@ import '../presentation/bloc/result_state.dart';
 import 'cgpa_prediction_chart.dart';
 import 'batch_results_tab.dart';
 import 'package:ShEC_CSE/core/utils/snackbar_utils.dart';
+import 'package:pdf/pdf.dart';
+import 'package:pdf/widgets.dart' as pw;
+import 'package:printing/printing.dart';
 
 class ResultsScreen extends StatefulWidget {
   const ResultsScreen({super.key});
@@ -124,6 +129,18 @@ class _ResultsScreenState extends State<ResultsScreen> with SingleTickerProvider
                             context.read<ResultBloc>().add(SyncResultsRequested());
                           } else {
                             context.read<ResultBloc>().add(LoadBatchResultsRequested(session: currentProfile.value.session));
+                          }
+                        },
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.download_rounded),
+                        tooltip: 'Download Consolidated Report',
+                        onPressed: () {
+                          final resultsState = context.read<ResultBloc>().state;
+                          if (resultsState.ownResults.isNotEmpty) {
+                            _generateAndShareFullReport(context, resultsState.ownResults);
+                          } else {
+                            SnackBarUtils.showInfo(context, 'No results available to download.');
                           }
                         },
                       ),
@@ -427,6 +444,14 @@ class _ResultsScreenState extends State<ResultsScreen> with SingleTickerProvider
                 ),
               ),
               IconButton(
+                icon: Icon(Icons.download_rounded, color: colors.primary, size: 20),
+                tooltip: 'Download PDF Report',
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(),
+                onPressed: () => _generateAndSharePdf(context, result),
+              ),
+              const SizedBox(width: 12),
+              IconButton(
                 icon: const Icon(Icons.delete_outline, color: Colors.redAccent, size: 20),
                 tooltip: 'Remove Semester Result',
                 padding: EdgeInsets.zero,
@@ -545,6 +570,311 @@ class _ResultsScreenState extends State<ResultsScreen> with SingleTickerProvider
         ],
       ),
     );
+  }
+
+  Future<void> _generateAndSharePdf(BuildContext context, ExamResult result) async {
+    final pdf = pw.Document();
+
+    pdf.addPage(
+      pw.Page(
+        pageFormat: PdfPageFormat.a4,
+        build: (pw.Context context) {
+          return pw.Padding(
+            padding: const pw.EdgeInsets.all(32),
+            child: pw.Column(
+              crossAxisAlignment: pw.CrossAxisAlignment.start,
+              children: [
+                pw.Center(
+                  child: pw.Text(
+                    'Shyamoli Engineering College (ShEC)',
+                    style: pw.TextStyle(fontSize: 22, fontWeight: pw.FontWeight.bold),
+                  ),
+                ),
+                pw.Center(
+                  child: pw.Text(
+                    'Department of Computer Science & Engineering',
+                    style: pw.TextStyle(fontSize: 14),
+                  ),
+                ),
+                pw.SizedBox(height: 20),
+                pw.Divider(),
+                pw.SizedBox(height: 10),
+                pw.Text('Academic Transcript / Semester Result', style: pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold)),
+                pw.SizedBox(height: 10),
+                pw.Row(
+                  mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                  children: [
+                    pw.Text('Exam Name: ${result.examName}'),
+                    pw.Text('Registration No: ${result.regNo}'),
+                  ],
+                ),
+                pw.SizedBox(height: 5),
+                pw.Row(
+                  mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                  children: [
+                    pw.Text('GPA: ${result.gpa}'),
+                    pw.Text('CGPA: ${result.cgpa}'),
+                  ],
+                ),
+                pw.SizedBox(height: 20),
+                pw.Table(
+                  border: pw.TableBorder.all(color: PdfColors.grey300, width: 0.5),
+                  columnWidths: {
+                    0: const pw.FlexColumnWidth(2), // Code
+                    1: const pw.FlexColumnWidth(5), // Title
+                    2: const pw.FlexColumnWidth(2), // Credits
+                    3: const pw.FlexColumnWidth(2), // Grade
+                    4: const pw.FlexColumnWidth(2), // Point
+                  },
+                  children: [
+                    pw.TableRow(
+                      decoration: const pw.BoxDecoration(color: PdfColors.grey100),
+                      children: [
+                        pw.Padding(
+                          padding: const pw.EdgeInsets.all(6),
+                          child: pw.Text('Course Code', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 10)),
+                        ),
+                        pw.Padding(
+                          padding: const pw.EdgeInsets.all(6),
+                          child: pw.Text('Course Title', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 10)),
+                        ),
+                        pw.Padding(
+                          padding: const pw.EdgeInsets.all(6),
+                          child: pw.Text('Credits', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 10), textAlign: pw.TextAlign.center),
+                        ),
+                        pw.Padding(
+                          padding: const pw.EdgeInsets.all(6),
+                          child: pw.Text('Letter Grade', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 10), textAlign: pw.TextAlign.center),
+                        ),
+                        pw.Padding(
+                          padding: const pw.EdgeInsets.all(6),
+                          child: pw.Text('Grade Point', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 10), textAlign: pw.TextAlign.center),
+                        ),
+                      ],
+                    ),
+                    ...result.subjects.map((s) => pw.TableRow(
+                      children: [
+                        pw.Padding(
+                          padding: const pw.EdgeInsets.all(6),
+                          child: pw.Text(s.code, style: const pw.TextStyle(fontSize: 9)),
+                        ),
+                        pw.Padding(
+                          padding: const pw.EdgeInsets.all(6),
+                          child: pw.Text(s.name, style: const pw.TextStyle(fontSize: 9)),
+                        ),
+                        pw.Padding(
+                          padding: const pw.EdgeInsets.all(6),
+                          child: pw.Text(s.credits.toStringAsFixed(1), style: const pw.TextStyle(fontSize: 9), textAlign: pw.TextAlign.center),
+                        ),
+                        pw.Padding(
+                          padding: const pw.EdgeInsets.all(6),
+                          child: pw.Text(s.grade, style: const pw.TextStyle(fontSize: 9), textAlign: pw.TextAlign.center),
+                        ),
+                        pw.Padding(
+                          padding: const pw.EdgeInsets.all(6),
+                          child: pw.Text(s.point, style: const pw.TextStyle(fontSize: 9), textAlign: pw.TextAlign.center),
+                        ),
+                      ],
+                    )),
+                  ],
+                ),
+                pw.Spacer(),
+                pw.Divider(),
+                pw.SizedBox(height: 5),
+                pw.Row(
+                  mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                  children: [
+                    pw.Text('Generated on: ${DateTime.now().toLocal().toString().split(".")[0]}', style: const pw.TextStyle(fontSize: 8, color: PdfColors.grey600)),
+                    pw.Text('ShEC CSE Academic Portal', style: const pw.TextStyle(fontSize: 8, color: PdfColors.grey600)),
+                  ],
+                ),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+
+    final String safeExamName = result.examName.replaceAll(RegExp(r'[^\w\s\-]'), '').replaceAll(' ', '_');
+    final bytes = await pdf.save();
+    if (context.mounted) {
+      await _savePdfFile(context: context, pdfBytes: bytes, filename: 'result_$safeExamName.pdf');
+    }
+  }
+
+  Future<void> _generateAndShareFullReport(BuildContext context, List<ExamResult> results) async {
+    final pdf = pw.Document();
+
+    pdf.addPage(
+      pw.MultiPage(
+        pageFormat: PdfPageFormat.a4,
+        build: (pw.Context context) {
+          return [
+            pw.Center(
+              child: pw.Text(
+                'Shyamoli Engineering College (ShEC)',
+                style: pw.TextStyle(fontSize: 22, fontWeight: pw.FontWeight.bold),
+              ),
+            ),
+            pw.Center(
+              child: pw.Text(
+                'Department of Computer Science & Engineering',
+                style: pw.TextStyle(fontSize: 14),
+              ),
+            ),
+            pw.SizedBox(height: 20),
+            pw.Center(
+              child: pw.Text(
+                'CONSOLIDATED ACADEMIC REPORT (ALL SEMESTERS)',
+                style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold, decoration: pw.TextDecoration.underline),
+              ),
+            ),
+            pw.SizedBox(height: 20),
+            pw.Row(
+              mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+              children: [
+                pw.Text('Student Name: ${currentProfile.value.name}', style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+                pw.Text('Registration No: ${currentProfile.value.duRegNo}', style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+              ],
+            ),
+            pw.SizedBox(height: 5),
+            pw.Row(
+              mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+              children: [
+                pw.Text('Session: ${currentProfile.value.session}'),
+                pw.Text('Batch: ${currentProfile.value.batch}'),
+              ],
+            ),
+            pw.SizedBox(height: 20),
+            pw.Divider(),
+
+            ...results.expand((result) => [
+              pw.SizedBox(height: 15),
+              pw.Text(
+                '${result.examName} | GPA: ${result.gpa} | CGPA: ${result.cgpa}',
+                style: pw.TextStyle(fontSize: 11, fontWeight: pw.FontWeight.bold),
+              ),
+              pw.SizedBox(height: 8),
+              pw.Table(
+                border: pw.TableBorder.all(color: PdfColors.grey300, width: 0.5),
+                columnWidths: {
+                  0: const pw.FlexColumnWidth(2),
+                  1: const pw.FlexColumnWidth(5),
+                  2: const pw.FlexColumnWidth(2),
+                  3: const pw.FlexColumnWidth(2),
+                  4: const pw.FlexColumnWidth(2),
+                },
+                children: [
+                  pw.TableRow(
+                    decoration: const pw.BoxDecoration(color: PdfColors.grey100),
+                    children: [
+                      pw.Padding(
+                        padding: const pw.EdgeInsets.all(5),
+                        child: pw.Text('Course Code', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 9)),
+                      ),
+                      pw.Padding(
+                        padding: const pw.EdgeInsets.all(5),
+                        child: pw.Text('Course Title', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 9)),
+                      ),
+                      pw.Padding(
+                        padding: const pw.EdgeInsets.all(5),
+                        child: pw.Text('Credits', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 9), textAlign: pw.TextAlign.center),
+                      ),
+                      pw.Padding(
+                        padding: const pw.EdgeInsets.all(5),
+                        child: pw.Text('Grade', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 9), textAlign: pw.TextAlign.center),
+                      ),
+                      pw.Padding(
+                        padding: const pw.EdgeInsets.all(5),
+                        child: pw.Text('Point', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 9), textAlign: pw.TextAlign.center),
+                      ),
+                    ],
+                  ),
+                  ...result.subjects.map((s) => pw.TableRow(
+                    children: [
+                      pw.Padding(
+                        padding: const pw.EdgeInsets.all(5),
+                        child: pw.Text(s.code, style: const pw.TextStyle(fontSize: 8)),
+                      ),
+                      pw.Padding(
+                        padding: const pw.EdgeInsets.all(5),
+                        child: pw.Text(s.name, style: const pw.TextStyle(fontSize: 8)),
+                      ),
+                      pw.Padding(
+                        padding: const pw.EdgeInsets.all(5),
+                        child: pw.Text(s.credits.toStringAsFixed(1), style: const pw.TextStyle(fontSize: 8), textAlign: pw.TextAlign.center),
+                      ),
+                      pw.Padding(
+                        padding: const pw.EdgeInsets.all(5),
+                        child: pw.Text(s.grade, style: const pw.TextStyle(fontSize: 8), textAlign: pw.TextAlign.center),
+                      ),
+                      pw.Padding(
+                        padding: const pw.EdgeInsets.all(5),
+                        child: pw.Text(s.point, style: const pw.TextStyle(fontSize: 8), textAlign: pw.TextAlign.center),
+                      ),
+                    ],
+                  )),
+                ],
+              ),
+              pw.SizedBox(height: 10),
+              pw.Divider(color: PdfColors.grey200),
+            ]),
+          ];
+        },
+        footer: (pw.Context context) {
+          return pw.Container(
+            alignment: pw.Alignment.centerRight,
+            margin: const pw.EdgeInsets.only(top: 10),
+            child: pw.Row(
+              mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+              children: [
+                pw.Text('Generated on: ${DateTime.now().toLocal().toString().split(".")[0]}', style: const pw.TextStyle(fontSize: 8, color: PdfColors.grey600)),
+                pw.Text('Page ${context.pageNumber} of ${context.pagesCount}', style: const pw.TextStyle(fontSize: 8, color: PdfColors.grey600)),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+
+    final bytes = await pdf.save();
+    if (context.mounted) {
+      await _savePdfFile(context: context, pdfBytes: bytes, filename: 'consolidated_academic_report.pdf');
+    }
+  }
+
+  Future<void> _savePdfFile({
+    required BuildContext context,
+    required Uint8List pdfBytes,
+    required String filename,
+  }) async {
+    try {
+      if (Platform.isAndroid) {
+        final directory = Directory('/storage/emulated/0/Download/ShEC CSE');
+        if (!await directory.exists()) {
+          await directory.create(recursive: true);
+        }
+        final file = File('${directory.path}/$filename');
+        await file.writeAsBytes(pdfBytes);
+        if (context.mounted) {
+          SnackBarUtils.showSuccess(
+            context,
+            'Successfully saved to Download folder "ShEC CSE"!',
+          );
+        }
+      } else {
+        await Printing.sharePdf(bytes: pdfBytes, filename: filename);
+      }
+    } catch (e) {
+      debugPrint('Error saving PDF to public folder, falling back to share: $e');
+      try {
+        await Printing.sharePdf(bytes: pdfBytes, filename: filename);
+      } catch (shareError) {
+        if (context.mounted) {
+          SnackBarUtils.showError(context, 'Failed to save or share PDF: $shareError');
+        }
+      }
+    }
   }
 
   Widget _buildCgpaCalculatorBanner(BuildContext context, List<ExamResult> results) {

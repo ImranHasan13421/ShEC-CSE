@@ -32,6 +32,8 @@ dependencies:
   equatable: ^2.0.6
   gal: ^2.2.1
   sqflite: ^2.3.0
+  pdf: ^3.10.8
+  printing: ^5.11.0
 
 dev_dependencies:
   flutter_test:

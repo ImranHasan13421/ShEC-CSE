@@ -6,6 +6,7 @@ import 'package:ShEC_CSE/features/dashboard/presentation/widgets/guided_tour_ove
 import 'package:ShEC_CSE/features/results/models/result_state.dart';
 import 'package:ShEC_CSE/backend/services/result_service.dart';
 import 'package:ShEC_CSE/core/utils/subject_information.dart';
+import 'package:ShEC_CSE/features/results/screens/cgpa_prediction_chart.dart';
 
 // --- Data Models ---
 class CourseData {
@@ -423,6 +424,30 @@ class _CGPACalculatorScreenState extends State<CGPACalculatorScreen> {
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
 
+    final List<ExamResult> convertedResults = semesters.asMap().entries.map((entry) {
+      final idx = entry.key;
+      final sem = entry.value;
+      final semGpa = sem.semesterGPA;
+      final cumulativeCgpa = getCumulativeCgpaUpTo(idx);
+
+      return ExamResult(
+        id: 'calc_sem_$idx',
+        regNo: '',
+        examId: 'calc_exam_$idx',
+        examName: sem.name,
+        gpa: semGpa.toStringAsFixed(2),
+        cgpa: cumulativeCgpa.toStringAsFixed(2),
+        subjects: sem.courses.map((c) => SubjectResult(
+          code: '',
+          name: c.name,
+          grade: '',
+          point: c.grade.toString(),
+          credits: c.credit,
+        )).toList(),
+        semester: idx + 1,
+      );
+    }).toList();
+
     return Stack(
       children: [
         AmbientTimeBackground(
@@ -449,6 +474,10 @@ class _CGPACalculatorScreenState extends State<CGPACalculatorScreen> {
 
                       // 3. Import Stored Results Card
                       _buildImportResultsCard(context, colors),
+                      const SizedBox(height: 24),
+
+                      // CGPA Calculator Prediction Line Chart
+                      CgpaPredictionChart(results: convertedResults),
                       const SizedBox(height: 24),
 
                       // 4. Semesters List Title
