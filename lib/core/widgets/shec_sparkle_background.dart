@@ -5,6 +5,8 @@ class ShECSparkleBackground extends StatefulWidget {
   final Widget? child;
   const ShECSparkleBackground({super.key, this.child});
 
+  static const List<String> textGlyphs = ['ShEC', 'CPC', '0', '1', '{/}', '{', '}', '</>', ';'];
+
   @override
   State<ShECSparkleBackground> createState() => _ShECSparkleBackgroundState();
 }
@@ -22,7 +24,7 @@ class _ShECSparkleBackgroundState extends State<ShECSparkleBackground> with Sing
     const Color(0xFFFAF9F6), // Off-White
   ];
 
-  final List<String> _textGlyphs = ['ShEC', '0', '1', '{}', '</>', ';'];
+  final List<String> _textGlyphs = ShECSparkleBackground.textGlyphs;
 
   @override
   void initState() {

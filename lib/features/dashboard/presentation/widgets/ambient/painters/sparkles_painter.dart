@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
+import 'package:ShEC_CSE/core/widgets/shec_sparkle_background.dart';
 import '../ambient_settings.dart';
 
 class SparklesPainter extends CustomPainter {
@@ -214,7 +215,7 @@ class SparklesPainter extends CustomPainter {
           canvas.restore();
         } else {
           // Digital ShEC / Code Characters
-          final String word = const ['ShEC', '01', '{}', '</>', ';'][i % 5];
+          final String word = ShECSparkleBackground.textGlyphs[i % ShECSparkleBackground.textGlyphs.length];
           final textPainter = TextPainter(
             text: TextSpan(
               text: word,
