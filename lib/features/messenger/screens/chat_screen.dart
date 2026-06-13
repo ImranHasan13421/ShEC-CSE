@@ -197,13 +197,13 @@ class _ChatScreenState extends State<ChatScreen> {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                   decoration: BoxDecoration(
-                    color: colors.surface,
+                    color: colors.surfaceContainer,
                     borderRadius: const BorderRadius.only(
                       topRight: Radius.circular(16),
                       bottomLeft: Radius.circular(16),
                       bottomRight: Radius.circular(16),
                     ),
-                    border: Border.all(color: colors.outline.withOpacity(0.1)),
+                    border: Border.all(color: colors.outline.withOpacity(0.2)),
                   ),
                   child: Text(message, style: TextStyle(color: colors.onSurface, fontSize: 14)),
                 ),
