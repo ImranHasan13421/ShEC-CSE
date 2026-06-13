@@ -705,6 +705,13 @@ class _ResultsScreenState extends State<ResultsScreen> with SingleTickerProvider
   Future<void> _generateAndShareFullReport(BuildContext context, List<ExamResult> results) async {
     final pdf = pw.Document();
 
+    final sortedResults = List<ExamResult>.from(results)
+      ..sort((a, b) {
+        final semA = a.semester ?? _parseSemesterNumber(a.examName);
+        final semB = b.semester ?? _parseSemesterNumber(b.examName);
+        return semA.compareTo(semB);
+      });
+
     pdf.addPage(
       pw.MultiPage(
         pageFormat: PdfPageFormat.a4,
@@ -748,10 +755,10 @@ class _ResultsScreenState extends State<ResultsScreen> with SingleTickerProvider
             pw.SizedBox(height: 20),
             pw.Divider(),
 
-            ...results.expand((result) => [
+            ...sortedResults.expand((result) => [
               pw.SizedBox(height: 15),
               pw.Text(
-                '${result.examName} | GPA: ${result.gpa} | CGPA: ${result.cgpa}',
+                'Semester ${result.semester ?? _parseSemesterNumber(result.examName)} (${result.examName}) | GPA: ${result.gpa} | CGPA: ${result.cgpa}',
                 style: pw.TextStyle(fontSize: 11, fontWeight: pw.FontWeight.bold),
               ),
               pw.SizedBox(height: 8),
