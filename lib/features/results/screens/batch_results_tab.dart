@@ -8,6 +8,39 @@ import '../presentation/bloc/result_bloc.dart';
 import '../presentation/bloc/result_event.dart';
 import '../presentation/bloc/result_state.dart';
 import 'cgpa_prediction_chart.dart';
+import 'batch_overview_chart.dart';
+
+// ──────────────────────────────────────────────────────────────
+//  Enums & helpers
+// ──────────────────────────────────────────────────────────────
+
+enum _SortOrder { classRoll, cgpaDesc, nameAsc }
+
+class _ActiveFilterChip {
+  final String label;
+  final VoidCallback onRemove;
+  _ActiveFilterChip(this.label, this.onRemove);
+}
+
+/// Pre-computed student summary used across the accordion and analytics.
+class _StudentSummary {
+  final String id;
+  final ProfileData profile;
+  final double latestCgpa;
+  final int semCount;
+  final bool hasFailedSubject;
+  _StudentSummary({
+    required this.id,
+    required this.profile,
+    required this.latestCgpa,
+    required this.semCount,
+    required this.hasFailedSubject,
+  });
+}
+
+// ══════════════════════════════════════════════════════════════
+//  BatchResultsTab
+// ══════════════════════════════════════════════════════════════
 
 class BatchResultsTab extends StatefulWidget {
   const BatchResultsTab({super.key});
@@ -17,28 +50,29 @@ class BatchResultsTab extends StatefulWidget {
 }
 
 class _BatchResultsTabState extends State<BatchResultsTab> {
-  // Filter States
+  // ── Filter state ──────────────────────────────────────────
   String _selectedSession = '';
   String _studentSearchQuery = '';
   String _selectedSemester = 'All';
   String _subjectSearchQuery = '';
+  String _selectedGpaRange = 'All';
+  bool _showOnlyBacklogs = false;
+  _SortOrder _sortOrder = _SortOrder.classRoll;
 
   final TextEditingController _studentSearchController = TextEditingController();
   final TextEditingController _subjectSearchController = TextEditingController();
 
-  // Accordion state
+  // ── Accordion state ───────────────────────────────────────
   String? _expandedStudentId;
-  int? _expandedYear;
-  String? _expandedSemesterResultId;
 
   List<String> _availableSessions = [];
 
-  @override
-  void dispose() {
-    _studentSearchController.dispose();
-    _subjectSearchController.dispose();
-    super.dispose();
-  }
+  bool get _hasActiveFilters =>
+      _selectedSemester != 'All' ||
+      _subjectSearchQuery.isNotEmpty ||
+      _selectedGpaRange != 'All' ||
+      _showOnlyBacklogs ||
+      _sortOrder != _SortOrder.classRoll;
 
   @override
   void initState() {
@@ -48,18 +82,23 @@ class _BatchResultsTabState extends State<BatchResultsTab> {
     _fetchBatchResults();
   }
 
+  @override
+  void dispose() {
+    _studentSearchController.dispose();
+    _subjectSearchController.dispose();
+    super.dispose();
+  }
+
   Future<void> _loadAvailableSessions() async {
     final sessions = await ResultService.fetchSessions();
-    if (mounted) {
-      setState(() {
-        _availableSessions = sessions;
-        // Ensure current session is added if not present
-        if (_selectedSession.isNotEmpty && !_availableSessions.contains(_selectedSession)) {
-          _availableSessions.add(_selectedSession);
-        }
-        _availableSessions.sort((a, b) => b.compareTo(a)); // Descending order
-      });
-    }
+    if (!mounted) return;
+    setState(() {
+      _availableSessions = sessions;
+      if (_selectedSession.isNotEmpty && !_availableSessions.contains(_selectedSession)) {
+        _availableSessions.add(_selectedSession);
+      }
+      _availableSessions.sort((a, b) => b.compareTo(a));
+    });
   }
 
   void _fetchBatchResults() {
@@ -68,18 +107,33 @@ class _BatchResultsTabState extends State<BatchResultsTab> {
     }
   }
 
+  void _clearAllFilters() {
+    setState(() {
+      _subjectSearchController.clear();
+      _subjectSearchQuery = '';
+      _selectedSemester = 'All';
+      _selectedGpaRange = 'All';
+      _showOnlyBacklogs = false;
+      _sortOrder = _SortOrder.classRoll;
+    });
+  }
+
+  // ─────────────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
     final profile = currentProfile.value;
     final isCommittee = profile.role == UserRole.committeeMember || profile.role == UserRole.superUser;
+    final mySession = profile.session;
 
     return BlocBuilder<ResultBloc, ResultState>(
       builder: (context, state) {
+        // ── Loading ──
         if (state.isBatchLoading && state.batchResults.isEmpty) {
           return const Center(child: CircularProgressIndicator());
         }
 
+        // ── Error ──
         if (state.errorMessage != null && state.batchResults.isEmpty) {
           return Center(
             child: Padding(
@@ -91,19 +145,15 @@ class _BatchResultsTabState extends State<BatchResultsTab> {
                   const SizedBox(height: 16),
                   Text(state.errorMessage!, textAlign: TextAlign.center),
                   const SizedBox(height: 16),
-                  ElevatedButton(
-                    onPressed: _fetchBatchResults,
-                    child: const Text('Try Again'),
-                  ),
+                  ElevatedButton(onPressed: _fetchBatchResults, child: const Text('Try Again')),
                 ],
               ),
             ),
           );
         }
 
-        // If batchResults is loaded, or if loading completed
         if (state.batchResults.isNotEmpty || (!state.isBatchLoading && _selectedSession.isNotEmpty)) {
-          // Extract unique exams/semesters dynamically for filter dropdown
+          // Available semesters list
           final List<String> availableSemesters = ['All'];
           for (var r in state.batchResults) {
             if (!availableSemesters.contains(r.result.examName)) {
@@ -111,732 +161,1544 @@ class _BatchResultsTabState extends State<BatchResultsTab> {
             }
           }
 
-          // Local multi-dimensional filtering
-          final filteredResults = state.batchResults.where((item) {
-            // 1. Session check
-            if (item.profile.session != state.selectedSession) return false;
+          // Access control
+          final effectiveSession = isCommittee ? state.selectedSession : mySession;
 
-            // 2. Student Search (Name, Roll, University ID, Reg)
-            final studentMatch = _studentSearchQuery.isEmpty ||
-                item.profile.name.toLowerCase().contains(_studentSearchQuery.toLowerCase()) ||
-                item.profile.classRoll.toLowerCase().contains(_studentSearchQuery.toLowerCase()) ||
-                item.profile.universityId.toLowerCase().contains(_studentSearchQuery.toLowerCase()) ||
-                item.profile.duRegNo.toLowerCase().contains(_studentSearchQuery.toLowerCase());
-            if (!studentMatch) return false;
-
-            // 3. Semester Filter
-            final semesterMatch = _selectedSemester == 'All' || item.result.examName == _selectedSemester;
-            if (!semesterMatch) return false;
-
-            // 4. Subject Search
-            final subjectMatch = _subjectSearchQuery.isEmpty ||
-                item.result.subjects.any((sub) =>
-                    sub.code.toLowerCase().contains(_subjectSearchQuery.toLowerCase()) ||
-                    sub.name.toLowerCase().contains(_subjectSearchQuery.toLowerCase()));
-            
-            return subjectMatch;
+          // Step 1 – base filter
+          final basicFiltered = state.batchResults.where((item) {
+            if (item.profile.session != effectiveSession) return false;
+            final sq = _studentSearchQuery.toLowerCase();
+            if (sq.isNotEmpty) {
+              final match =
+                  item.profile.name.toLowerCase().contains(sq) ||
+                  item.profile.classRoll.toLowerCase().contains(sq) ||
+                  item.profile.universityId.toLowerCase().contains(sq) ||
+                  item.profile.duRegNo.toLowerCase().contains(sq);
+              if (!match) return false;
+            }
+            if (_selectedSemester != 'All' && item.result.examName != _selectedSemester) return false;
+            if (_subjectSearchQuery.isNotEmpty) {
+              final subQ = _subjectSearchQuery.toLowerCase();
+              final match = item.result.subjects.any(
+                (s) => s.code.toLowerCase().contains(subQ) || s.name.toLowerCase().contains(subQ),
+              );
+              if (!match) return false;
+            }
+            return true;
           }).toList();
 
-          // Group filtered results by student
-          final Map<String, List<BatchMemberResult>> groupedResults = {};
-          for (var item in filteredResults) {
-            final studentId = item.profile.id;
-            groupedResults.putIfAbsent(studentId, () => []).add(item);
+          // Step 2 – group by student
+          final Map<String, List<BatchMemberResult>> grouped = {};
+          for (var item in basicFiltered) {
+            grouped.putIfAbsent(item.profile.id, () => []).add(item);
           }
 
-          final studentIds = groupedResults.keys.toList();
-          // Sort student list by class roll (ascending) or name if rolls are equal/empty
-          studentIds.sort((idA, idB) {
-            final pA = groupedResults[idA]!.first.profile;
-            final pB = groupedResults[idB]!.first.profile;
-            
-            final cleanRollA = pA.classRoll.replaceAll(RegExp(r'\D'), '');
-            final cleanRollB = pB.classRoll.replaceAll(RegExp(r'\D'), '');
-            final rollA = int.tryParse(cleanRollA) ?? 999999;
-            final rollB = int.tryParse(cleanRollB) ?? 999999;
-            if (rollA != rollB) {
-              return rollA.compareTo(rollB);
-            }
-            return pA.name.compareTo(pB.name);
-          });
+          // Pre-compute student summaries for all grouped students
+          final Map<String, _StudentSummary> summaries = {};
+          for (var id in grouped.keys) {
+            final items = grouped[id]!;
+            summaries[id] = _StudentSummary(
+              id: id,
+              profile: items.first.profile,
+              latestCgpa: _getLatestStudentCgpa(id, state.batchResults),
+              semCount: items.map((i) => i.result.examName).toSet().length,
+              hasFailedSubject: items.any(
+                (i) => i.result.subjects.any((s) => s.grade.trim().toUpperCase() == 'F'),
+              ),
+            );
+          }
+
+          // Step 3 – Apply GPA range and Backlog filters
+          var studentIds = grouped.keys.toList();
+
+          if (_showOnlyBacklogs) {
+            studentIds = studentIds.where((id) => summaries[id]?.hasFailedSubject ?? false).toList();
+          }
+
+          if (_selectedGpaRange != 'All') {
+            studentIds = studentIds.where((id) {
+              final c = summaries[id]?.latestCgpa ?? 0.0;
+              switch (_selectedGpaRange) {
+                case '< 2.0':   return c > 0 && c < 2.0;
+                case '2.0–2.5': return c >= 2.0 && c < 2.5;
+                case '2.5–3.0': return c >= 2.5 && c < 3.0;
+                case '3.0–3.5': return c >= 3.0 && c < 3.5;
+                case '3.5–3.75': return c >= 3.5 && c < 3.75;
+                case '3.75+':    return c >= 3.75;
+                default:        return true;
+              }
+            }).toList();
+          }
+
+          // Step 4 – sort
+          switch (_sortOrder) {
+            case _SortOrder.classRoll:
+              studentIds.sort((a, b) {
+                final pa = summaries[a]!.profile;
+                final pb = summaries[b]!.profile;
+                final ra = int.tryParse(pa.classRoll.replaceAll(RegExp(r'\D'), '')) ?? 999999;
+                final rb = int.tryParse(pb.classRoll.replaceAll(RegExp(r'\D'), '')) ?? 999999;
+                return ra != rb ? ra.compareTo(rb) : pa.name.compareTo(pb.name);
+              });
+            case _SortOrder.cgpaDesc:
+              studentIds.sort((a, b) =>
+                  summaries[b]!.latestCgpa.compareTo(summaries[a]!.latestCgpa));
+            case _SortOrder.nameAsc:
+              studentIds.sort((a, b) =>
+                  summaries[a]!.profile.name.compareTo(summaries[b]!.profile.name));
+          }
+
+          // Session-level results (for charts – not affected by non-session filters)
+          final sessionResults = state.batchResults
+              .where((r) => r.profile.session == effectiveSession)
+              .toList();
+          final totalInSession = sessionResults.map((r) => r.profile.id).toSet().length;
+
+          final activeFilterCount = [
+            _studentSearchQuery.isNotEmpty,
+            _selectedSemester != 'All',
+            _subjectSearchQuery.isNotEmpty,
+            _selectedGpaRange != 'All',
+            _showOnlyBacklogs,
+            _sortOrder != _SortOrder.classRoll,
+          ].where((b) => b).length;
 
           return Stack(
             children: [
               Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  // 1. Filtration Panel
-                  _buildFiltrationPanel(colors, isCommittee, availableSemesters),
+                  // ── Search bar + action buttons ──
+                  _buildSearchBar(
+                    context, colors, isCommittee,
+                    state, availableSemesters,
+                    sessionResults, basicFiltered,
+                    activeFilterCount,
+                  ),
 
-                  // 2. Batch Performance Metrics (Visual Insights)
-                  _buildBatchPerformanceMetricsCard(state.batchResults, studentIds, groupedResults, colors),
+                  // ── Active filter chips ──
+                  if (_hasActiveFilters) _buildActiveFiltersRow(colors),
 
-                  // 3. Dynamic Performance Insights Panel
-                  if (_selectedSemester != 'All' && _subjectSearchQuery.isNotEmpty)
-                    _buildGradeDistributionAnalysisCard(filteredResults, colors),
+                  // ── Info bar ──
+                  _buildInfoBar(studentIds.length, totalInSession, colors),
 
-                  // 3. Directory List
+                  // ── Student list ──
                   Expanded(
                     child: studentIds.isEmpty
                         ? _buildEmptyState(colors)
                         : ListView.builder(
-                            padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                            padding: const EdgeInsets.symmetric(horizontal: 14).copyWith(bottom: 20),
                             itemCount: studentIds.length,
                             itemBuilder: (context, index) {
-                              final studentId = studentIds[index];
-                              final studentItems = groupedResults[studentId]!;
-                              return _buildStudentAccordion(studentItems, state.batchResults, colors);
+                              final id = studentIds[index];
+                              final rank = _sortOrder == _SortOrder.cgpaDesc ? index + 1 : null;
+                              return _StudentAccordionWidget(
+                                studentItems: grouped[id]!,
+                                allResults: state.batchResults,
+                                summary: summaries[id]!,
+                                rank: rank,
+                                colors: colors,
+                                subjectSearchQuery: _subjectSearchQuery,
+                                isExpanded: id == _expandedStudentId,
+                                onExpansionChanged: (expanded) {
+                                  setState(() {
+                                    if (expanded) {
+                                      _expandedStudentId = id;
+                                    } else if (_expandedStudentId == id) {
+                                      _expandedStudentId = null;
+                                    }
+                                  });
+                                },
+                              );
                             },
                           ),
                   ),
                 ],
               ),
               if (state.isBatchLoading)
-                const Positioned(
-                  top: 0,
-                  left: 0,
-                  right: 0,
-                  child: LinearProgressIndicator(),
-                ),
+                const Positioned(top: 0, left: 0, right: 0, child: LinearProgressIndicator()),
             ],
           );
         }
 
-        return const Center(child: Text('Load results to view directory.'));
+        return Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.group_outlined, size: 56, color: colors.onSurface.withValues(alpha: 0.2)),
+              const SizedBox(height: 16),
+              const Text('No results loaded yet.', style: TextStyle(fontSize: 16)),
+              const SizedBox(height: 8),
+              ElevatedButton.icon(
+                onPressed: _fetchBatchResults,
+                icon: const Icon(Icons.refresh),
+                label: const Text('Load Results'),
+              ),
+            ],
+          ),
+        );
       },
     );
   }
 
-  Widget _buildFiltrationPanel(ColorScheme colors, bool isCommittee, List<String> availableSemesters) {
-    final hasActiveFilters = _studentSearchQuery.isNotEmpty || _selectedSemester != 'All' || _subjectSearchQuery.isNotEmpty;
+  // ══════════════════════════════════════════════════════════
+  //  SEARCH BAR  +  FILTER / ANALYTICS BUTTONS
+  // ══════════════════════════════════════════════════════════
 
-    return Card(
-      margin: const EdgeInsets.all(16),
-      elevation: 0,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-        side: BorderSide(color: colors.outline.withValues(alpha: 0.12)),
-      ),
-      color: colors.surfaceContainerLow,
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          children: [
-            if (hasActiveFilters) ...[
-              Row(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  TextButton.icon(
-                    style: TextButton.styleFrom(
-                      padding: EdgeInsets.zero,
-                      minimumSize: Size.zero,
-                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                    ),
-                    icon: const Icon(Icons.clear_all, size: 16),
-                    label: const Text('Clear Filters', style: TextStyle(fontSize: 12)),
-                    onPressed: () {
-                      setState(() {
-                        _studentSearchController.clear();
-                        _subjectSearchController.clear();
-                        _studentSearchQuery = '';
-                        _selectedSemester = 'All';
-                        _subjectSearchQuery = '';
-                      });
-                    },
-                  ),
-                ],
-              ),
-              const SizedBox(height: 10),
-            ],
-            // Row 1: Session Selector (If Admin) & Student Search
-            Row(
-              children: [
-                if (isCommittee) ...[
-                  Expanded(
-                    flex: 2,
-                    child: DropdownButtonFormField<String>(
-                      isExpanded: true,
-                      initialValue: _selectedSession,
-                      decoration: const InputDecoration(
-                        labelText: 'Session',
-                        border: OutlineInputBorder(),
-                        contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                      ),
-                      items: _availableSessions.map((session) {
-                        return DropdownMenuItem(
-                          value: session,
-                          child: Text(session, overflow: TextOverflow.ellipsis),
-                        );
-                      }).toList(),
-                      onChanged: (val) {
-                        if (val != null) {
-                          setState(() {
-                            _selectedSession = val;
-                            _selectedSemester = 'All'; // Reset filters
-                            _studentSearchController.clear();
-                            _subjectSearchController.clear();
-                            _studentSearchQuery = '';
-                            _subjectSearchQuery = '';
-                            _expandedStudentId = null;
-                            _expandedYear = null;
-                            _expandedSemesterResultId = null;
-                          });
-                          _fetchBatchResults();
-                        }
-                      },
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                ],
-                Expanded(
-                  flex: 3,
-                  child: TextField(
-                    controller: _studentSearchController,
-                    decoration: const InputDecoration(
-                      labelText: 'Search Student',
-                      hintText: 'Name or Roll No',
-                      prefixIcon: Icon(Icons.search, size: 20),
-                      border: OutlineInputBorder(),
-                      contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                    ),
-                    onChanged: (val) {
-                      setState(() => _studentSearchQuery = val);
-                    },
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-
-            // Row 2: Semester & Subject Filters
-            Row(
-              children: [
-                Expanded(
-                  child: DropdownButtonFormField<String>(
-                    isExpanded: true,
-                    value: _selectedSemester,
-                    decoration: const InputDecoration(
-                      labelText: 'Semester Filter',
-                      border: OutlineInputBorder(),
-                      contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                    ),
-                    items: availableSemesters.map((sem) {
-                      return DropdownMenuItem(value: sem, child: Text(sem, overflow: TextOverflow.ellipsis));
-                    }).toList(),
-                    onChanged: (val) {
-                      if (val != null) {
-                        setState(() => _selectedSemester = val);
-                      }
-                    },
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: TextField(
-                    controller: _subjectSearchController,
-                    decoration: const InputDecoration(
-                      labelText: 'Filter Subject',
-                      hintText: 'Code or Name',
-                      prefixIcon: Icon(Icons.book, size: 18),
-                      border: OutlineInputBorder(),
-                      contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                    ),
-                    onChanged: (val) {
-                      setState(() => _subjectSearchQuery = val);
-                    },
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  // Premium feature: Grade Breakdown distribution
-  Widget _buildGradeDistributionAnalysisCard(List<BatchMemberResult> filteredList, ColorScheme colors) {
-    // Count grades for the filtered subject
-    final Map<String, int> gradeCounts = {
-      'A+': 0, 'A': 0, 'A-': 0, 'B+': 0, 'B': 0, 'B-': 0, 'C+': 0, 'C': 0, 'D': 0, 'F': 0
-    };
-
-    int totalStudentsEvaluated = 0;
-    double totalPoints = 0.0;
-
-    for (var r in filteredList) {
-      final targetSub = r.result.subjects.firstWhere(
-        (sub) =>
-            sub.code.toLowerCase().contains(_subjectSearchQuery.toLowerCase()) ||
-            sub.name.toLowerCase().contains(_subjectSearchQuery.toLowerCase()),
-        orElse: () => SubjectResult(code: '', name: '', grade: '', point: ''),
-      );
-
-      if (targetSub.grade.isNotEmpty) {
-        final cleanGrade = targetSub.grade.trim().toUpperCase();
-        if (gradeCounts.containsKey(cleanGrade)) {
-          gradeCounts[cleanGrade] = gradeCounts[cleanGrade]! + 1;
-        }
-        final pointsVal = double.tryParse(targetSub.point) ?? 0.0;
-        if (pointsVal > 0.0 || cleanGrade == 'F') {
-          totalPoints += pointsVal;
-          totalStudentsEvaluated++;
-        }
-      }
-    }
-
-    if (totalStudentsEvaluated == 0) return const SizedBox.shrink();
-
-    final averageSubjectGpa = totalPoints / totalStudentsEvaluated;
-
-    return Card(
-      margin: const EdgeInsets.symmetric(horizontal: 16.0).copyWith(bottom: 16),
-      elevation: 0,
-      color: colors.primaryContainer.withValues(alpha: 0.15),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-        side: BorderSide(color: colors.primary.withValues(alpha: 0.2)),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Expanded(
-                  child: Text(
-                    'Subject Analytics: "$_subjectSearchQuery"',
-                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: colors.primary),
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-                Text(
-                  'Avg GPA: ${averageSubjectGpa.toStringAsFixed(2)}',
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: colors.primary),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            // Grade metrics bars
-            SizedBox(
-              height: 48,
-              child: ListView(
-                scrollDirection: Axis.horizontal,
-                children: gradeCounts.entries.map((entry) {
-                  final grade = entry.key;
-                  final count = entry.value;
-                  if (count == 0) return const SizedBox.shrink();
-
-                  return Container(
-                    margin: const EdgeInsets.only(right: 12),
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: colors.surfaceContainerHigh,
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: colors.outline.withValues(alpha: 0.1)),
-                    ),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Text(
-                          grade,
-                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 11),
-                        ),
-                        Text(
-                          '$count ${count == 1 ? "student" : "students"}',
-                          style: TextStyle(fontSize: 9, color: colors.onSurface.withValues(alpha: 0.6)),
-                        ),
-                      ],
-                    ),
-                  );
-                }).toList(),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildBatchPerformanceMetricsCard(
-    List<BatchMemberResult> batchResults,
-    List<String> studentIds,
-    Map<String, List<BatchMemberResult>> groupedResults,
+  Widget _buildSearchBar(
+    BuildContext context,
     ColorScheme colors,
+    bool isCommittee,
+    ResultState state,
+    List<String> availableSemesters,
+    List<BatchMemberResult> sessionResults,
+    List<BatchMemberResult> basicFiltered,
+    int activeFilterCount,
   ) {
-    if (studentIds.isEmpty) return const SizedBox.shrink();
-
-    // 1. Calculate Average CGPA
-    final studentCgpas = studentIds
-        .map((id) => _getLatestStudentCgpa(id, batchResults))
-        .where((cgpa) => cgpa > 0.0)
-        .toList();
-    final avgCgpa = studentCgpas.isEmpty 
-        ? 0.0 
-        : studentCgpas.reduce((a, b) => a + b) / studentCgpas.length;
-
-    // 2. Find Top Performer
-    double topCgpa = 0.0;
-    String topStudentName = '';
-    for (var id in studentIds) {
-      final cgpa = _getLatestStudentCgpa(id, batchResults);
-      if (cgpa > topCgpa) {
-        topCgpa = cgpa;
-        topStudentName = groupedResults[id]!.first.profile.name;
-      }
-    }
-    // Truncate name if too long
-    if (topStudentName.length > 12) {
-      topStudentName = '${topStudentName.substring(0, 10)}...';
-    }
-
-    return Card(
-      margin: const EdgeInsets.symmetric(horizontal: 16.0).copyWith(bottom: 16),
-      elevation: 0,
-      color: colors.primary.withValues(alpha: 0.06),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-        side: BorderSide(color: colors.primary.withValues(alpha: 0.15)),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(Icons.analytics_outlined, size: 18, color: colors.primary),
-                const SizedBox(width: 8),
-                Text(
-                  'Batch Summary based on filter (${_selectedSession}) ',
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: colors.primary),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                _buildMetricItem(
-                  colors,
-                  'Synced Students',
-                  '${studentIds.length}',
-                  Icons.people_outline,
-                ),
-                _buildMetricDivider(colors),
-                _buildMetricItem(
-                  colors,
-                  'Batch Avg CGPA',
-                  avgCgpa > 0 ? avgCgpa.toStringAsFixed(2) : 'N/A',
-                  Icons.star_half_rounded,
-                ),
-                _buildMetricDivider(colors),
-                _buildMetricItem(
-                  colors,
-                  'Top Performer',
-                  topCgpa > 0 ? '${topCgpa.toStringAsFixed(2)} ($topStudentName)' : 'N/A',
-                  Icons.workspace_premium_outlined,
-                  isPrimary: true,
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildMetricDivider(ColorScheme colors) {
-    return Container(
-      height: 30,
-      width: 1,
-      color: colors.outline.withValues(alpha: 0.15),
-    );
-  }
-
-  Widget _buildMetricItem(
-    ColorScheme colors,
-    String label,
-    String value,
-    IconData icon, {
-    bool isPrimary = false,
-  }) {
-    return Expanded(
-      child: Column(
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12, 12, 12, 4),
+      child: Row(
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(icon, size: 12, color: isPrimary ? colors.primary : colors.onSurface.withValues(alpha: 0.5)),
-              const SizedBox(width: 4),
-              Flexible(
-                child: Text(
-                  label,
-                  style: TextStyle(fontSize: 10, color: colors.onSurface.withValues(alpha: 0.5), fontWeight: FontWeight.w500),
-                  overflow: TextOverflow.ellipsis,
-                ),
+          // Search text field
+          Expanded(
+            child: TextField(
+              controller: _studentSearchController,
+              decoration: InputDecoration(
+                hintText: 'Search by name, roll, reg no...',
+                prefixIcon: const Icon(Icons.search, size: 20),
+                suffixIcon: _studentSearchQuery.isNotEmpty
+                    ? IconButton(
+                        icon: const Icon(Icons.close, size: 18),
+                        onPressed: () => setState(() {
+                          _studentSearchController.clear();
+                          _studentSearchQuery = '';
+                        }),
+                      )
+                    : null,
+                isDense: true,
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                filled: true,
+                fillColor: colors.surfaceContainerLow,
+                contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
               ),
-            ],
-          ),
-          const SizedBox(height: 4),
-          Text(
-            value,
-            style: TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.bold,
-              color: isPrimary ? colors.primary : colors.onSurface,
+              onChanged: (val) => setState(() => _studentSearchQuery = val),
             ),
-            textAlign: TextAlign.center,
-            overflow: TextOverflow.ellipsis,
+          ),
+          const SizedBox(width: 8),
+
+          // Filter button (with badge counter)
+          _BadgedIconButton(
+            count: activeFilterCount,
+            icon: Icons.tune_rounded,
+            tooltip: 'Filters',
+            backgroundColor: activeFilterCount > 0
+                ? colors.primary.withValues(alpha: 0.14)
+                : colors.surfaceContainerHigh,
+            iconColor: activeFilterCount > 0 ? colors.primary : colors.onSurface.withValues(alpha: 0.7),
+            onPressed: () => _openFilterSheet(
+              context, colors, isCommittee, state, availableSemesters,
+            ),
+          ),
+
+          // Analytics button
+          _BadgedIconButton(
+            count: 0,
+            icon: Icons.bar_chart_rounded,
+            tooltip: 'Batch Analytics',
+            backgroundColor: colors.secondaryContainer,
+            iconColor: colors.onSecondaryContainer,
+            onPressed: () => _openAnalyticsSheet(context, colors, sessionResults, basicFiltered),
           ),
         ],
       ),
     );
   }
 
-  int _parseSemesterNumber(String examName) {
-    final name = examName.toLowerCase();
-    if (name.contains('1st year 1st') || name.contains('1st sem') || name.contains('1-1') || (name.contains('1st year') && name.contains('1st'))) return 1;
-    if (name.contains('1st year 2nd') || name.contains('2nd sem') || name.contains('1-2') || (name.contains('1st year') && name.contains('2nd'))) return 2;
-    if (name.contains('2nd year 1st') || name.contains('3rd sem') || name.contains('2-1') || (name.contains('2nd year') && name.contains('1st'))) return 3;
-    if (name.contains('2nd year 2nd') || name.contains('4th sem') || name.contains('2-2') || (name.contains('2nd year') && name.contains('2nd'))) return 4;
-    if (name.contains('3rd year 1st') || name.contains('5th sem') || name.contains('3-1') || (name.contains('3rd year') && name.contains('1st'))) return 5;
-    if (name.contains('3rd year 2nd') || name.contains('6th sem') || name.contains('3-2') || (name.contains('3rd year') && name.contains('2nd'))) return 6;
-    if (name.contains('4th year 1st') || name.contains('7th sem') || name.contains('4-1') || (name.contains('4th year') && name.contains('1st'))) return 7;
-    if (name.contains('4th year 2nd') || name.contains('8th sem') || name.contains('4-2') || (name.contains('4th year') && name.contains('2nd'))) return 8;
-
-    if (name.contains('1st')) return 1;
-    if (name.contains('2nd')) return 2;
-    if (name.contains('3rd')) return 3;
-    if (name.contains('4th')) return 4;
-    if (name.contains('5th')) return 5;
-    if (name.contains('6th')) return 6;
-    if (name.contains('7th')) return 7;
-    if (name.contains('8th')) return 8;
-
-    return 1;
+  Widget _buildInfoBar(int filteredCount, int totalCount, ColorScheme colors) {
+    final sortLabel = switch (_sortOrder) {
+      _SortOrder.classRoll => 'Roll ↑',
+      _SortOrder.cgpaDesc  => 'CGPA ↓',
+      _SortOrder.nameAsc   => 'A–Z',
+    };
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
+      child: Row(
+        children: [
+          Icon(Icons.people_outline, size: 13, color: colors.onSurface.withValues(alpha: 0.45)),
+          const SizedBox(width: 5),
+          Text(
+            filteredCount == totalCount
+                ? '$totalCount students'
+                : '$filteredCount / $totalCount students',
+            style: TextStyle(fontSize: 12, color: colors.onSurface.withValues(alpha: 0.5)),
+          ),
+          const Spacer(),
+          _infoPill(sortLabel, Icons.sort_rounded, colors.primary, colors),
+          const SizedBox(width: 6),
+          _infoPill(_selectedSession, Icons.class_outlined, colors.secondary, colors),
+        ],
+      ),
+    );
   }
 
-  String _getOrdinalSuffix(int number) {
-    if (number == 1) return 'st';
-    if (number == 2) return 'nd';
-    if (number == 3) return 'rd';
-    return 'th';
+  Widget _infoPill(String text, IconData icon, Color color, ColorScheme colors) {
+    if (text.isEmpty) return const SizedBox.shrink();
+    final displayText = text.length > 14 ? '${text.substring(0, 12)}…' : text;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 11, color: color),
+          const SizedBox(width: 3),
+          Text(displayText, style: TextStyle(fontSize: 11, color: color, fontWeight: FontWeight.w600)),
+        ],
+      ),
+    );
   }
 
-  double _getLatestStudentCgpa(String studentId, List<BatchMemberResult> allResults) {
-    double latestCgpa = 0.0;
-    int maxSemester = 0;
-    for (var r in allResults) {
-      if (r.profile.id == studentId) {
-        final sem = r.result.semester ?? _parseSemesterNumber(r.result.examName);
-        if (sem > maxSemester) {
-          maxSemester = sem;
-          final cgpaVal = double.tryParse(r.result.cgpa) ?? 0.0;
-          if (cgpaVal > 0.0) {
-            latestCgpa = cgpaVal;
-          }
-        }
-      }
+  Widget _buildActiveFiltersRow(ColorScheme colors) {
+    final chips = <_ActiveFilterChip>[];
+    if (_selectedSemester != 'All') {
+      final short = _selectedSemester.length > 20 ? '${_selectedSemester.substring(0, 18)}…' : _selectedSemester;
+      chips.add(_ActiveFilterChip('📚 $short', () => setState(() => _selectedSemester = 'All')));
     }
-    
-    // Fallback: average GPAs if latestCgpa is 0
-    if (latestCgpa == 0.0) {
-      double sumGpa = 0.0;
-      int count = 0;
-      for (var r in allResults) {
-        if (r.profile.id == studentId) {
-          final gpaVal = double.tryParse(r.result.gpa) ?? 0.0;
-          if (gpaVal > 0.0) {
-            sumGpa += gpaVal;
-            count++;
-          }
-        }
-      }
-      if (count > 0) {
-        latestCgpa = sumGpa / count;
-      }
+    if (_subjectSearchQuery.isNotEmpty) {
+      chips.add(_ActiveFilterChip('📖 $_subjectSearchQuery', () {
+        setState(() { _subjectSearchController.clear(); _subjectSearchQuery = ''; });
+      }));
     }
-    
-    return latestCgpa;
+    if (_selectedGpaRange != 'All') {
+      chips.add(_ActiveFilterChip('⭐ $_selectedGpaRange', () => setState(() => _selectedGpaRange = 'All')));
+    }
+    if (_showOnlyBacklogs) {
+      chips.add(_ActiveFilterChip('⚠️ Backlogs Only', () => setState(() => _showOnlyBacklogs = false)));
+    }
+    if (_sortOrder != _SortOrder.classRoll) {
+      final label = _sortOrder == _SortOrder.cgpaDesc ? 'Sort: CGPA↓' : 'Sort: A→Z';
+      chips.add(_ActiveFilterChip(label, () => setState(() => _sortOrder = _SortOrder.classRoll)));
+    }
+    if (chips.isEmpty) return const SizedBox.shrink();
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Row(
+          children: [
+            ...chips.map((chip) => Padding(
+              padding: const EdgeInsets.only(right: 6),
+              child: Chip(
+                label: Text(chip.label, style: const TextStyle(fontSize: 11)),
+                deleteIcon: const Icon(Icons.close_rounded, size: 13),
+                onDeleted: chip.onRemove,
+                backgroundColor: colors.primary.withValues(alpha: 0.08),
+                deleteIconColor: colors.primary,
+                side: BorderSide(color: colors.primary.withValues(alpha: 0.2)),
+                padding: EdgeInsets.zero,
+                materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              ),
+            )),
+            TextButton(
+              style: TextButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 6), minimumSize: Size.zero),
+              onPressed: _clearAllFilters,
+              child: const Text('Clear all', style: TextStyle(fontSize: 11)),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
-  Widget _buildStudentAccordion(
-    List<BatchMemberResult> studentItems,
-    List<BatchMemberResult> allResults,
+  // ══════════════════════════════════════════════════════════
+  //  FILTER BOTTOM SHEET
+  // ══════════════════════════════════════════════════════════
+
+  void _openFilterSheet(
+    BuildContext context,
     ColorScheme colors,
+    bool isCommittee,
+    ResultState state,
+    List<String> availableSemesters,
   ) {
-    final profile = studentItems.first.profile;
-    final latestCgpa = _getLatestStudentCgpa(profile.id, allResults);
-    final studentResults = studentItems.map((item) => item.result).toList();
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      backgroundColor: colors.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setSheetState) {
+          // applyFilter keeps parent list and sheet UI in sync
+          void applyFilter(VoidCallback fn) {
+            setState(fn);
+            setSheetState(() {});
+          }
 
-    // Group semesters by academic year: 1=1st, 2=2nd, 3=3rd, 4=4th Year
-    final Map<int, List<BatchMemberResult>> yearsMap = {};
-    for (var item in studentItems) {
-      final sem = item.result.semester ?? _parseSemesterNumber(item.result.examName);
-      int year = 1;
-      if (sem == 1 || sem == 2) {
-        year = 1;
-      } else if (sem == 3 || sem == 4) {
-        year = 2;
-      } else if (sem == 5 || sem == 6) {
-        year = 3;
-      } else if (sem == 7 || sem == 8) {
-        year = 4;
-      }
-      yearsMap.putIfAbsent(year, () => []).add(item);
-    }
+          return Padding(
+            padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom),
+            child: DraggableScrollableSheet(
+              initialChildSize: 0.72,
+              minChildSize: 0.4,
+              maxChildSize: 0.93,
+              expand: false,
+              builder: (_, ctrl) => ListView(
+                controller: ctrl,
+                padding: const EdgeInsets.symmetric(horizontal: 22),
+                children: [
+                  const SizedBox(height: 12),
+                  // Handle
+                  Center(child: Container(width: 40, height: 4,
+                    decoration: BoxDecoration(color: colors.outline.withValues(alpha: 0.4), borderRadius: BorderRadius.circular(2)))),
+                  const SizedBox(height: 14),
+
+                  // Title row
+                  Row(children: [
+                    Icon(Icons.tune_rounded, color: colors.primary, size: 22),
+                    const SizedBox(width: 8),
+                    Text('Filter & Search', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: colors.primary)),
+                    const Spacer(),
+                    TextButton(
+                      onPressed: () => applyFilter(() {
+                        _studentSearchController.clear();
+                        _subjectSearchController.clear();
+                        _studentSearchQuery = '';
+                        _selectedSemester = 'All';
+                        _subjectSearchQuery = '';
+                        _selectedGpaRange = 'All';
+                        _showOnlyBacklogs = false;
+                        _sortOrder = _SortOrder.classRoll;
+                      }),
+                      child: const Text('Reset All'),
+                    ),
+                  ]),
+                  const Divider(height: 20),
+
+                  // ── Session (committee only) ──
+                  if (isCommittee) ...[
+                    _sheetLabel('Session', Icons.class_outlined, colors),
+                    const SizedBox(height: 8),
+                    DropdownButtonFormField<String>(
+                      isExpanded: true,
+                      value: _selectedSession,
+                      decoration: const InputDecoration(border: OutlineInputBorder(),
+                          contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10)),
+                      items: _availableSessions.map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
+                      onChanged: (val) {
+                        if (val == null) return;
+                        applyFilter(() {
+                          _selectedSession = val;
+                          _selectedSemester = 'All';
+                          _studentSearchController.clear();
+                          _subjectSearchController.clear();
+                          _studentSearchQuery = '';
+                          _subjectSearchQuery = '';
+                          _selectedGpaRange = 'All';
+                          _sortOrder = _SortOrder.classRoll;
+                        });
+                        _fetchBatchResults();
+                      },
+                    ),
+                    const SizedBox(height: 18),
+                  ],
+
+                  // ── Semester ──
+                  _sheetLabel('Semester', Icons.book_outlined, colors),
+                  const SizedBox(height: 8),
+                  DropdownButtonFormField<String>(
+                    isExpanded: true,
+                    value: _selectedSemester,
+                    decoration: const InputDecoration(border: OutlineInputBorder(),
+                        contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10)),
+                    items: availableSemesters
+                        .map((s) => DropdownMenuItem(value: s, child: Text(s, overflow: TextOverflow.ellipsis)))
+                        .toList(),
+                    onChanged: (val) { if (val != null) applyFilter(() => _selectedSemester = val); },
+                  ),
+                  const SizedBox(height: 18),
+
+                  // ── Subject search ──
+                  _sheetLabel('Filter by Subject', Icons.science_outlined, colors),
+                  const SizedBox(height: 8),
+                  TextField(
+                    controller: _subjectSearchController,
+                    decoration: InputDecoration(
+                      prefixIcon: const Icon(Icons.search, size: 20),
+                      hintText: 'Subject code or name...',
+                      border: const OutlineInputBorder(),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                      suffixIcon: _subjectSearchQuery.isNotEmpty
+                          ? IconButton(
+                              icon: const Icon(Icons.close, size: 18),
+                              onPressed: () => applyFilter(() { _subjectSearchController.clear(); _subjectSearchQuery = ''; }),
+                            )
+                          : null,
+                    ),
+                    onChanged: (val) => applyFilter(() => _subjectSearchQuery = val),
+                  ),
+                  const SizedBox(height: 18),
+
+                  // ── CGPA Range ──
+                  _sheetLabel('CGPA Range', Icons.star_half_rounded, colors),
+                  const SizedBox(height: 10),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: ['All', '< 2.0', '2.0–2.5', '2.5–3.0', '3.0–3.5', '3.5–3.75', '3.75+'].map((range) {
+                      final sel = _selectedGpaRange == range;
+                      return ChoiceChip(
+                        label: Text(range),
+                        selected: sel,
+                        onSelected: (_) => applyFilter(() => _selectedGpaRange = range),
+                        selectedColor: colors.primary.withValues(alpha: 0.15),
+                        side: BorderSide(color: sel ? colors.primary : colors.outline.withValues(alpha: 0.35)),
+                        labelStyle: TextStyle(
+                          fontSize: 13,
+                          color: sel ? colors.primary : null,
+                          fontWeight: sel ? FontWeight.bold : null,
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                  const SizedBox(height: 18),
+
+                  // ── Backlogs Only ──
+                  _sheetLabel('Backlogs / F-Grades', Icons.warning_amber_rounded, colors),
+                  const SizedBox(height: 4),
+                  SwitchListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: const Text('Show Only Students with F-Grades', style: TextStyle(fontSize: 13)),
+                    subtitle: Text('Filters batch to students who failed one or more courses', style: TextStyle(fontSize: 11, color: colors.onSurface.withValues(alpha: 0.5))),
+                    value: _showOnlyBacklogs,
+                    activeColor: colors.primary,
+                    onChanged: (val) {
+                      applyFilter(() {
+                        _showOnlyBacklogs = val;
+                      });
+                    },
+                  ),
+                  const SizedBox(height: 18),
+
+                  // ── Sort Order ──
+                  _sheetLabel('Sort Order', Icons.sort_rounded, colors),
+                  const SizedBox(height: 4),
+                  _buildSortRadioTile(
+                    _SortOrder.classRoll, Icons.format_list_numbered,
+                    'By Class Roll (default)', colors,
+                    (v) => applyFilter(() => _sortOrder = v),
+                  ),
+                  _buildSortRadioTile(
+                    _SortOrder.cgpaDesc, Icons.trending_down,
+                    'By CGPA — Highest First', colors,
+                    (v) => applyFilter(() => _sortOrder = v),
+                  ),
+                  _buildSortRadioTile(
+                    _SortOrder.nameAsc, Icons.sort_by_alpha,
+                    'By Name (A → Z)', colors,
+                    (v) => applyFilter(() => _sortOrder = v),
+                  ),
+                  const SizedBox(height: 36),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _sheetLabel(String label, IconData icon, ColorScheme colors) {
+    return Row(children: [
+      Icon(icon, size: 16, color: colors.primary),
+      const SizedBox(width: 6),
+      Text(label, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: colors.onSurface.withValues(alpha: 0.75))),
+    ]);
+  }
+
+  Widget _buildSortRadioTile(_SortOrder value, IconData icon, String label, ColorScheme colors, void Function(_SortOrder) onChanged) {
+    final selected = _sortOrder == value;
+    return RadioListTile<_SortOrder>(
+      dense: true,
+      contentPadding: EdgeInsets.zero,
+      value: value,
+      groupValue: _sortOrder,
+      activeColor: colors.primary,
+      onChanged: (v) { if (v != null) onChanged(v); },
+      title: Row(children: [
+        Icon(icon, size: 18, color: selected ? colors.primary : colors.onSurface.withValues(alpha: 0.55)),
+        const SizedBox(width: 8),
+        Text(label, style: TextStyle(
+          fontSize: 13,
+          color: selected ? colors.primary : null,
+          fontWeight: selected ? FontWeight.bold : null,
+        )),
+      ]),
+    );
+  }
+
+  // ══════════════════════════════════════════════════════════
+  //  ANALYTICS BOTTOM SHEET
+  // ══════════════════════════════════════════════════════════
+
+  void _openAnalyticsSheet(
+    BuildContext context,
+    ColorScheme colors,
+    List<BatchMemberResult> sessionResults,
+    List<BatchMemberResult> basicFiltered,
+  ) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      backgroundColor: colors.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (ctx) => DraggableScrollableSheet(
+        initialChildSize: 0.88,
+        minChildSize: 0.5,
+        maxChildSize: 0.95,
+        expand: false,
+        builder: (_, ctrl) => ListView(
+          controller: ctrl,
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          children: [
+            const SizedBox(height: 12),
+            Center(child: Container(width: 40, height: 4,
+              decoration: BoxDecoration(color: colors.outline.withValues(alpha: 0.4), borderRadius: BorderRadius.circular(2)))),
+            const SizedBox(height: 16),
+
+            // Title
+            Row(children: [
+              Icon(Icons.analytics_outlined, color: colors.primary, size: 24),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Text('Batch Analytics', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: colors.primary)),
+                  Text(_selectedSession, style: TextStyle(fontSize: 12, color: colors.onSurface.withValues(alpha: 0.5))),
+                ]),
+              ),
+            ]),
+            const SizedBox(height: 16),
+
+            // Quick stats
+            _buildAnalyticsQuickStats(sessionResults, colors),
+            const SizedBox(height: 20),
+            const Divider(),
+
+            // CGPA Distribution
+            const SizedBox(height: 16),
+            _analyticsSection('CGPA Distribution', 'Students grouped by current cumulative GPA', Icons.bar_chart_rounded, colors),
+            const SizedBox(height: 14),
+            SizedBox(height: 218, child: BatchCgpaDistributionChart(results: sessionResults)),
+            const SizedBox(height: 20),
+            const Divider(),
+
+            // GPA Trend
+            const SizedBox(height: 16),
+            _analyticsSection('Semester-Wise Avg GPA', 'Batch average GPA across all 8 semesters', Icons.show_chart_rounded, colors),
+            const SizedBox(height: 14),
+            SizedBox(height: 196, child: BatchGpaTrendChart(results: sessionResults)),
+            const SizedBox(height: 20),
+
+            // Semester overview if a semester is selected
+            if (_selectedSemester != 'All') ...[
+              const Divider(),
+              const SizedBox(height: 16),
+              _analyticsSection('Semester GPA Breakdown', _selectedSemester, Icons.school_outlined, colors),
+              const SizedBox(height: 12),
+              _buildSemesterGradeOverviewCard(basicFiltered, colors),
+              const SizedBox(height: 12),
+            ],
+
+            // Difficult subjects
+            const Divider(),
+            const SizedBox(height: 16),
+            _analyticsSection('Subject Challenge Index', 'Courses with highest failure or lowest average GPA', Icons.psychology_outlined, colors),
+            const SizedBox(height: 12),
+            _buildDifficultSubjectsCard(sessionResults, colors),
+
+            // Top performers
+            const Divider(),
+            const SizedBox(height: 16),
+            _analyticsSection('Top Performers', 'Top 5 students by cumulative CGPA', Icons.workspace_premium_outlined, colors),
+            const SizedBox(height: 12),
+            _buildTopPerformersCard(sessionResults, colors),
+            const SizedBox(height: 40),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _analyticsSection(String title, String subtitle, IconData icon, ColorScheme colors) {
+    return Row(children: [
+      Icon(icon, color: colors.primary, size: 18),
+      const SizedBox(width: 8),
+      Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Text(title, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: colors.onSurface)),
+        Text(subtitle, style: TextStyle(fontSize: 11, color: colors.onSurface.withValues(alpha: 0.5))),
+      ]),
+    ]);
+  }
+
+  Widget _buildAnalyticsQuickStats(List<BatchMemberResult> sessionResults, ColorScheme colors) {
+    final ids = sessionResults.map((r) => r.profile.id).toSet().toList();
+    final cgpas = ids.map((id) => _getLatestStudentCgpa(id, sessionResults)).where((c) => c > 0).toList();
+    final avg = cgpas.isEmpty ? 0.0 : cgpas.reduce((a, b) => a + b) / cgpas.length;
+    final excellentCount = cgpas.where((c) => c >= 3.5).length;
+    final failCount = ids.where((id) => sessionResults.any(
+      (r) => r.profile.id == id && r.result.subjects.any((s) => s.grade.trim().toUpperCase() == 'F'),
+    )).length;
+    final passCount = ids.length - failCount;
+    final passRate = ids.isEmpty ? 0.0 : (passCount / ids.length * 100);
+
+    return Row(children: [
+      _quickStatCard('${ids.length}', 'Total', Icons.people_outline, colors.primary, colors),
+      _quickStatCard(avg > 0 ? avg.toStringAsFixed(2) : '—', 'Avg CGPA', Icons.analytics_outlined, colors.tertiary, colors),
+      _quickStatCard('${passRate.round()}%', 'Pass Rate', Icons.check_circle_outline, Colors.green, colors),
+      _quickStatCard('$excellentCount', '≥ 3.5', Icons.workspace_premium_outlined, Colors.purple, colors),
+    ]);
+  }
+
+  Widget _quickStatCard(String value, String label, IconData icon, Color color, ColorScheme colors) {
+    return Expanded(
+      child: Container(
+        margin: const EdgeInsets.only(right: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 12),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.07),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: color.withValues(alpha: 0.2)),
+        ),
+        child: Column(children: [
+          Icon(icon, size: 18, color: color),
+          const SizedBox(height: 4),
+          Text(value, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: color)),
+          Text(label, style: TextStyle(fontSize: 9, color: color.withValues(alpha: 0.75)), textAlign: TextAlign.center),
+        ]),
+      ),
+    );
+  }
+
+  Widget _buildTopPerformersCard(List<BatchMemberResult> sessionResults, ColorScheme colors) {
+    final ids = sessionResults.map((r) => r.profile.id).toSet().toList();
+    final students = ids.map((id) {
+      final c = _getLatestStudentCgpa(id, sessionResults);
+      final prof = sessionResults.firstWhere((r) => r.profile.id == id).profile;
+      final sems = sessionResults.where((r) => r.profile.id == id).map((r) => r.result.examName).toSet().length;
+      return _StudentSummary(id: id, profile: prof, latestCgpa: c, semCount: sems, hasFailedSubject: false);
+    }).where((s) => s.latestCgpa > 0).toList()
+      ..sort((a, b) => b.latestCgpa.compareTo(a.latestCgpa));
+
+    final top5 = students.take(5).toList();
+    if (top5.isEmpty) return const SizedBox.shrink();
+
+    final rankColors = [
+      const Color(0xFFFFD700),   // gold
+      const Color(0xFFB0BEC5),   // silver
+      const Color(0xFFCD7F32),   // bronze
+      null, null,
+    ];
+
+    return Column(
+      children: top5.asMap().entries.map((e) {
+        final rank = e.key + 1;
+        final s = e.value;
+        final rColor = rankColors[e.key] ?? colors.primary;
+        return Container(
+          margin: const EdgeInsets.only(bottom: 8),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          decoration: BoxDecoration(
+            color: rank == 1 ? const Color(0xFFFFD700).withValues(alpha: 0.05) : colors.surfaceContainerLow,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: rColor.withValues(alpha: rank <= 3 ? 0.35 : 0.1)),
+          ),
+          child: Row(children: [
+            Container(
+              width: 32, height: 32,
+              decoration: BoxDecoration(color: rColor.withValues(alpha: 0.15), shape: BoxShape.circle),
+              alignment: Alignment.center,
+              child: Text('$rank', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: rColor)),
+            ),
+            const SizedBox(width: 12),
+            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(s.profile.name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13), overflow: TextOverflow.ellipsis),
+              Text('Roll: ${s.profile.classRoll}  •  ${s.semCount} sems',
+                  style: TextStyle(fontSize: 11, color: colors.onSurface.withValues(alpha: 0.5))),
+            ])),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+              decoration: BoxDecoration(
+                color: rColor.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Text(s.latestCgpa.toStringAsFixed(2),
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: rColor)),
+            ),
+          ]),
+        );
+      }).toList(),
+    );
+  }
+
+  Widget _buildDifficultSubjectsCard(List<BatchMemberResult> sessionResults, ColorScheme colors) {
+    final Map<String, List<SubjectResult>> subjectGroups = {};
     
-    final sortedYears = yearsMap.keys.toList()..sort();
+    for (var r in sessionResults) {
+      for (var s in r.result.subjects) {
+        if (s.code.isNotEmpty) {
+          subjectGroups.putIfAbsent(s.code.trim().toUpperCase(), () => []).add(s);
+        }
+      }
+    }
+
+    if (subjectGroups.isEmpty) {
+      return Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: colors.surfaceContainerLow,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        alignment: Alignment.center,
+        child: Text(
+          'No subject data available',
+          style: TextStyle(color: colors.onSurface.withValues(alpha: 0.5), fontSize: 12),
+        ),
+      );
+    }
+
+    final List<_SubjectStat> stats = [];
+    subjectGroups.forEach((code, list) {
+      int fails = 0;
+      double totalPoints = 0;
+      int validPointsCount = 0;
+      String name = '';
+
+      for (var s in list) {
+        if (s.name.isNotEmpty && name.isEmpty) name = s.name;
+        final grade = s.grade.trim().toUpperCase();
+        if (grade == 'F') fails++;
+        
+        final pts = double.tryParse(s.point) ?? 0.0;
+        if (pts > 0 || grade == 'F') {
+          totalPoints += pts;
+          validPointsCount++;
+        }
+      }
+
+      final avgPt = validPointsCount > 0 ? totalPoints / validPointsCount : 0.0;
+      final failRate = list.isNotEmpty ? (fails / list.length) : 0.0;
+
+      stats.add(_SubjectStat(
+        code: code,
+        name: name,
+        failRate: failRate,
+        avgGp: avgPt,
+        totalStudents: list.length,
+        failCount: fails,
+      ));
+    });
+
+    // Sort by fail rate descending, then by average GP ascending
+    stats.sort((a, b) {
+      if (b.failRate != a.failRate) {
+        return b.failRate.compareTo(a.failRate);
+      }
+      return a.avgGp.compareTo(b.avgGp);
+    });
+
+    final difficultList = stats.take(3).toList();
+
+    return Column(
+      children: difficultList.map((s) {
+        final pct = (s.failRate * 100).round();
+        return Container(
+          margin: const EdgeInsets.only(bottom: 8),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          decoration: BoxDecoration(
+            color: colors.surfaceContainerLow,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: s.failRate > 0.1 
+                  ? Colors.red.withValues(alpha: 0.25) 
+                  : colors.outline.withValues(alpha: 0.1),
+            ),
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 36, height: 36,
+                decoration: BoxDecoration(
+                  color: s.failRate > 0.1 ? Colors.red.withValues(alpha: 0.1) : colors.primary.withValues(alpha: 0.1),
+                  shape: BoxShape.circle,
+                ),
+                alignment: Alignment.center,
+                child: Icon(
+                  s.failRate > 0.1 ? Icons.warning_amber_rounded : Icons.menu_book_rounded,
+                  color: s.failRate > 0.1 ? Colors.red : colors.primary,
+                  size: 18,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      s.code, 
+                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    Text(
+                      s.name, 
+                      style: TextStyle(fontSize: 11, color: colors.onSurface.withValues(alpha: 0.5)),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Text(
+                    'Avg GP: ${s.avgGp.toStringAsFixed(2)}',
+                    style: TextStyle(
+                      fontSize: 12, 
+                      fontWeight: FontWeight.bold, 
+                      color: s.avgGp < 2.5 ? Colors.orange : colors.onSurface,
+                    ),
+                  ),
+                  Text(
+                    '$pct% Failed (${s.failCount}/${s.totalStudents})',
+                    style: TextStyle(
+                      fontSize: 10, 
+                      fontWeight: FontWeight.w500, 
+                      color: s.failCount > 0 ? Colors.red : colors.onSurface.withValues(alpha: 0.5),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        );
+      }).toList(),
+    );
+  }
+
+  // ══════════════════════════════════════════════════════════
+  //  SEMESTER GRADE OVERVIEW  (used inside analytics sheet)
+  // ══════════════════════════════════════════════════════════
+
+  Widget _buildSemesterGradeOverviewCard(List<BatchMemberResult> semFiltered, ColorScheme colors) {
+    if (semFiltered.isEmpty) return const SizedBox.shrink();
+    if (_subjectSearchQuery.isNotEmpty) return _buildGradeDistributionAnalysisCard(semFiltered, colors);
+
+    final gpas = semFiltered
+        .map((r) => double.tryParse(r.result.gpa) ?? 0.0)
+        .where((g) => g > 0)
+        .toList();
+    if (gpas.isEmpty) return const SizedBox.shrink();
+
+    final avg = gpas.reduce((a, b) => a + b) / gpas.length;
+    final max = gpas.reduce((a, b) => a > b ? a : b);
+    final min = gpas.reduce((a, b) => a < b ? a : b);
+
+    const bracketLabels = ['A (≥3.5)', 'B (3.0–3.5)', 'C (2.5–3.0)', 'D (2.0–2.5)', 'F (<2.0)'];
+    final bracketColors = <String, Color>{
+      'A (≥3.5)':    Colors.green,
+      'B (3.0–3.5)': const Color(0xFF00897B),
+      'C (2.5–3.0)': Colors.amber,
+      'D (2.0–2.5)': Colors.orange,
+      'F (<2.0)':    Colors.red,
+    };
+    final counts = <String, int>{for (var l in bracketLabels) l: 0};
+    for (var g in gpas) {
+      if (g >= 3.5)      counts['A (≥3.5)'] = (counts['A (≥3.5)'] ?? 0) + 1;
+      else if (g >= 3.0) counts['B (3.0–3.5)'] = (counts['B (3.0–3.5)'] ?? 0) + 1;
+      else if (g >= 2.5) counts['C (2.5–3.0)'] = (counts['C (2.5–3.0)'] ?? 0) + 1;
+      else if (g >= 2.0) counts['D (2.0–2.5)'] = (counts['D (2.0–2.5)'] ?? 0) + 1;
+      else               counts['F (<2.0)'] = (counts['F (<2.0)'] ?? 0) + 1;
+    }
+
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      // Stat pills
+      SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Row(children: [
+          _statPill('Avg', avg.toStringAsFixed(2), colors.primary, colors),
+          const SizedBox(width: 8),
+          _statPill('Max', max.toStringAsFixed(2), Colors.green, colors),
+          const SizedBox(width: 8),
+          _statPill('Min', min.toStringAsFixed(2), Colors.orange, colors),
+          const SizedBox(width: 8),
+          _statPill('n', '${gpas.length}', colors.secondary, colors),
+        ]),
+      ),
+      const SizedBox(height: 10),
+      SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Row(
+          children: bracketLabels.map((label) {
+            final count = counts[label] ?? 0;
+            if (count == 0) return const SizedBox.shrink();
+            final color = bracketColors[label] ?? colors.primary;
+            return Padding(
+              padding: const EdgeInsets.only(right: 8),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(
+                  color: color.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: color.withValues(alpha: 0.35)),
+                ),
+                child: Column(mainAxisSize: MainAxisSize.min, children: [
+                  Text(label, style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: color)),
+                  Text('$count', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: color)),
+                ]),
+              ),
+            );
+          }).toList(),
+        ),
+      ),
+    ]);
+  }
+
+  Widget _statPill(String label, String value, Color color, ColorScheme colors) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: color.withValues(alpha: 0.25)),
+      ),
+      child: Row(mainAxisSize: MainAxisSize.min, children: [
+        Text(label, style: TextStyle(fontSize: 10, color: color.withValues(alpha: 0.75))),
+        const SizedBox(width: 5),
+        Text(value, style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: color)),
+      ]),
+    );
+  }
+
+  Widget _buildGradeDistributionAnalysisCard(List<BatchMemberResult> filteredList, ColorScheme colors) {
+    final Map<String, int> gradeCounts = {
+      'A+': 0, 'A': 0, 'A-': 0, 'B+': 0, 'B': 0, 'B-': 0, 'C+': 0, 'C': 0, 'D': 0, 'F': 0,
+    };
+    int totalEvaluated = 0;
+    double totalPoints = 0.0;
+    for (var r in filteredList) {
+      final sub = r.result.subjects.firstWhere(
+        (s) => s.code.toLowerCase().contains(_subjectSearchQuery.toLowerCase()) ||
+               s.name.toLowerCase().contains(_subjectSearchQuery.toLowerCase()),
+        orElse: () => SubjectResult(code: '', name: '', grade: '', point: ''),
+      );
+      if (sub.grade.isNotEmpty) {
+        final g = sub.grade.trim().toUpperCase();
+        if (gradeCounts.containsKey(g)) gradeCounts[g] = gradeCounts[g]! + 1;
+        final pts = double.tryParse(sub.point) ?? 0.0;
+        if (pts > 0 || g == 'F') { totalPoints += pts; totalEvaluated++; }
+      }
+    }
+    if (totalEvaluated == 0) return const SizedBox.shrink();
+    final avgGpa = totalPoints / totalEvaluated;
+
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Text(
+        '"$_subjectSearchQuery"  •  Avg GP: ${avgGpa.toStringAsFixed(2)}',
+        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: colors.primary),
+      ),
+      const SizedBox(height: 10),
+      SizedBox(
+        height: 48,
+        child: ListView(
+          scrollDirection: Axis.horizontal,
+          children: gradeCounts.entries.map((e) {
+            if (e.value == 0) return const SizedBox.shrink();
+            return Container(
+              margin: const EdgeInsets.only(right: 10),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              decoration: BoxDecoration(
+                color: colors.surfaceContainerHigh,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: colors.outline.withValues(alpha: 0.12)),
+              ),
+              child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+                Text(e.key, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 11)),
+                Text('${e.value}', style: TextStyle(fontSize: 9, color: colors.onSurface.withValues(alpha: 0.6))),
+              ]),
+            );
+          }).toList(),
+        ),
+      ),
+    ]);
+  }
+
+  // ══════════════════════════════════════════════════════════
+  //  STUDENT ACCORDION  (enhanced)
+  // ══════════════════════════════════════════════════════════
+
+  Widget _buildEmptyState(ColorScheme colors) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32.0),
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          Icon(Icons.person_search, size: 48, color: colors.onSurface.withValues(alpha: 0.25)),
+          const SizedBox(height: 16),
+          const Text('No students match your filters.', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+          const SizedBox(height: 8),
+          Text('Try adjusting or clearing your filters.',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 12, color: colors.onSurface.withValues(alpha: 0.5))),
+          const SizedBox(height: 16),
+          TextButton.icon(
+            onPressed: _clearAllFilters,
+            icon: const Icon(Icons.clear_all, size: 18),
+            label: const Text('Clear All Filters'),
+          ),
+        ]),
+      ),
+    );
+  }
+}
+
+// ══════════════════════════════════════════════════════════════
+//  _BadgedIconButton — Icon button with an optional count badge
+// ══════════════════════════════════════════════════════════════
+
+class _BadgedIconButton extends StatelessWidget {
+  final int count;
+  final IconData icon;
+  final String tooltip;
+  final Color backgroundColor;
+  final Color iconColor;
+  final VoidCallback onPressed;
+
+  const _BadgedIconButton({
+    required this.count,
+    required this.icon,
+    required this.tooltip,
+    required this.backgroundColor,
+    required this.iconColor,
+    required this.onPressed,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        Material(
+          color: backgroundColor,
+          borderRadius: BorderRadius.circular(12),
+          child: InkWell(
+            borderRadius: BorderRadius.circular(12),
+            onTap: onPressed,
+            child: Tooltip(
+              message: tooltip,
+              child: Padding(
+                padding: const EdgeInsets.all(10),
+                child: Icon(icon, size: 22, color: iconColor),
+              ),
+            ),
+          ),
+        ),
+        if (count > 0)
+          Positioned(
+            top: -5, right: -5,
+            child: Container(
+              width: 18, height: 18,
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.primary,
+                shape: BoxShape.circle,
+                border: Border.all(color: Theme.of(context).colorScheme.surface, width: 1.5),
+              ),
+              alignment: Alignment.center,
+              child: Text(
+                '$count',
+                style: const TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: Colors.white),
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+// ──────────────────────────────────────────────────────────────
+//  Top-Level Helper Functions (Shared)
+// ──────────────────────────────────────────────────────────────
+
+int _parseSemesterNumber(String examName) {
+  final n = examName.toLowerCase();
+  if (n.contains('1st year 1st') || n.contains('1st sem') || n.contains('1-1') || (n.contains('1st year') && n.contains('1st'))) return 1;
+  if (n.contains('1st year 2nd') || n.contains('2nd sem') || n.contains('1-2') || (n.contains('1st year') && n.contains('2nd'))) return 2;
+  if (n.contains('2nd year 1st') || n.contains('3rd sem') || n.contains('2-1') || (n.contains('2nd year') && n.contains('1st'))) return 3;
+  if (n.contains('2nd year 2nd') || n.contains('4th sem') || n.contains('2-2') || (n.contains('2nd year') && n.contains('2nd'))) return 4;
+  if (n.contains('3rd year 1st') || n.contains('5th sem') || n.contains('3-1') || (n.contains('3rd year') && n.contains('1st'))) return 5;
+  if (n.contains('3rd year 2nd') || n.contains('6th sem') || n.contains('3-2') || (n.contains('3rd year') && n.contains('2nd'))) return 6;
+  if (n.contains('4th year 1st') || n.contains('7th sem') || n.contains('4-1') || (n.contains('4th year') && n.contains('1st'))) return 7;
+  if (n.contains('4th year 2nd') || n.contains('8th sem') || n.contains('4-2') || (n.contains('4th year') && n.contains('2nd'))) return 8;
+  if (n.contains('1st')) return 1;
+  if (n.contains('2nd')) return 2;
+  if (n.contains('3rd')) return 3;
+  if (n.contains('4th')) return 4;
+  if (n.contains('5th')) return 5;
+  if (n.contains('6th')) return 6;
+  if (n.contains('7th')) return 7;
+  if (n.contains('8th')) return 8;
+  return 1;
+}
+
+String _getOrdinalSuffix(int n) {
+  if (n == 1) return 'st';
+  if (n == 2) return 'nd';
+  if (n == 3) return 'rd';
+  return 'th';
+}
+
+double _getLatestStudentCgpa(String studentId, List<BatchMemberResult> allResults) {
+  double latestCgpa = 0.0;
+  int maxSem = 0;
+  for (var r in allResults) {
+    if (r.profile.id != studentId) continue;
+    final sem = r.result.semester ?? _parseSemesterNumber(r.result.examName);
+    if (sem > maxSem) {
+      maxSem = sem;
+      final v = double.tryParse(r.result.cgpa) ?? 0.0;
+      if (v > 0.0) latestCgpa = v;
+    }
+  }
+  if (latestCgpa == 0.0) {
+    double sum = 0; int cnt = 0;
+    for (var r in allResults) {
+      if (r.profile.id != studentId) continue;
+      final g = double.tryParse(r.result.gpa) ?? 0.0;
+      if (g > 0.0) { sum += g; cnt++; }
+    }
+    if (cnt > 0) latestCgpa = sum / cnt;
+  }
+  return latestCgpa;
+}
+
+class _SubjectStat {
+  final String code;
+  final String name;
+  final double failRate;
+  final double avgGp;
+  final int totalStudents;
+  final int failCount;
+
+  _SubjectStat({
+    required this.code,
+    required this.name,
+    required this.failRate,
+    required this.avgGp,
+    required this.totalStudents,
+    required this.failCount,
+  });
+}
+
+// ══════════════════════════════════════════════════════════════
+//  _StudentAccordionWidget (encapsulates student result card)
+// ══════════════════════════════════════════════════════════════
+
+class _StudentAccordionWidget extends StatefulWidget {
+  final List<BatchMemberResult> studentItems;
+  final List<BatchMemberResult> allResults;
+  final _StudentSummary summary;
+  final int? rank;
+  final ColorScheme colors;
+  final String subjectSearchQuery;
+  final bool isExpanded;
+  final ValueChanged<bool> onExpansionChanged;
+
+  const _StudentAccordionWidget({
+    required this.studentItems,
+    required this.allResults,
+    required this.summary,
+    required this.rank,
+    required this.colors,
+    required this.subjectSearchQuery,
+    required this.isExpanded,
+    required this.onExpansionChanged,
+  });
+
+  @override
+  State<_StudentAccordionWidget> createState() => _StudentAccordionWidgetState();
+}
+
+class _StudentAccordionWidgetState extends State<_StudentAccordionWidget> {
+  String _selectedYear = 'All';
+  String _selectedSemester = 'All';
+  String? _expandedSemesterResultId;
+
+  @override
+  Widget build(BuildContext context) {
+    final profile = widget.summary.profile;
+    final cgpa = widget.summary.latestCgpa;
+    final studentResults = widget.studentItems.map((i) => i.result).toList();
+
+    // Performance color
+    Color cgpaColor;
+    String perfLabel;
+    IconData perfIcon;
+    if (cgpa >= 3.5)       { cgpaColor = Colors.green;       perfLabel = 'Excellent';  perfIcon = Icons.workspace_premium; }
+    else if (cgpa >= 3.0)  { cgpaColor = const Color(0xFF00897B); perfLabel = 'Very Good'; perfIcon = Icons.thumb_up_outlined; }
+    else if (cgpa >= 2.5)  { cgpaColor = Colors.orange;      perfLabel = 'Good';       perfIcon = Icons.sentiment_satisfied_outlined; }
+    else if (cgpa >= 2.0)  { cgpaColor = Colors.deepOrange;  perfLabel = 'Fair';       perfIcon = Icons.sentiment_neutral_outlined; }
+    else if (cgpa > 0)     { cgpaColor = Colors.red;         perfLabel = 'Needs Work'; perfIcon = Icons.warning_amber_outlined; }
+    else                   { cgpaColor = widget.colors.onSurface.withValues(alpha: 0.35); perfLabel = 'No Data'; perfIcon = Icons.help_outline; }
+
+    // Filter results based on year and semester dropdown selection
+    final filteredItems = widget.studentItems.where((item) {
+      final sem = item.result.semester ?? _parseSemesterNumber(item.result.examName);
+      final year = (sem - 1) ~/ 2 + 1; // 1, 2, 3, 4
+      final isOdd = sem % 2 == 1; // 1st Semester of that year
+      
+      bool matchesYear = true;
+      if (_selectedYear == '1st Year') matchesYear = (year == 1);
+      else if (_selectedYear == '2nd Year') matchesYear = (year == 2);
+      else if (_selectedYear == '3rd Year') matchesYear = (year == 3);
+      else if (_selectedYear == '4th Year') matchesYear = (year == 4);
+
+      bool matchesSemester = true;
+      if (_selectedSemester == '1st Semester') matchesSemester = isOdd;
+      else if (_selectedSemester == '2nd Semester') matchesSemester = !isOdd;
+
+      return matchesYear && matchesSemester;
+    }).toList()
+      ..sort((a, b) {
+        final sa = a.result.semester ?? _parseSemesterNumber(a.result.examName);
+        final sb = b.result.semester ?? _parseSemesterNumber(b.result.examName);
+        return sa.compareTo(sb);
+      });
 
     return Card(
-      margin: const EdgeInsets.only(bottom: 12),
+      margin: const EdgeInsets.only(bottom: 10),
       elevation: 0,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
-        side: BorderSide(color: colors.outline.withValues(alpha: 0.1)),
+        side: BorderSide(
+          color: widget.summary.hasFailedSubject
+              ? Colors.red.withValues(alpha: 0.25)
+              : widget.colors.outline.withValues(alpha: 0.1),
+        ),
       ),
-      color: colors.surface,
+      color: widget.summary.hasFailedSubject ? Colors.red.withValues(alpha: 0.02) : widget.colors.surface,
       child: Theme(
         data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
         child: ExpansionTile(
-          key: Key('${profile.id}_${profile.id == _expandedStudentId}'),
-          initiallyExpanded: profile.id == _expandedStudentId,
-          onExpansionChanged: (expanded) {
-            setState(() {
-              if (expanded) {
-                _expandedStudentId = profile.id;
-                _expandedYear = null;
-                _expandedSemesterResultId = null;
-              } else if (_expandedStudentId == profile.id) {
-                _expandedStudentId = null;
-              }
-            });
-          },
-          tilePadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          key: Key('${profile.id}_${widget.isExpanded}'),
+          initiallyExpanded: widget.isExpanded,
+          onExpansionChanged: widget.onExpansionChanged,
+          tilePadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
           childrenPadding: const EdgeInsets.only(bottom: 12),
-          leading: CircleAvatar(
-            radius: 22,
-            backgroundColor: colors.primary.withValues(alpha: 0.1),
-            backgroundImage: profile.imagePath != null
-                ? NetworkImage(profile.imagePath!)
-                : null,
-            child: profile.imagePath == null
-                ? Text(
-                    (profile.name.isNotEmpty ? profile.name[0] : '?').toUpperCase(),
-                    style: TextStyle(color: colors.primary, fontWeight: FontWeight.bold, fontSize: 16),
-                  )
-                : null,
+          leading: Stack(
+            clipBehavior: Clip.none,
+            children: [
+              CircleAvatar(
+                radius: 22,
+                backgroundColor: cgpaColor.withValues(alpha: 0.12),
+                backgroundImage: profile.imagePath != null ? NetworkImage(profile.imagePath!) : null,
+                child: profile.imagePath == null
+                    ? Text((profile.name.isNotEmpty ? profile.name[0] : '?').toUpperCase(),
+                        style: TextStyle(color: cgpaColor, fontWeight: FontWeight.bold, fontSize: 16))
+                    : null,
+              ),
+              if (widget.rank != null && widget.rank! <= 5)
+                Positioned(
+                  bottom: -3, right: -5,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                    decoration: BoxDecoration(
+                      color: widget.rank == 1 
+                          ? const Color(0xFFFFD700) 
+                          : widget.rank == 2 
+                              ? const Color(0xFFB0BEC5) 
+                              : widget.rank == 3 
+                                  ? const Color(0xFFCD7F32) 
+                                  : widget.colors.primary,
+                      borderRadius: BorderRadius.circular(6),
+                      border: Border.all(color: widget.colors.surface, width: 1.5),
+                    ),
+                    child: Text('#${widget.rank}', style: const TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: Colors.white)),
+                  ),
+                ),
+              if (widget.summary.hasFailedSubject)
+                Positioned(
+                  top: -3, right: -3,
+                  child: Container(
+                    width: 14, height: 14,
+                    decoration: const BoxDecoration(color: Colors.red, shape: BoxShape.circle),
+                    child: const Icon(Icons.priority_high, size: 9, color: Colors.white),
+                  ),
+                ),
+            ],
           ),
-          title: Text(
-            profile.name,
-            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-          ),
+          title: Row(children: [
+            Expanded(
+              child: Text(profile.name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15), overflow: TextOverflow.ellipsis),
+            ),
+            if (profile.isAlumni)
+              Container(
+                margin: const EdgeInsets.only(left: 6),
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: widget.colors.tertiary.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(color: widget.colors.tertiary.withValues(alpha: 0.3)),
+                ),
+                child: Text('Alumni', style: TextStyle(fontSize: 9, color: widget.colors.tertiary, fontWeight: FontWeight.bold)),
+              ),
+          ]),
           subtitle: Padding(
             padding: const EdgeInsets.only(top: 4.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Roll: ${profile.classRoll.isNotEmpty ? profile.classRoll : "N/A"} | ID: ${profile.universityId.isNotEmpty ? profile.universityId : "N/A"}',
-                  style: TextStyle(fontSize: 11, color: colors.onSurface.withValues(alpha: 0.5)),
-                ),
-                const SizedBox(height: 6),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(
+                'Roll: ${profile.classRoll.isNotEmpty ? profile.classRoll : "—"}  •  ID: ${profile.universityId.isNotEmpty ? profile.universityId : "—"}',
+                style: TextStyle(fontSize: 11, color: widget.colors.onSurface.withValues(alpha: 0.5)),
+              ),
+              const SizedBox(height: 5),
+              Row(children: [
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                   decoration: BoxDecoration(
-                    color: Colors.green.withValues(alpha: 0.1),
+                    color: cgpaColor.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(6),
-                    border: Border.all(color: Colors.green.withValues(alpha: 0.2)),
+                    border: Border.all(color: cgpaColor.withValues(alpha: 0.3)),
+                  ),
+                  child: Row(mainAxisSize: MainAxisSize.min, children: [
+                    Icon(perfIcon, size: 12, color: cgpaColor),
+                    const SizedBox(width: 4),
+                    Text(
+                      cgpa > 0 ? 'CGPA: ${cgpa.toStringAsFixed(2)}' : 'No CGPA',
+                      style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: cgpaColor),
+                    ),
+                  ]),
+                ),
+                const SizedBox(width: 6),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: widget.colors.surfaceContainerHigh,
+                    borderRadius: BorderRadius.circular(6),
                   ),
                   child: Text(
-                     'CGPA: ${latestCgpa > 0.0 ? latestCgpa.toStringAsFixed(2) : "N/A"}',
-                    style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.green),
+                    '${widget.summary.semCount} sem${widget.summary.semCount != 1 ? "s" : ""}',
+                    style: TextStyle(fontSize: 10, color: widget.colors.onSurface.withValues(alpha: 0.6)),
                   ),
                 ),
-              ],
-            ),
+                if (widget.summary.hasFailedSubject) ...[
+                  const SizedBox(width: 6),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: Colors.red.withValues(alpha: 0.08),
+                      borderRadius: BorderRadius.circular(6),
+                      border: Border.all(color: Colors.red.withValues(alpha: 0.3)),
+                    ),
+                    child: const Text('Has F', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.red)),
+                  ),
+                ],
+              ]),
+            ]),
           ),
           children: [
             const Divider(height: 1),
+            // CGPA chart
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
-              child: CgpaPredictionChart(
-                results: studentResults,
-                showPredictions: false,
-              ),
+              child: CgpaPredictionChart(results: studentResults, showPredictions: false),
             ),
             const Divider(height: 1),
+            
+            // Year & Semester Dropdown selection
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-              child: Container(
-                decoration: BoxDecoration(
-                  color: colors.primary.withValues(alpha: 0.04),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: colors.primary.withValues(alpha: 0.1)),
-                ),
-                child: Theme(
-                  data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
-                  child: ExpansionTile(
-                    title: const Text(
-                      'See All Results',
-                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+              padding: const EdgeInsets.symmetric(horizontal: 14.0, vertical: 10.0),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: DropdownButtonFormField<String>(
+                      value: _selectedYear,
+                      decoration: InputDecoration(
+                        labelText: 'Year',
+                        labelStyle: TextStyle(fontSize: 12, color: widget.colors.primary, fontWeight: FontWeight.bold),
+                        isDense: true,
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                        filled: true,
+                        fillColor: widget.colors.surfaceContainerLow,
+                      ),
+                      items: const [
+                        DropdownMenuItem(value: 'All', child: Text('All Years', style: TextStyle(fontSize: 12))),
+                        DropdownMenuItem(value: '1st Year', child: Text('1st Year', style: TextStyle(fontSize: 12))),
+                        DropdownMenuItem(value: '2nd Year', child: Text('2nd Year', style: TextStyle(fontSize: 12))),
+                        DropdownMenuItem(value: '3rd Year', child: Text('3rd Year', style: TextStyle(fontSize: 12))),
+                        DropdownMenuItem(value: '4th Year', child: Text('4th Year', style: TextStyle(fontSize: 12))),
+                      ],
+                      onChanged: (val) {
+                        if (val != null) {
+                          setState(() {
+                            _selectedYear = val;
+                          });
+                        }
+                      },
                     ),
-                    leading: Icon(Icons.list_alt_rounded, color: colors.primary, size: 20),
-                    childrenPadding: const EdgeInsets.symmetric(horizontal: 8.0).copyWith(bottom: 8.0),
-                    children: [
-                      ...sortedYears.map((yearNum) {
-                        final yearItems = yearsMap[yearNum]!;
-                        // Sort semesters inside yearItems by semester index
-                        yearItems.sort((a, b) {
-                          final semA = a.result.semester ?? _parseSemesterNumber(a.result.examName);
-                          final semB = b.result.semester ?? _parseSemesterNumber(b.result.examName);
-                          return semA.compareTo(semB);
-                        });
-
-                        final yearLabel = '$yearNum${_getOrdinalSuffix(yearNum)} Year';
-
-                        return Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 4.0, vertical: 4.0),
-                          child: Container(
-                            decoration: BoxDecoration(
-                              color: colors.surfaceContainerLow.withValues(alpha: 0.5),
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(color: colors.outline.withValues(alpha: 0.05)),
-                            ),
-                            child: Theme(
-                              data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
-                              child: ExpansionTile(
-                                key: Key('${profile.id}_year_${yearNum}_${yearNum == _expandedYear}'),
-                                initiallyExpanded: yearNum == _expandedYear,
-                                onExpansionChanged: (expanded) {
-                                  setState(() {
-                                    if (expanded) {
-                                      _expandedYear = yearNum;
-                                      _expandedSemesterResultId = null;
-                                    } else if (_expandedYear == yearNum) {
-                                      _expandedYear = null;
-                                    }
-                                  });
-                                },
-                                title: Text(
-                                  yearLabel,
-                                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: colors.primary),
-                                ),
-                                leading: Icon(Icons.school_outlined, size: 18, color: colors.primary),
-                                children: yearItems.map((item) => _buildSemesterSubTile(item, colors)).toList(),
-                              ),
-                            ),
-                          ),
-                        );
-                      }),
-                    ],
                   ),
-                ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: DropdownButtonFormField<String>(
+                      value: _selectedSemester,
+                      decoration: InputDecoration(
+                        labelText: 'Semester',
+                        labelStyle: TextStyle(fontSize: 12, color: widget.colors.primary, fontWeight: FontWeight.bold),
+                        isDense: true,
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                        filled: true,
+                        fillColor: widget.colors.surfaceContainerLow,
+                      ),
+                      items: const [
+                        DropdownMenuItem(value: 'All', child: Text('All Semesters', style: TextStyle(fontSize: 12))),
+                        DropdownMenuItem(value: '1st Semester', child: Text('1st Sem', style: TextStyle(fontSize: 12))),
+                        DropdownMenuItem(value: '2nd Semester', child: Text('2nd Sem', style: TextStyle(fontSize: 12))),
+                      ],
+                      onChanged: (val) {
+                        if (val != null) {
+                          setState(() {
+                            _selectedSemester = val;
+                          });
+                        }
+                      },
+                    ),
+                  ),
+                ],
               ),
             ),
+
+            // Results List
+            if (filteredItems.isEmpty)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 24.0),
+                child: Center(
+                  child: Text(
+                    'No results for selected Year/Semester',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: widget.colors.onSurface.withValues(alpha: 0.45),
+                      fontStyle: FontStyle.italic,
+                    ),
+                  ),
+                ),
+              )
+            else
+              ...filteredItems.map((item) => _buildSemesterSubTile(item, widget.colors)),
           ],
         ),
       ),
@@ -844,22 +1706,20 @@ class _BatchResultsTabState extends State<BatchResultsTab> {
   }
 
   Widget _buildSemesterSubTile(BatchMemberResult item, ColorScheme colors) {
-    // Locate filtered subject if any search query is set
-    SubjectResult? searchedSubject;
-    if (_subjectSearchQuery.isNotEmpty) {
+    SubjectResult? searchedSub;
+    if (widget.subjectSearchQuery.isNotEmpty) {
       for (var s in item.result.subjects) {
-        if (s.code.toLowerCase().contains(_subjectSearchQuery.toLowerCase()) ||
-            s.name.toLowerCase().contains(_subjectSearchQuery.toLowerCase())) {
-          searchedSubject = s;
+        if (s.code.toLowerCase().contains(widget.subjectSearchQuery.toLowerCase()) ||
+            s.name.toLowerCase().contains(widget.subjectSearchQuery.toLowerCase())) {
+          searchedSub = s;
           break;
         }
       }
     }
-
     final semNum = item.result.semester ?? _parseSemesterNumber(item.result.examName);
 
     return Card(
-      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6).copyWith(bottom: 10),
+      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 5).copyWith(bottom: 8),
       elevation: 0,
       color: colors.surface,
       shape: RoundedRectangleBorder(
@@ -869,165 +1729,73 @@ class _BatchResultsTabState extends State<BatchResultsTab> {
       child: Theme(
         data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
         child: ExpansionTile(
-          key: Key('${item.profile.id}_sem_${item.result.id}_${item.result.id == _expandedSemesterResultId}'),
+          key: Key('${item.profile.id}_s${item.result.id}_${item.result.id == _expandedSemesterResultId}'),
           initiallyExpanded: item.result.id == _expandedSemesterResultId,
-          onExpansionChanged: (expanded) {
-            setState(() {
-              if (expanded) {
-                _expandedSemesterResultId = item.result.id;
-              } else if (_expandedSemesterResultId == item.result.id) {
-                _expandedSemesterResultId = null;
-              }
-            });
-          },
+          onExpansionChanged: (exp) => setState(() {
+            if (exp) _expandedSemesterResultId = item.result.id;
+            else if (_expandedSemesterResultId == item.result.id) _expandedSemesterResultId = null;
+          }),
           tilePadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
           childrenPadding: const EdgeInsets.all(12).copyWith(top: 0),
-          title: Text(
-            'Semester $semNum',
-            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
-          ),
+          title: Text('Semester $semNum', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
           subtitle: Padding(
-            padding: const EdgeInsets.only(top: 4.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  item.result.examName,
-                  style: TextStyle(fontSize: 10, color: colors.onSurface.withValues(alpha: 0.5)),
-                ),
-                const SizedBox(height: 4),
-                Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
-                      decoration: BoxDecoration(
-                        color: Colors.blue.withValues(alpha: 0.08),
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                      child: Text(
-                        'GPA: ${item.result.gpa}',
-                        style: const TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: Colors.blue),
-                      ),
-                    ),
-                    const SizedBox(width: 6),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
-                      decoration: BoxDecoration(
-                        color: Colors.green.withValues(alpha: 0.08),
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                      child: Text(
-                        'CGPA: ${item.result.cgpa}',
-                        style: const TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: Colors.green),
-                      ),
-                    ),
-                    if (searchedSubject != null) ...[
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          '${searchedSubject.code}: ${searchedSubject.grade}',
-                          style: TextStyle(fontSize: 9, fontWeight: FontWeight.w600, color: colors.primary),
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
-              ],
-            ),
+            padding: const EdgeInsets.only(top: 4),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(item.result.examName, style: TextStyle(fontSize: 10, color: colors.onSurface.withValues(alpha: 0.5))),
+              const SizedBox(height: 4),
+              Row(children: [
+                _gpaBadge('GPA: ${item.result.gpa}', Colors.blue),
+                const SizedBox(width: 6),
+                _gpaBadge('CGPA: ${item.result.cgpa}', Colors.green),
+                if (searchedSub != null) ...[
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text('${searchedSub.code}: ${searchedSub.grade}',
+                        style: TextStyle(fontSize: 9, fontWeight: FontWeight.w600, color: colors.primary),
+                        overflow: TextOverflow.ellipsis),
+                  ),
+                ],
+              ]),
+            ]),
           ),
           children: [
             const Divider(height: 1),
             const SizedBox(height: 8),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  'Registration No: ${item.profile.duRegNo.isNotEmpty ? item.profile.duRegNo : "N/A"}',
-                  style: TextStyle(fontSize: 10, color: colors.onSurface.withValues(alpha: 0.5)),
-                ),
-              ],
-            ),
+            Text('Reg: ${item.profile.duRegNo.isNotEmpty ? item.profile.duRegNo : "N/A"}',
+                style: TextStyle(fontSize: 10, color: colors.onSurface.withValues(alpha: 0.5))),
             const SizedBox(height: 8),
-            ...item.result.subjects.map((sub) => _buildSubjectMiniRow(sub, colors)),
+            ...item.result.subjects.map((sub) => _buildSubjectRow(sub, colors)),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildSubjectMiniRow(SubjectResult subject, ColorScheme colors) {
+  Widget _gpaBadge(String text, Color color) => Container(
+    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
+    decoration: BoxDecoration(color: color.withValues(alpha: 0.08), borderRadius: BorderRadius.circular(4)),
+    child: Text(text, style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: color)),
+  );
+
+  Widget _buildSubjectRow(SubjectResult subject, ColorScheme colors) {
     Color gradeColor = Colors.grey;
-    if (subject.grade.startsWith('A')) {
-      gradeColor = Colors.green;
-    } else if (subject.grade.startsWith('B')) {
-      gradeColor = Colors.blue;
-    } else if (subject.grade.startsWith('C')) {
-      gradeColor = Colors.orange;
-    } else if (subject.grade == 'F') {
-      gradeColor = Colors.red;
-    }
+    if (subject.grade.startsWith('A'))     gradeColor = Colors.green;
+    else if (subject.grade.startsWith('B')) gradeColor = Colors.blue;
+    else if (subject.grade.startsWith('C')) gradeColor = Colors.orange;
+    else if (subject.grade == 'F')          gradeColor = Colors.red;
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 8.0),
-      child: Row(
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  subject.code,
-                  style: TextStyle(color: colors.primary, fontSize: 11, fontWeight: FontWeight.bold),
-                ),
-                Text(
-                  subject.name,
-                  style: const TextStyle(fontSize: 12),
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ],
-            ),
-          ),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Text(
-                subject.grade,
-                style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: gradeColor),
-              ),
-              Text(
-                subject.point,
-                style: TextStyle(fontSize: 10, color: colors.onSurface.withValues(alpha: 0.5)),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildEmptyState(ColorScheme colors) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32.0),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.person_search, size: 48, color: colors.onSurface.withValues(alpha: 0.25)),
-            const SizedBox(height: 16),
-            const Text(
-              'No batch members found.',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Try adjusting your search query or toggling filters.',
-              textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 12, color: colors.onSurface.withValues(alpha: 0.5)),
-            ),
-          ],
-        ),
-      ),
+      child: Row(children: [
+        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text(subject.code, style: TextStyle(color: colors.primary, fontSize: 11, fontWeight: FontWeight.bold)),
+          Text(subject.name, style: const TextStyle(fontSize: 12), overflow: TextOverflow.ellipsis),
+        ])),
+        Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
+          Text(subject.grade, style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: gradeColor)),
+          Text(subject.point, style: TextStyle(fontSize: 10, color: colors.onSurface.withValues(alpha: 0.5))),
+        ]),
+      ]),
     );
   }
 }
