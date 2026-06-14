@@ -14,6 +14,7 @@ class MemberDetailsSheet extends StatefulWidget {
   final VoidCallback? onDelete;
   final VoidCallback? onCall;
   final VoidCallback? onEmail;
+  final VoidCallback? onGenerateCertificate;
   final ProfileData currentProfileData;
 
   const MemberDetailsSheet({
@@ -30,6 +31,7 @@ class MemberDetailsSheet extends StatefulWidget {
     this.onDelete,
     this.onCall,
     this.onEmail,
+    this.onGenerateCertificate,
   });
 
   @override
@@ -431,6 +433,18 @@ class _MemberDetailsSheetState extends State<MemberDetailsSheet> {
                       widget.onMoveToAlumni ?? () {}
                     ),
                   ],
+
+                  if (widget.member.isApproved && 
+                      (widget.isSuperuser || 
+                       widget.currentProfileData.designation == 'President' || 
+                       widget.currentProfileData.designation == 'Vice President'))
+                    _actionButton(
+                      colors, 
+                      Icons.military_tech_outlined, 
+                      'Generate Certificate', 
+                      Colors.indigo,
+                      widget.onGenerateCertificate ?? () {}
+                    ),
                   
                   if (widget.isSuperuser && (widget.member.role == UserRole.committeeMember || widget.member.role == UserRole.superUser))
                     _actionButton(

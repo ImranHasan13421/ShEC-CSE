@@ -12,6 +12,7 @@ import '../widgets/member_edit_sheets.dart';
 import 'package:ShEC_CSE/features/dashboard/presentation/widgets/ambient_background.dart';
 import 'package:ShEC_CSE/core/utils/snackbar_utils.dart';
 import 'package:ShEC_CSE/backend/services/result_scraper_service.dart';
+import 'package:ShEC_CSE/features/certificates/screens/certificates_screen.dart';
 
 class ClubMembersScreen extends StatefulWidget {
   const ClubMembersScreen({super.key});
@@ -554,6 +555,15 @@ class _ClubMembersScreenState extends State<ClubMembersScreen> with SingleTicker
           canManage: canManage,
           isSuperuser: isSuperuser,
           currentProfileData: currentP,
+          onGenerateCertificate: () {
+            Navigator.pop(context);
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => CertificatesScreen(preselectedMember: member),
+              ),
+            );
+          },
           onApprove: () async {
             Navigator.pop(context);
             await AuthService.approveUser(member.id);

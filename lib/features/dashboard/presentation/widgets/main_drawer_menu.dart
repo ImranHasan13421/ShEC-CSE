@@ -27,6 +27,7 @@ import 'package:ShEC_CSE/features/dashboard/screens/aesthetics_settings_screen.d
 import 'package:ShEC_CSE/features/permissions/screens/committee_permissions_screen.dart';
 import 'package:ShEC_CSE/features/dashboard/screens/feedback_screen.dart';
 import 'package:ShEC_CSE/features/dashboard/screens/feedback_list_screen.dart';
+import 'package:ShEC_CSE/features/certificates/screens/certificates_screen.dart';
 
 // ─── Custom Premium Interactive Tree Branch Painter ──────────────────────────
 
@@ -969,6 +970,13 @@ class _MainDrawerMenuState extends State<MainDrawerMenu> {
                                 icon: Icons.account_balance_wallet_outlined,
                                 title: 'Club Accounts',
                                 destination: const AccountingDashboardScreen(),
+                              ),
+                              _menuItem(
+                                context,
+                                controller,
+                                icon: Icons.military_tech_outlined,
+                                title: 'Certificates',
+                                destination: const CertificatesScreen(),
                               ),
                               ValueListenableBuilder<ProfileData>(
                                 valueListenable: currentProfile,
