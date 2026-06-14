@@ -6,6 +6,7 @@ import 'package:ShEC_CSE/features/auth/screens/set_new_password_screen.dart';
 
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:ShEC_CSE/backend/services/auth_service.dart';
 
 import 'package:ShEC_CSE/core/services/theme_service.dart';
@@ -53,6 +54,7 @@ final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp();
   await dotenv.load(fileName: ".env");
   
   await Supabase.initialize(

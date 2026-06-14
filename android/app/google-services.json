@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "244111889515",
+    "project_id": "shec-cse",
+    "storage_bucket": "shec-cse.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:244111889515:android:d4e32d4b15d4c6d4208d2e",
+        "android_client_info": {
+          "package_name": "com.example.shec_cse"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBftqDLBc75yBa8CMSwGk60iu_aMWtIbMM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

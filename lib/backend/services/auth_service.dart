@@ -6,6 +6,7 @@ import '../../core/services/storage_service.dart';
 import '../../core/services/database_helper.dart';
 import '../../core/services/connectivity_service.dart';
 import 'package:ShEC_CSE/features/permissions/services/permissions_service.dart';
+import 'notification_service.dart';
 
 class AuthService {
   static final SupabaseClient _client = Supabase.instance.client;
@@ -15,6 +16,7 @@ class AuthService {
       final Session? session = data.session;
       if (session != null) {
         await fetchCurrentUserProfile();
+        await NotificationService.syncFCMToken();
       }
     });
   }
@@ -103,6 +105,14 @@ class AuthService {
       ConnectivityService.showNoInternetToast(message: 'Internet connection required to log out.');
       throw Exception('Network connection required');
     }
+    final user = _client.auth.currentUser;
+    if (user != null) {
+      try {
+        await _client.from('profiles').update({'fcm_token': null}).eq('id', user.id);
+      } catch (e) {
+        debugPrint('Error clearing FCM token on sign out: $e');
+      }
+    }
     await _client.auth.signOut();
     PermissionsService.currentPermissions.value = null;
   }
@@ -178,6 +188,10 @@ class AuthService {
         try {
           await DatabaseHelper.instance.clearCache('current_profile');
           await DatabaseHelper.instance.clearCache('all_members');
+          final user = _client.auth.currentUser;
+          if (user != null) {
+            await _client.from('profiles').update({'fcm_token': null}).eq('id', user.id);
+          }
           await _client.auth.signOut();
         } catch (_) {}
         currentProfile.value = ProfileData(name: 'Guest', email: '', duRegNo: '', session: '');

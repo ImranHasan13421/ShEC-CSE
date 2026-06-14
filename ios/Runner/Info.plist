@@ -76,5 +76,9 @@
 	<string>This app requires access to the photo library to download and save event photos to a dedicated ShEC CSE folder.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>This app requires access to the photo library to download and save event photos to a dedicated ShEC CSE folder.</string>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>remote-notification</string>
+	</array>
 </dict>
 </plist>
