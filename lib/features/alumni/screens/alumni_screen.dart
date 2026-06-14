@@ -285,14 +285,24 @@ class _AlumniScreenState extends State<AlumniScreen> {
           }
 
           if (visible.isEmpty) {
-            return Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(Icons.school_outlined, size: 64, color: colors.onSurface.withValues(alpha: 0.3)),
-                  const SizedBox(height: 16),
-                  Text('No alumni listed yet.', style: TextStyle(color: colors.onSurface.withValues(alpha: 0.5))),
-                ],
+            return RefreshIndicator(
+              onRefresh: () async {
+                context.read<AlumniBloc>().add(const FetchAlumniRequested(forceRefresh: true));
+              },
+              child: SingleChildScrollView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                child: Container(
+                  height: MediaQuery.of(context).size.height * 0.6,
+                  alignment: Alignment.center,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.school_outlined, size: 64, color: colors.onSurface.withValues(alpha: 0.3)),
+                      const SizedBox(height: 16),
+                      Text('No alumni listed yet.', style: TextStyle(color: colors.onSurface.withValues(alpha: 0.5))),
+                    ],
+                  ),
+                ),
               ),
             );
           }
@@ -302,6 +312,7 @@ class _AlumniScreenState extends State<AlumniScreen> {
               context.read<AlumniBloc>().add(const FetchAlumniRequested(forceRefresh: true));
             },
             child: ListView.builder(
+              physics: const AlwaysScrollableScrollPhysics(),
               padding: const EdgeInsets.all(16),
               itemCount: visible.length,
               itemBuilder: (context, index) => _buildCard(visible[index]),

@@ -1,9 +1,16 @@
+import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:ShEC_CSE/main.dart'; // for navigatorKey
+import 'package:ShEC_CSE/features/dashboard/screens/main_screen.dart'; // for HomeLayout
+import 'package:ShEC_CSE/features/messenger/screens/chat_screen.dart';
+import 'package:ShEC_CSE/features/notices/screens/notice_detail_screen.dart';
+import 'package:ShEC_CSE/features/jobs/screens/job_detail_screen.dart';
+import 'package:ShEC_CSE/features/jobs/screens/jobs_screen.dart';
 
 class NotificationService {
   static final FlutterLocalNotificationsPlugin _notificationsPlugin =
@@ -33,7 +40,20 @@ class NotificationService {
       android: initializationSettingsAndroid,
     );
 
-    await _notificationsPlugin.initialize(settings: initializationSettings);
+    await _notificationsPlugin.initialize(
+      settings: initializationSettings,
+      onDidReceiveNotificationResponse: (NotificationResponse response) {
+        final payload = response.payload;
+        if (payload != null) {
+          try {
+            final data = jsonDecode(payload) as Map<String, dynamic>;
+            _handleNotificationClick(data);
+          } catch (e) {
+            debugPrint('Error parsing notification payload: $e');
+          }
+        }
+      },
+    );
 
     // Request permission for Android 13+
     await _notificationsPlugin
@@ -53,8 +73,26 @@ class NotificationService {
           id: message.notification.hashCode,
           title: message.notification?.title ?? 'Notification',
           body: message.notification?.body ?? '',
-          payload: message.data.toString(),
+          payload: jsonEncode(message.data),
         );
+      }
+    });
+
+    // Background message click handler (app was in background but running)
+    FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
+      debugPrint('FCM Notification clicked while app was in background: ${message.data}');
+      _handleNotificationClick(message.data);
+    });
+
+    // Terminated state click handler (app was completely terminated)
+    FirebaseMessaging.instance.getInitialMessage().then((RemoteMessage? message) {
+      if (message != null) {
+        debugPrint('FCM Notification clicked and launched app from terminated state: ${message.data}');
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          Future.delayed(const Duration(milliseconds: 500), () {
+            _handleNotificationClick(message.data);
+          });
+        });
       }
     });
 
@@ -76,6 +114,62 @@ class NotificationService {
     messaging.onTokenRefresh.listen((token) async {
       await _uploadTokenToSupabase(token);
     });
+  }
+
+  static void _handleNotificationClick(Map<String, dynamic> data) {
+    debugPrint('Handling notification click with data: $data');
+    final table = data['table']?.toString();
+    final id = data['id']?.toString();
+    final roomId = data['room_id']?.toString();
+
+    final context = navigatorKey.currentState?.context;
+    if (context == null) {
+      debugPrint('Navigator state context is null. Skipping navigation.');
+      return;
+    }
+
+    if (table == 'messages') {
+      if (roomId != null && roomId.isNotEmpty) {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => ChatScreen(roomId: roomId),
+          ),
+        );
+      } else {
+        HomeLayout.activeTab.value = 2;
+      }
+    } else if (table == 'notices') {
+      if (id != null && id.isNotEmpty) {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => NoticeDetailScreen(noticeId: id),
+          ),
+        );
+      } else {
+        HomeLayout.activeTab.value = 1;
+      }
+    } else if (table == 'jobs') {
+      if (id != null && id.isNotEmpty) {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => JobDetailScreen(jobId: id),
+          ),
+        );
+      } else {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => const JobsScreen(),
+          ),
+        );
+      }
+    } else if (table == 'contests') {
+      Navigator.popUntil(context, (route) => route.isFirst);
+      HomeLayout.activeTab.value = 3;
+    }
   }
 
   static Future<void> showNotification({

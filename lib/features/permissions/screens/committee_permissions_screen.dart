@@ -98,8 +98,10 @@ class _CommitteePermissionsScreenState
     _loadData();
   }
 
-  Future<void> _loadData() async {
-    setState(() => _isLoading = true);
+  Future<void> _loadData({bool isRefreshed = false}) async {
+    if (!isRefreshed) {
+      setState(() => _isLoading = true);
+    }
     try {
       final members = await AuthService.fetchAllMembers();
       final perms = await PermissionsService.fetchAllPermissions();
@@ -840,155 +842,164 @@ class _CommitteePermissionsScreenState
 
                   // ── Member list ────────────────────────────────────────
                   Expanded(
-                    child: filtered.isEmpty
-                        ? Center(
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Icon(Icons.shield_outlined,
-                                    size: 52,
-                                    color: colors.onSurface
-                                        .withValues(alpha: 0.2)),
-                                const SizedBox(height: 14),
-                                const Text('No committee members found.',
-                                    style: TextStyle(color: Colors.grey)),
-                              ],
-                            ),
-                          )
-                        : ListView.builder(
-                            itemCount: filtered.length,
-                            padding: const EdgeInsets.fromLTRB(16, 0, 16, 20),
-                            itemBuilder: (context, index) {
-                              final member = filtered[index];
-                              final p =
-                                  _getPermissionsForUser(member.id);
-                              final allowed = _allowedCount(p);
+                    child: RefreshIndicator(
+                      onRefresh: () => _loadData(isRefreshed: true),
+                      child: filtered.isEmpty
+                          ? SingleChildScrollView(
+                              physics: const AlwaysScrollableScrollPhysics(),
+                              child: Container(
+                                height: MediaQuery.of(context).size.height * 0.5,
+                                alignment: Alignment.center,
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Icon(Icons.shield_outlined,
+                                        size: 52,
+                                        color: colors.onSurface
+                                            .withValues(alpha: 0.2)),
+                                    const SizedBox(height: 14),
+                                    const Text('No committee members found.',
+                                        style: TextStyle(color: Colors.grey)),
+                                  ],
+                                ),
+                              ),
+                            )
+                          : ListView.builder(
+                              physics: const AlwaysScrollableScrollPhysics(),
+                              itemCount: filtered.length,
+                              padding: const EdgeInsets.fromLTRB(16, 0, 16, 20),
+                              itemBuilder: (context, index) {
+                                final member = filtered[index];
+                                final p =
+                                    _getPermissionsForUser(member.id);
+                                final allowed = _allowedCount(p);
 
-                              // Colour the badge based on allowed count
-                              Color badgeColor;
-                              if (allowed == 6) {
-                                badgeColor = Colors.deepPurple;
-                              } else if (allowed >= 3) {
-                                badgeColor = colors.primary;
-                              } else if (allowed > 0) {
-                                badgeColor = Colors.orange;
-                              } else {
-                                badgeColor = Colors.grey;
-                              }
+                                // Colour the badge based on allowed count
+                                Color badgeColor;
+                                if (allowed == 6) {
+                                  badgeColor = Colors.deepPurple;
+                                } else if (allowed >= 3) {
+                                  badgeColor = colors.primary;
+                                } else if (allowed > 0) {
+                                  badgeColor = Colors.orange;
+                                } else {
+                                  badgeColor = Colors.grey;
+                                }
 
-                              return Card(
-                                shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(14)),
-                                elevation: 0,
-                                color: colors.surfaceContainerLowest,
-                                margin: const EdgeInsets.only(bottom: 10),
-                                child: InkWell(
-                                  borderRadius: BorderRadius.circular(14),
-                                  onTap: () => _showPermissionsBottomSheet(
-                                      context, member),
-                                  child: Padding(
-                                    padding: const EdgeInsets.symmetric(
-                                        horizontal: 16, vertical: 12),
-                                    child: Row(
-                                      children: [
-                                        // Avatar
-                                        CircleAvatar(
-                                          radius: 22,
-                                          backgroundColor: colors.primary
-                                              .withValues(alpha: 0.1),
-                                          backgroundImage: member.imagePath !=
-                                                      null &&
-                                                  member.imagePath!
-                                                      .startsWith('http')
-                                              ? NetworkImage(member.imagePath!)
-                                                  as ImageProvider
-                                              : null,
-                                          child: (member.imagePath == null ||
-                                                  !member.imagePath!
-                                                      .startsWith('http'))
-                                              ? Icon(Icons.person,
-                                                  color: colors.primary,
-                                                  size: 22)
-                                              : null,
-                                        ),
-                                        const SizedBox(width: 14),
+                                return Card(
+                                  shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(14)),
+                                  elevation: 0,
+                                  color: colors.surfaceContainerLowest,
+                                  margin: const EdgeInsets.only(bottom: 10),
+                                  child: InkWell(
+                                    borderRadius: BorderRadius.circular(14),
+                                    onTap: () => _showPermissionsBottomSheet(
+                                        context, member),
+                                    child: Padding(
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 16, vertical: 12),
+                                      child: Row(
+                                        children: [
+                                          // Avatar
+                                          CircleAvatar(
+                                            radius: 22,
+                                            backgroundColor: colors.primary
+                                                .withValues(alpha: 0.1),
+                                            backgroundImage: member.imagePath !=
+                                                        null &&
+                                                    member.imagePath!
+                                                        .startsWith('http')
+                                                ? NetworkImage(member.imagePath!)
+                                                    as ImageProvider
+                                                : null,
+                                            child: (member.imagePath == null ||
+                                                    !member.imagePath!
+                                                        .startsWith('http'))
+                                                ? Icon(Icons.person,
+                                                    color: colors.primary,
+                                                    size: 22)
+                                                : null,
+                                          ),
+                                          const SizedBox(width: 14),
 
-                                        // Info
-                                        Expanded(
-                                          child: Column(
-                                            crossAxisAlignment:
-                                                CrossAxisAlignment.start,
-                                            children: [
-                                              Text(
-                                                member.name,
-                                                style: const TextStyle(
-                                                    fontWeight: FontWeight.bold,
-                                                    fontSize: 14),
-                                              ),
-                                              const SizedBox(height: 2),
-                                              Text(
-                                                member.designation,
-                                                style: TextStyle(
-                                                  fontSize: 12,
-                                                  color: colors.onSurface
-                                                      .withValues(alpha: 0.5),
+                                          // Info
+                                          Expanded(
+                                            child: Column(
+                                              crossAxisAlignment:
+                                                  CrossAxisAlignment.start,
+                                              children: [
+                                                Text(
+                                                  member.name,
+                                                  style: const TextStyle(
+                                                      fontWeight: FontWeight.bold,
+                                                      fontSize: 14),
                                                 ),
-                                              ),
-                                              const SizedBox(height: 6),
-                                              Row(
-                                                children: [
-                                                  // Permission count badge
-                                                  Container(
-                                                    padding:
-                                                        const EdgeInsets.symmetric(
-                                                            horizontal: 7,
-                                                            vertical: 2),
-                                                    decoration: BoxDecoration(
-                                                      color: badgeColor
-                                                          .withValues(
-                                                              alpha: 0.1),
-                                                      borderRadius:
-                                                          BorderRadius.circular(
-                                                              5),
-                                                    ),
-                                                    child: Text(
-                                                      '$allowed / 6',
-                                                      style: TextStyle(
-                                                        fontSize: 9,
-                                                        fontWeight:
-                                                            FontWeight.bold,
-                                                        color: badgeColor,
+                                                const SizedBox(height: 2),
+                                                Text(
+                                                  member.designation,
+                                                  style: TextStyle(
+                                                    fontSize: 12,
+                                                    color: colors.onSurface
+                                                        .withValues(alpha: 0.5),
+                                                  ),
+                                                ),
+                                                const SizedBox(height: 6),
+                                                Row(
+                                                  children: [
+                                                    // Permission count badge
+                                                    Container(
+                                                      padding:
+                                                          const EdgeInsets.symmetric(
+                                                              horizontal: 7,
+                                                              vertical: 2),
+                                                      decoration: BoxDecoration(
+                                                        color: badgeColor
+                                                            .withValues(
+                                                                alpha: 0.1),
+                                                        borderRadius:
+                                                            BorderRadius.circular(
+                                                                5),
+                                                      ),
+                                                      child: Text(
+                                                        '$allowed / 6',
+                                                        style: TextStyle(
+                                                          fontSize: 9,
+                                                          fontWeight:
+                                                              FontWeight.bold,
+                                                          color: badgeColor,
+                                                        ),
                                                       ),
                                                     ),
-                                                  ),
-                                                  const SizedBox(width: 6),
-                                                  // Mini dot indicators
-                                                  _PermissionMiniDots(
-                                                    perms: p,
-                                                    primaryColor:
-                                                        colors.primary,
-                                                    dotSize: 6,
-                                                  ),
-                                                ],
-                                              ),
-                                            ],
+                                                    const SizedBox(width: 6),
+                                                    // Mini dot indicators
+                                                    _PermissionMiniDots(
+                                                      perms: p,
+                                                      primaryColor:
+                                                          colors.primary,
+                                                      dotSize: 6,
+                                                    ),
+                                                  ],
+                                                ),
+                                              ],
+                                            ),
                                           ),
-                                        ),
 
-                                        // Chevron
-                                        Icon(
-                                          Icons.chevron_right_rounded,
-                                          color: colors.onSurface
-                                              .withValues(alpha: 0.3),
-                                        ),
-                                      ],
+                                          // Chevron
+                                          Icon(
+                                            Icons.chevron_right_rounded,
+                                            color: colors.onSurface
+                                                .withValues(alpha: 0.3),
+                                          ),
+                                        ],
+                                      ),
                                     ),
                                   ),
-                                ),
-                              );
-                            },
-                          ),
-                  ),
+                                );
+                              },
+                            ),
+                    ),
+                  )
                 ],
               ),
       ),

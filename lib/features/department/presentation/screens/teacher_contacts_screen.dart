@@ -88,21 +88,32 @@ class _TeacherContactsScreenState extends State<TeacherContactsScreen> {
                 ? teachers
                 : teachers.where((t) => t.isApproved && t.isVisible).toList();
 
-            if (visible.isEmpty && state is! TeacherLoading) {
-              return const Center(child: Text('No teacher contacts available.'));
-            }
-
-            return ListView.builder(
-              padding: const EdgeInsets.all(16),
-              itemCount: visible.length,
-              itemBuilder: (context, index) {
-                final teacher = visible[index];
-                return TeacherCard(
-                  teacher: teacher,
-                  profile: profile,
-                  onEdit: () => _showTeacherForm(existingTeacher: teacher),
-                );
+            return RefreshIndicator(
+              onRefresh: () async {
+                context.read<TeacherBloc>().add(const FetchTeachersRequested());
               },
+              child: visible.isEmpty
+                  ? SingleChildScrollView(
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      child: Container(
+                        height: MediaQuery.of(context).size.height * 0.6,
+                        alignment: Alignment.center,
+                        child: const Text('No teacher contacts available.'),
+                      ),
+                    )
+                  : ListView.builder(
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      padding: const EdgeInsets.all(16),
+                      itemCount: visible.length,
+                      itemBuilder: (context, index) {
+                        final teacher = visible[index];
+                        return TeacherCard(
+                          teacher: teacher,
+                          profile: profile,
+                          onEdit: () => _showTeacherForm(existingTeacher: teacher),
+                        );
+                      },
+                    ),
             );
           },
         ),

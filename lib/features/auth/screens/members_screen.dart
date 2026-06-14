@@ -19,8 +19,10 @@ class _MembersScreenState extends State<MembersScreen> {
     _fetchMembers();
   }
 
-  Future<void> _fetchMembers() async {
-    setState(() => _isLoading = true);
+  Future<void> _fetchMembers({bool isRefreshed = false}) async {
+    if (!isRefreshed) {
+      setState(() => _isLoading = true);
+    }
     try {
       final members = await AuthService.fetchAllMembers();
       if (mounted) setState(() => _members = members);
@@ -104,120 +106,133 @@ class _MembersScreenState extends State<MembersScreen> {
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
-          : ListView.builder(
-              padding: const EdgeInsets.all(16),
-              itemCount: _members.length,
-              itemBuilder: (context, index) {
-                final member = _members[index];
-                
-                // Don't allow superusers to delete themselves from this list easily
-                final isSelf = member.id == currentProfile.value.id;
-
-                String roleText;
-                Color roleColor;
-                switch (member.role) {
-                  case UserRole.superUser:
-                    roleText = 'Superuser';
-                    roleColor = Colors.purple;
-                    break;
-                  case UserRole.committeeMember:
-                    roleText = 'Committee';
-                    roleColor = Colors.orange;
-                    break;
-                  case UserRole.student:
-                  default:
-                    roleText = 'Member';
-                    roleColor = Colors.green;
-                    break;
-                }
-
-                return Card(
-                  margin: const EdgeInsets.only(bottom: 12),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                  child: Column(
-                    children: [
-                      ListTile(
-                        leading: CircleAvatar(
-                          backgroundImage: member.imagePath != null && member.imagePath!.isNotEmpty 
-                            ? NetworkImage(member.imagePath!) 
-                            : null,
-                          child: member.imagePath == null || member.imagePath!.isEmpty
-                            ? Text(member.name[0].toUpperCase())
-                            : null,
-                        ),
-                        title: Text(member.name, style: const TextStyle(fontWeight: FontWeight.bold)),
-                        subtitle: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text('Student ID: ${member.studentFullId} | Session: ${member.session}'),
-                            const SizedBox(height: 4),
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                              decoration: BoxDecoration(
-                                color: roleColor.withOpacity(0.1),
-                                borderRadius: BorderRadius.circular(12),
-                                border: Border.all(color: roleColor.withOpacity(0.5)),
-                              ),
-                              child: Text(roleText, style: TextStyle(color: roleColor, fontSize: 12, fontWeight: FontWeight.bold)),
-                            ),
-                          ],
-                        ),
+          : RefreshIndicator(
+              onRefresh: () => _fetchMembers(isRefreshed: true),
+              child: _members.isEmpty
+                  ? SingleChildScrollView(
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      child: Container(
+                        height: MediaQuery.of(context).size.height * 0.7,
+                        alignment: Alignment.center,
+                        child: const Text('No members found.'),
                       ),
-                      if (!isSelf) ...[
-                        const Divider(height: 8, thickness: 0.5),
-                        Padding(
-                          padding: const EdgeInsets.only(left: 16, right: 12, bottom: 8, top: 4),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.end,
+                    )
+                  : ListView.builder(
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      padding: const EdgeInsets.all(16),
+                      itemCount: _members.length,
+                      itemBuilder: (context, index) {
+                        final member = _members[index];
+                        
+                        // Don't allow superusers to delete themselves from this list easily
+                        final isSelf = member.id == currentProfile.value.id;
+
+                        String roleText;
+                        Color roleColor;
+                        switch (member.role) {
+                          case UserRole.superUser:
+                            roleText = 'Superuser';
+                            roleColor = Colors.purple;
+                            break;
+                          case UserRole.committeeMember:
+                            roleText = 'Committee';
+                            roleColor = Colors.orange;
+                            break;
+                          case UserRole.student:
+                          default:
+                            roleText = 'Member';
+                            roleColor = Colors.green;
+                            break;
+                        }
+
+                        return Card(
+                          margin: const EdgeInsets.only(bottom: 12),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          child: Column(
                             children: [
-                              Text(
-                                'Member Management',
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.bold,
-                                  color: Theme.of(context).colorScheme.onSurface.withOpacity(0.4),
+                              ListTile(
+                                leading: CircleAvatar(
+                                  backgroundImage: member.imagePath != null && member.imagePath!.isNotEmpty 
+                                    ? NetworkImage(member.imagePath!) 
+                                    : null,
+                                  child: member.imagePath == null || member.imagePath!.isEmpty
+                                    ? Text(member.name[0].toUpperCase())
+                                    : null,
+                                ),
+                                title: Text(member.name, style: const TextStyle(fontWeight: FontWeight.bold)),
+                                subtitle: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text('Student ID: ${member.studentFullId} | Session: ${member.session}'),
+                                    const SizedBox(height: 4),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                      decoration: BoxDecoration(
+                                        color: roleColor.withOpacity(0.1),
+                                        borderRadius: BorderRadius.circular(12),
+                                        border: Border.all(color: roleColor.withOpacity(0.5)),
+                                      ),
+                                      child: Text(roleText, style: TextStyle(color: roleColor, fontSize: 12, fontWeight: FontWeight.bold)),
+                                    ),
+                                  ],
                                 ),
                               ),
-                              const Spacer(),
-                              if (member.role != UserRole.student)
-                                IconButton(
-                                  icon: const Icon(Icons.school, color: Colors.green, size: 20),
-                                  tooltip: 'Demote to Member',
-                                  onPressed: () => _changeRole(member, UserRole.student),
-                                  constraints: const BoxConstraints(),
-                                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                              if (!isSelf) ...[
+                                const Divider(height: 8, thickness: 0.5),
+                                Padding(
+                                  padding: const EdgeInsets.only(left: 16, right: 12, bottom: 8, top: 4),
+                                  child: Row(
+                                    mainAxisAlignment: MainAxisAlignment.end,
+                                    children: [
+                                      Text(
+                                        'Member Management',
+                                        style: TextStyle(
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.bold,
+                                          color: Theme.of(context).colorScheme.onSurface.withOpacity(0.4),
+                                        ),
+                                      ),
+                                      const Spacer(),
+                                      if (member.role != UserRole.student)
+                                        IconButton(
+                                          icon: const Icon(Icons.school, color: Colors.green, size: 20),
+                                          tooltip: 'Demote to Member',
+                                          onPressed: () => _changeRole(member, UserRole.student),
+                                          constraints: const BoxConstraints(),
+                                          padding: const EdgeInsets.symmetric(horizontal: 8),
+                                        ),
+                                      if (member.role != UserRole.committeeMember)
+                                        IconButton(
+                                          icon: const Icon(Icons.group, color: Colors.orange, size: 20),
+                                          tooltip: 'Promote to Committee',
+                                          onPressed: () => _changeRole(member, UserRole.committeeMember),
+                                          constraints: const BoxConstraints(),
+                                          padding: const EdgeInsets.symmetric(horizontal: 8),
+                                        ),
+                                      if (member.role != UserRole.superUser)
+                                        IconButton(
+                                          icon: const Icon(Icons.shield, color: Colors.purple, size: 20),
+                                          tooltip: 'Promote to Superuser',
+                                          onPressed: () => _changeRole(member, UserRole.superUser),
+                                          constraints: const BoxConstraints(),
+                                          padding: const EdgeInsets.symmetric(horizontal: 8),
+                                        ),
+                                      IconButton(
+                                        icon: const Icon(Icons.delete_outline, color: Colors.red, size: 20),
+                                        tooltip: 'Delete Member',
+                                        onPressed: () => _deleteMember(member),
+                                        constraints: const BoxConstraints(),
+                                        padding: const EdgeInsets.symmetric(horizontal: 8),
+                                      ),
+                                    ],
+                                  ),
                                 ),
-                              if (member.role != UserRole.committeeMember)
-                                IconButton(
-                                  icon: const Icon(Icons.group, color: Colors.orange, size: 20),
-                                  tooltip: 'Promote to Committee',
-                                  onPressed: () => _changeRole(member, UserRole.committeeMember),
-                                  constraints: const BoxConstraints(),
-                                  padding: const EdgeInsets.symmetric(horizontal: 8),
-                                ),
-                              if (member.role != UserRole.superUser)
-                                IconButton(
-                                  icon: const Icon(Icons.shield, color: Colors.purple, size: 20),
-                                  tooltip: 'Promote to Superuser',
-                                  onPressed: () => _changeRole(member, UserRole.superUser),
-                                  constraints: const BoxConstraints(),
-                                  padding: const EdgeInsets.symmetric(horizontal: 8),
-                                ),
-                              IconButton(
-                                icon: const Icon(Icons.delete_outline, color: Colors.red, size: 20),
-                                tooltip: 'Delete Member',
-                                onPressed: () => _deleteMember(member),
-                                constraints: const BoxConstraints(),
-                                padding: const EdgeInsets.symmetric(horizontal: 8),
-                              ),
+                              ],
                             ],
                           ),
-                        ),
-                      ],
-                    ],
-                  ),
-                );
-              },
+                        );
+                      },
+                    ),
             ),
     );
   }

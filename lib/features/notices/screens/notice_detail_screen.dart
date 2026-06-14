@@ -1,16 +1,96 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/notice_state.dart';
 import 'package:ShEC_CSE/features/profile/models/profile_state.dart';
 import 'package:ShEC_CSE/features/permissions/services/permissions_service.dart';
 
-class NoticeDetailScreen extends StatelessWidget {
-  final NoticeItem notice;
+class NoticeDetailScreen extends StatefulWidget {
+  final NoticeItem? notice;
+  final String? noticeId;
 
-  const NoticeDetailScreen({super.key, required this.notice});
+  const NoticeDetailScreen({super.key, this.notice, this.noticeId});
+
+  @override
+  State<NoticeDetailScreen> createState() => _NoticeDetailScreenState();
+}
+
+class _NoticeDetailScreenState extends State<NoticeDetailScreen> {
+  NoticeItem? _notice;
+  bool _isLoading = false;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _notice = widget.notice;
+    if (_notice == null && widget.noticeId != null) {
+      _fetchNotice();
+    }
+  }
+
+  Future<void> _fetchNotice() async {
+    if (mounted) setState(() => _isLoading = true);
+    try {
+      final response = await Supabase.instance.client
+          .from('notices')
+          .select()
+          .eq('id', widget.noticeId!)
+          .single();
+      
+      if (mounted) {
+        setState(() {
+          _notice = NoticeItem.fromJson(response);
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error fetching notice: $e');
+      if (mounted) {
+        setState(() {
+          _error = 'Failed to load notice details.';
+          _isLoading = false;
+        });
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
+
+    if (_isLoading) {
+      return Scaffold(
+        backgroundColor: colors.surface,
+        appBar: AppBar(
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          leading: IconButton(
+            icon: Icon(Icons.arrow_back, color: colors.onSurface),
+            onPressed: () => Navigator.pop(context),
+          ),
+        ),
+        body: const Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    if (_error != null || _notice == null) {
+      return Scaffold(
+        backgroundColor: colors.surface,
+        appBar: AppBar(
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          leading: IconButton(
+            icon: Icon(Icons.arrow_back, color: colors.onSurface),
+            onPressed: () => Navigator.pop(context),
+          ),
+        ),
+        body: Center(
+          child: Text(_error ?? 'Notice not found.', style: TextStyle(color: colors.error)),
+        ),
+      );
+    }
+
+    final notice = _notice!;
     final profile = currentProfile.value;
     final isAdmin = profile.role == UserRole.superUser ||
         (profile.role == UserRole.committeeMember && (PermissionsService.currentPermissions.value?.canManageNotices ?? false)) ||

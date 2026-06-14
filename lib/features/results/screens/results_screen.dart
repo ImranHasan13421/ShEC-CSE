@@ -277,26 +277,34 @@ class _ResultsScreenState extends State<ResultsScreen> with SingleTickerProvider
     final results = state.ownResults;
 
     if (results.isEmpty) {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.all(32.0),
-          child: Column(
-            key: _chartKey,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(Icons.assignment_late, size: 64, color: colors.onSurface.withValues(alpha: 0.3)),
-              const SizedBox(height: 16),
-              Text(
-                'No results found.',
-                style: TextStyle(fontSize: 18, color: colors.onSurface.withValues(alpha: 0.6)),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'Click the Sync icon in the top right to fetch your latest results.',
-                textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 14, color: colors.onSurface.withValues(alpha: 0.5)),
-              ),
-            ],
+      return RefreshIndicator(
+        onRefresh: () async {
+          context.read<ResultBloc>().add(SyncResultsRequested());
+        },
+        child: SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          child: Container(
+            height: MediaQuery.of(context).size.height * 0.6,
+            alignment: Alignment.center,
+            padding: const EdgeInsets.all(32.0),
+            child: Column(
+              key: _chartKey,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.assignment_late, size: 64, color: colors.onSurface.withValues(alpha: 0.3)),
+                const SizedBox(height: 16),
+                Text(
+                  'No results found.',
+                  style: TextStyle(fontSize: 18, color: colors.onSurface.withValues(alpha: 0.6)),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Click the Sync icon in the top right or pull down to fetch your latest results.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(fontSize: 14, color: colors.onSurface.withValues(alpha: 0.5)),
+                ),
+              ],
+            ),
           ),
         ),
       );
@@ -309,12 +317,17 @@ class _ResultsScreenState extends State<ResultsScreen> with SingleTickerProvider
         return semA.compareTo(semB);
       });
 
-    return ListView(
-      padding: const EdgeInsets.all(16.0),
-      children: [
-        // 1. CGPA Prediction Chart Card
-        CgpaPredictionChart(key: _chartKey, results: results),
-        const SizedBox(height: 20),
+    return RefreshIndicator(
+      onRefresh: () async {
+        context.read<ResultBloc>().add(SyncResultsRequested());
+      },
+      child: ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.all(16.0),
+        children: [
+          // 1. CGPA Prediction Chart Card
+          CgpaPredictionChart(key: _chartKey, results: results),
+          const SizedBox(height: 20),
 
         // CGPA Calculator Redirection Banner
         _buildCgpaCalculatorBanner(context, results),
@@ -339,6 +352,7 @@ class _ResultsScreenState extends State<ResultsScreen> with SingleTickerProvider
         // 3. Semester results cards
         ...sortedResults.map((result) => _buildResultCard(context, result)),
       ],
+    ),
     );
   }
 

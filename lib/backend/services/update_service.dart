@@ -10,8 +10,8 @@ class UpdateService extends ChangeNotifier {
   static final SupabaseClient _client = Supabase.instance.client;
 
   // Local static build information
-  static const int currentBuildNumber = 40;
-  static const String currentVersion = '0.9.2';
+  static const int currentBuildNumber = 1;
+  static const String currentVersion = '0.9.3';
 
   // State
   bool _isLoading = false;

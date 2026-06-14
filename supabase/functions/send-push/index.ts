@@ -191,7 +191,18 @@ Deno.serve(async (req) => {
 
     const accessToken = await getGoogleAccessToken(clientEmail, privateKey);
 
-    // 4. Send Notifications in Parallel via FCM REST API v1
+    // 4. Build data payload
+    const dataPayload: Record<string, string> = {
+      table,
+      click_action: "FLUTTER_NOTIFICATION_CLICK",
+    };
+    if (table === "messages" && record?.room_id) {
+      dataPayload.room_id = String(record.room_id);
+    } else if (record?.id) {
+      dataPayload.id = String(record.id);
+    }
+
+    // 5. Send Notifications in Parallel via FCM REST API v1
     const sendPromises = recipientTokens.map(async (fcmToken) => {
       const response = await fetch(
         `https://fcm.googleapis.com/v1/projects/${projectId}/messages:send`,
@@ -208,10 +219,7 @@ Deno.serve(async (req) => {
                 title,
                 body,
               },
-              data: {
-                table,
-                click_action: "FLUTTER_NOTIFICATION_CLICK",
-              },
+              data: dataPayload,
             },
           }),
         }

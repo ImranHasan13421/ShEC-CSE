@@ -27,83 +27,103 @@ class _MessengerScreenState extends State<MessengerScreen> {
 
     return Scaffold(
       backgroundColor: Colors.transparent,
-      body: BlocBuilder<ChatBloc, ChatState>(
-        builder: (context, state) {
-          final rooms = context.read<ChatBloc>().rooms;
-
-          if (state is ChatRoomsLoading && rooms.isEmpty) {
-            return const Center(child: CircularProgressIndicator());
-          }
-
-          if (state is ChatError && rooms.isEmpty) {
-            return Center(child: Text(state.message));
-          }
-
-          if (rooms.isEmpty) {
-            return const Center(child: Text('No active chat groups.'));
-          }
-
-          return ValueListenableBuilder<Map<String, int>>(
-            valueListenable: chatRoomUnreadCounts,
-            builder: (context, unreadMap, _) {
-              return ValueListenableBuilder<Map<String, ChatMessage>>(
-                valueListenable: chatRoomLastMessages,
-                builder: (context, lastMessagesMap, _) {
-                  return ListView.builder(
-                    padding: const EdgeInsets.symmetric(vertical: 8),
-                    itemCount: rooms.length,
-                    itemBuilder: (context, index) {
-                      final room = rooms[index];
-                      final unreadCount = unreadMap[room.id] ?? 0;
-                      final lastMsg = lastMessagesMap[room.id];
-                      
-                      String displaySubtitle = room.description;
-                      String displayTime = '';
-                      
-                      if (lastMsg != null) {
-                        final senderName = lastMsg.isMe ? 'You' : lastMsg.senderName;
-                        displaySubtitle = '$senderName: ${lastMsg.text}';
-                        
-                        final DateFormat timeFormat = DateFormat('h:mm a');
-                        final DateFormat dayFormat = DateFormat('MMM d');
-                        final now = DateTime.now();
-                        if (lastMsg.createdAt.year == now.year &&
-                            lastMsg.createdAt.month == now.month &&
-                            lastMsg.createdAt.day == now.day) {
-                          displayTime = timeFormat.format(lastMsg.createdAt);
-                        } else {
-                          displayTime = dayFormat.format(lastMsg.createdAt);
-                        }
-                      }
-
-                      return _buildChatTile(
-                        context: context,
-                        title: room.name,
-                        subtitle: displaySubtitle,
-                        time: displayTime,
-                        unreadCount: unreadCount,
-                        icon: _getIcon(room.type),
-                        iconColor: _getColor(room.type, colors),
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => ChatScreen(
-                                roomId: room.id,
-                                groupName: room.name,
-                                themeColor: _getColor(room.type, colors),
-                              ),
-                            ),
-                          );
-                        },
-                      );
-                    },
-                  );
-                },
-              );
-            },
-          );
+      body: RefreshIndicator(
+        onRefresh: () async {
+          context.read<ChatBloc>().add(FetchRoomsRequested());
         },
+        child: BlocBuilder<ChatBloc, ChatState>(
+          builder: (context, state) {
+            final rooms = context.read<ChatBloc>().rooms;
+
+            if (state is ChatRoomsLoading && rooms.isEmpty) {
+              return const Center(child: CircularProgressIndicator());
+            }
+
+            if (state is ChatError && rooms.isEmpty) {
+              return SingleChildScrollView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                child: Container(
+                  height: MediaQuery.of(context).size.height * 0.7,
+                  alignment: Alignment.center,
+                  child: Text(state.message),
+                ),
+              );
+            }
+
+            if (rooms.isEmpty) {
+              return SingleChildScrollView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                child: Container(
+                  height: MediaQuery.of(context).size.height * 0.7,
+                  alignment: Alignment.center,
+                  child: const Text('No active chat groups.'),
+                ),
+              );
+            }
+
+            return ValueListenableBuilder<Map<String, int>>(
+              valueListenable: chatRoomUnreadCounts,
+              builder: (context, unreadMap, _) {
+                return ValueListenableBuilder<Map<String, ChatMessage>>(
+                  valueListenable: chatRoomLastMessages,
+                  builder: (context, lastMessagesMap, _) {
+                    return ListView.builder(
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      padding: const EdgeInsets.symmetric(vertical: 8),
+                      itemCount: rooms.length,
+                      itemBuilder: (context, index) {
+                        final room = rooms[index];
+                        final unreadCount = unreadMap[room.id] ?? 0;
+                        final lastMsg = lastMessagesMap[room.id];
+                        
+                        String displaySubtitle = room.description;
+                        String displayTime = '';
+                        
+                        if (lastMsg != null) {
+                          final senderName = lastMsg.isMe ? 'You' : lastMsg.senderName;
+                          displaySubtitle = '$senderName: ${lastMsg.text}';
+                          
+                          final DateFormat timeFormat = DateFormat('h:mm a');
+                          final DateFormat dayFormat = DateFormat('MMM d');
+                          final now = DateTime.now();
+                          if (lastMsg.createdAt.year == now.year &&
+                              lastMsg.createdAt.month == now.month &&
+                              lastMsg.createdAt.day == now.day) {
+                            displayTime = timeFormat.format(lastMsg.createdAt);
+                          } else {
+                            displayTime = dayFormat.format(lastMsg.createdAt);
+                          }
+                        }
+
+                        return _buildChatTile(
+                          context: context,
+                          title: room.name,
+                          subtitle: displaySubtitle,
+                          time: displayTime,
+                          unreadCount: unreadCount,
+                          icon: _getIcon(room.type),
+                          iconColor: _getColor(room.type, colors),
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => ChatScreen(
+                                  roomId: room.id,
+                                  groupName: room.name,
+                                  themeColor: _getColor(room.type, colors),
+                                ),
+                              ),
+                            );
+                          },
+                        );
+                      },
+                    );
+                  },
+                );
+              },
+            );
+          },
+        ),
       ),
     );
   }

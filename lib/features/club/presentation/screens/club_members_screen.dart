@@ -621,23 +621,37 @@ class _ClubMembersScreenState extends State<ClubMembersScreen> with SingleTicker
 
   Widget _buildList(List<ProfileData> list, {bool isPendingList = false}) {
     if (list.isEmpty) {
-      return const Center(child: Text('No users found in this category.'));
+      return RefreshIndicator(
+        onRefresh: _fetchMembers,
+        child: SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          child: Container(
+            height: MediaQuery.of(context).size.height * 0.6,
+            alignment: Alignment.center,
+            child: const Text('No users found in this category.'),
+          ),
+        ),
+      );
     }
     
-    return ListView.builder(
-      padding: const EdgeInsets.all(16),
-      itemCount: list.length,
-      itemBuilder: (context, index) {
-        final member = list[index];
-        return MemberCard(
-          key: index == 0 ? _firstMemberCardKey : null,
-          member: member,
-          isPendingList: isPendingList,
-          onTap: () => _showMemberDetails(member),
-          onCallTap: () => _confirmAndMakeCall(member),
-          onEmailTap: () => _confirmAndSendEmail(member),
-        );
-      },
+    return RefreshIndicator(
+      onRefresh: _fetchMembers,
+      child: ListView.builder(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.all(16),
+        itemCount: list.length,
+        itemBuilder: (context, index) {
+          final member = list[index];
+          return MemberCard(
+            key: index == 0 ? _firstMemberCardKey : null,
+            member: member,
+            isPendingList: isPendingList,
+            onTap: () => _showMemberDetails(member),
+            onCallTap: () => _confirmAndMakeCall(member),
+            onEmailTap: () => _confirmAndSendEmail(member),
+          );
+        },
+      ),
     );
   }
 

@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
 import '../../../../backend/services/accounting_service.dart';
 import '../bloc/accounting_bloc.dart';
+import '../bloc/accounting_event.dart';
 import '../bloc/accounting_state.dart';
 import '../../../profile/models/profile_state.dart';
 import 'payment_dialogs.dart';
@@ -63,74 +64,79 @@ class _OverviewTabState extends State<OverviewTab> {
     final totalExp = summary?.totalExpenses ?? 0.0;
     final balance = summary?.currentBalance ?? 0.0;
 
-    return SingleChildScrollView(
-      physics: const BouncingScrollPhysics(),
-      padding: const EdgeInsets.all(16.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Visual Premium Cards
-          _buildSummaryCards(totalCol, totalExp, balance, colors),
-          const SizedBox(height: 16),
-
-          // Funds Composition Ratio Bar
-          _buildRatioComposition(totalCol, totalExp, colors),
-          const SizedBox(height: 16),
-
-          // Cash Flow Trend Chart
-          if (hasData) ...[
-            _buildTrendChart(summary, colors),
-            const SizedBox(height: 20),
-          ],
-
-          // Overview Action buttons (Admins only)
-          if (_isAdmin) ...[
-            Row(
-              children: [
-                Expanded(
-                  child: ElevatedButton.icon(
-                    onPressed: () => _showAddPaymentDialog(context),
-                    icon: const Icon(Icons.add),
-                    label: const Text('Add Fee Payment'),
-                    style: ElevatedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      backgroundColor: colors.primaryContainer,
-                      foregroundColor: colors.onPrimaryContainer,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+    return RefreshIndicator(
+      onRefresh: () async {
+        context.read<AccountingBloc>().add(FetchAccountingDataRequested());
+      },
+      child: SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Visual Premium Cards
+            _buildSummaryCards(totalCol, totalExp, balance, colors),
+            const SizedBox(height: 16),
+  
+            // Funds Composition Ratio Bar
+            _buildRatioComposition(totalCol, totalExp, colors),
+            const SizedBox(height: 16),
+  
+            // Cash Flow Trend Chart
+            if (hasData) ...[
+              _buildTrendChart(summary, colors),
+              const SizedBox(height: 20),
+            ],
+  
+            // Overview Action buttons (Admins only)
+            if (_isAdmin) ...[
+              Row(
+                children: [
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      onPressed: () => _showAddPaymentDialog(context),
+                      icon: const Icon(Icons.add),
+                      label: const Text('Add Fee Payment'),
+                      style: ElevatedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        backgroundColor: colors.primaryContainer,
+                        foregroundColor: colors.onPrimaryContainer,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
                     ),
                   ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: ElevatedButton.icon(
-                    onPressed: () => _showAddExpenseDialog(context),
-                    icon: const Icon(Icons.remove),
-                    label: const Text('Log Expense'),
-                    style: ElevatedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      backgroundColor: colors.errorContainer,
-                      foregroundColor: colors.onErrorContainer,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      onPressed: () => _showAddExpenseDialog(context),
+                      icon: const Icon(Icons.remove),
+                      label: const Text('Log Expense'),
+                      style: ElevatedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        backgroundColor: colors.errorContainer,
+                        foregroundColor: colors.onErrorContainer,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
                     ),
                   ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 24),
+                ],
+              ),
+              const SizedBox(height: 24),
+            ],
+  
+            // Recent Activity Ledger
+            if (currentProfile.value.role == UserRole.committeeMember ||
+                currentProfile.value.role == UserRole.superUser) ...[
+              Text(
+                'Recent Ledger Activity',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: colors.onSurface),
+              ),
+              const SizedBox(height: 12),
+  
+              _buildRecentActivityList(summary, colors),
+            ],
           ],
-
-          // Recent Activity Ledger
-          if (currentProfile.value.role == UserRole.committeeMember ||
-              currentProfile.value.role == UserRole.superUser) ...[
-            Text(
-              'Recent Ledger Activity',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: colors.onSurface),
-            ),
-            const SizedBox(height: 12),
-
-            _buildRecentActivityList(summary, colors),
-          ],
-        ],
+        ),
       ),
     );
   }

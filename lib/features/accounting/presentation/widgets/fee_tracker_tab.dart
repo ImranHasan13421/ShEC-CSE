@@ -134,122 +134,133 @@ class _FeeTrackerTabState extends State<FeeTrackerTab> {
             ),
           ),
           Expanded(
-            child: filtered.isEmpty
-                ? Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.payment, size: 48, color: colors.onSurface.withValues(alpha: 0.2)),
-                        const SizedBox(height: 12),
-                        const Text('No payment transactions found.', style: TextStyle(color: Colors.grey)),
-                      ],
-                    ),
-                  )
-                : ListView.builder(
-                    itemCount: filtered.length,
-                    padding: const EdgeInsets.symmetric(horizontal: 12),
-                    itemBuilder: (context, index) {
-                      final payment = filtered[index];
-                      return Card(
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                        elevation: 0,
-                        color: colors.surfaceContainerLowest,
-                        margin: const EdgeInsets.only(bottom: 8),
-                        child: ListTile(
-                          contentPadding: const EdgeInsets.only(left: 16, right: 8, top: 6, bottom: 6),
-                          title: Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Text(payment.memberName, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-                              Text('+ ৳ ${payment.amount.toStringAsFixed(0)}',
-                                  style: const TextStyle(fontWeight: FontWeight.bold, color: _emerald, fontSize: 14)),
-                            ],
-                          ),
-                          subtitle: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              if (payment.memberIdRoll != null) ...[
-                                const SizedBox(height: 4),
-                                Text(payment.memberIdRoll!, style: const TextStyle(fontSize: 11, color: Colors.grey)),
+            child: RefreshIndicator(
+              onRefresh: () async {
+                context.read<AccountingBloc>().add(FetchAccountingDataRequested());
+              },
+              child: filtered.isEmpty
+                  ? SingleChildScrollView(
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      child: Container(
+                        height: MediaQuery.of(context).size.height * 0.6,
+                        alignment: Alignment.center,
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.payment, size: 48, color: colors.onSurface.withValues(alpha: 0.2)),
+                            const SizedBox(height: 12),
+                            const Text('No payment transactions found.', style: TextStyle(color: Colors.grey)),
+                          ],
+                        ),
+                      ),
+                    )
+                  : ListView.builder(
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      itemCount: filtered.length,
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                      itemBuilder: (context, index) {
+                        final payment = filtered[index];
+                        return Card(
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          elevation: 0,
+                          color: colors.surfaceContainerLowest,
+                          margin: const EdgeInsets.only(bottom: 8),
+                          child: ListTile(
+                            contentPadding: const EdgeInsets.only(left: 16, right: 8, top: 6, bottom: 6),
+                            title: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text(payment.memberName, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                                Text('+ ৳ ${payment.amount.toStringAsFixed(0)}',
+                                    style: const TextStyle(fontWeight: FontWeight.bold, color: _emerald, fontSize: 14)),
                               ],
-                              const SizedBox(height: 6),
-                              Row(
-                                children: [
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                    decoration: BoxDecoration(
-                                      color: colors.primary.withValues(alpha: 0.1),
-                                      borderRadius: BorderRadius.circular(4),
-                                    ),
-                                    child: Text(
-                                      payment.paymentType.toUpperCase(),
-                                      style: TextStyle(fontSize: 9, color: colors.primary, fontWeight: FontWeight.bold),
-                                    ),
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                    decoration: BoxDecoration(
-                                      color: colors.onSurface.withValues(alpha: 0.05),
-                                      borderRadius: BorderRadius.circular(4),
-                                    ),
-                                    child: Text(
-                                      payment.month,
-                                      style: const TextStyle(fontSize: 9, color: Colors.grey, fontWeight: FontWeight.bold),
-                                    ),
-                                  ),
-                                  const Spacer(),
-                                  Text(
-                                    DateFormat('d MMM yyyy, h:mm a').format(payment.paymentDate),
-                                    style: const TextStyle(fontSize: 10, color: Colors.grey),
-                                  ),
+                            ),
+                            subtitle: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                if (payment.memberIdRoll != null) ...[
+                                  const SizedBox(height: 4),
+                                  Text(payment.memberIdRoll!, style: const TextStyle(fontSize: 11, color: Colors.grey)),
                                 ],
-                              ),
-                              if (payment.remarks != null && payment.remarks!.isNotEmpty) ...[
-                                const SizedBox(height: 8),
-                                Text('Remarks: ${payment.remarks}', style: const TextStyle(fontSize: 11, fontStyle: FontStyle.italic)),
-                              ]
-                            ],
-                          ),
-                          trailing: _isCreator(payment)
-                              ? PopupMenuButton<String>(
-                                  icon: const Icon(Icons.more_vert, size: 20),
-                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                                  onSelected: (value) {
-                                    if (value == 'edit') {
-                                      _showEditPaymentDialog(context, payment);
-                                    } else if (value == 'delete') {
-                                      _showDeleteConfirmationDialog(context, payment);
-                                    }
-                                  },
-                                  itemBuilder: (context) => [
-                                    const PopupMenuItem(
-                                      value: 'edit',
-                                      child: Row(
-                                        children: [
-                                          Icon(Icons.edit_outlined, size: 18),
-                                          SizedBox(width: 8),
-                                          Text('Edit'),
-                                        ],
+                                const SizedBox(height: 6),
+                                Row(
+                                  children: [
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                      decoration: BoxDecoration(
+                                        color: colors.primary.withValues(alpha: 0.1),
+                                        borderRadius: BorderRadius.circular(4),
+                                      ),
+                                      child: Text(
+                                        payment.paymentType.toUpperCase(),
+                                        style: TextStyle(fontSize: 9, color: colors.primary, fontWeight: FontWeight.bold),
                                       ),
                                     ),
-                                    PopupMenuItem(
-                                      value: 'delete',
-                                      child: Row(
-                                        children: [
-                                          Icon(Icons.delete_outline, size: 18, color: Colors.red),
-                                          const SizedBox(width: 8),
-                                          Text('Delete', style: TextStyle(color: colors.error)),
-                                        ],
+                                    const SizedBox(width: 8),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                      decoration: BoxDecoration(
+                                        color: colors.onSurface.withValues(alpha: 0.05),
+                                        borderRadius: BorderRadius.circular(4),
                                       ),
+                                      child: Text(
+                                        payment.month,
+                                        style: const TextStyle(fontSize: 9, color: Colors.grey, fontWeight: FontWeight.bold),
+                                      ),
+                                    ),
+                                    const Spacer(),
+                                    Text(
+                                      DateFormat('d MMM yyyy, h:mm a').format(payment.paymentDate),
+                                      style: const TextStyle(fontSize: 10, color: Colors.grey),
                                     ),
                                   ],
-                                )
-                              : null,
-                        ),
-                      );
-                    },
-                  ),
+                                ),
+                                if (payment.remarks != null && payment.remarks!.isNotEmpty) ...[
+                                  const SizedBox(height: 8),
+                                  Text('Remarks: ${payment.remarks}', style: const TextStyle(fontSize: 11, fontStyle: FontStyle.italic)),
+                                ]
+                              ],
+                            ),
+                            trailing: _isCreator(payment)
+                                ? PopupMenuButton<String>(
+                                    icon: const Icon(Icons.more_vert, size: 20),
+                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                    onSelected: (value) {
+                                      if (value == 'edit') {
+                                        _showEditPaymentDialog(context, payment);
+                                      } else if (value == 'delete') {
+                                        _showDeleteConfirmationDialog(context, payment);
+                                      }
+                                    },
+                                    itemBuilder: (context) => [
+                                      const PopupMenuItem(
+                                        value: 'edit',
+                                        child: Row(
+                                          children: [
+                                            Icon(Icons.edit_outlined, size: 18),
+                                            SizedBox(width: 8),
+                                            Text('Edit'),
+                                          ],
+                                        ),
+                                      ),
+                                      PopupMenuItem(
+                                        value: 'delete',
+                                        child: Row(
+                                          children: [
+                                            Icon(Icons.delete_outline, size: 18, color: Colors.red),
+                                            const SizedBox(width: 8),
+                                            Text('Delete', style: TextStyle(color: colors.error)),
+                                          ],
+                                        ),
+                                      ),
+                                    ],
+                                  )
+                                : null,
+                          ),
+                        );
+                      },
+                    ),
+            ),
           ),
         ],
       ),

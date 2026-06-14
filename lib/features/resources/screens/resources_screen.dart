@@ -503,109 +503,114 @@ class _PdfsScreenState extends State<PdfsScreen> {
 
             final sessionItems = items.where((i) => i.session == widget.session && i.semester == widget.semester).toList();
 
-            return ListView(
-              padding: const EdgeInsets.all(16.0),
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: widget.color.withValues(alpha: 0.05),
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: widget.color.withValues(alpha: 0.1)),
-                  ),
-                  child: Row(
-                    children: [
-                      Icon(Icons.folder_open_rounded, color: widget.color),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text('${widget.semester} Resources', style: const TextStyle(fontWeight: FontWeight.bold)),
-                            Text('Academic Session ${widget.session}', style: TextStyle(color: colors.onSurfaceVariant, fontSize: 12)),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 24),
-                if (sessionItems.isEmpty)
-                  Center(
-                    child: Padding(
-                      padding: const EdgeInsets.all(64),
-                      child: Column(
-                        children: [
-                          Icon(Icons.cloud_off_rounded, size: 64, color: colors.onSurfaceVariant.withValues(alpha: 0.2)),
-                          const SizedBox(height: 16),
-                          Text('No resources found', style: TextStyle(color: colors.onSurfaceVariant)),
-                        ],
-                      ),
+            return RefreshIndicator(
+              onRefresh: () async {
+                context.read<ResourceBloc>().add(const FetchResourcesRequested());
+              },
+              child: ListView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: const EdgeInsets.all(16.0),
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: widget.color.withValues(alpha: 0.05),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: widget.color.withValues(alpha: 0.1)),
                     ),
-                  ),
-                ...sessionItems.map((res) => Card(
-                  margin: const EdgeInsets.only(bottom: 16),
-                  elevation: 0,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
-                    side: BorderSide(color: colors.outline.withValues(alpha: 0.1)),
-                  ),
-                  child: ListTile(
-                    contentPadding: const EdgeInsets.all(16),
-                    leading: Container(
-                      padding: const EdgeInsets.all(10),
-                      decoration: BoxDecoration(color: Colors.redAccent.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(12)),
-                      child: const Icon(Icons.insert_drive_file_rounded, color: Colors.redAccent),
-                    ),
-                    title: Text(res.name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
-                    subtitle: Padding(
-                      padding: const EdgeInsets.only(top: 4.0),
-                      child: Text('Uploaded on ${res.date}', style: TextStyle(color: colors.onSurfaceVariant, fontSize: 12)),
-                    ),
-                    trailing: Row(
-                      mainAxisSize: MainAxisSize.min,
+                    child: Row(
                       children: [
-                        IconButton(
-                          icon: Icon(Icons.open_in_new_rounded, color: widget.color),
-                          onPressed: () {
-                            // Link open can be handled or launch URL
-                            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Opening resource link...')));
-                          },
-                        ),
-                        ValueListenableBuilder<CommitteePermission?>(
-                          valueListenable: PermissionsService.currentPermissions,
-                          builder: (context, currentPerms, _) {
-                            final profile = currentProfile.value;
-                            final canManage = profile.role == UserRole.superUser ||
-                                (profile.role == UserRole.committeeMember && (currentPerms?.canManageResources ?? false)) ||
-                                profile.designation == 'President' ||
-                                profile.designation == 'Vice President';
-
-                            if (canManage) {
-                              return Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  IconButton(
-                                    icon: const Icon(Icons.edit_outlined, color: Colors.blueAccent, size: 20),
-                                    onPressed: () => _showForm(context, existingItem: res),
-                                    tooltip: 'Update Details',
-                                  ),
-                                  IconButton(
-                                    icon: const Icon(Icons.delete_outline, color: Colors.red, size: 20),
-                                    onPressed: () => _deleteItem(res),
-                                    tooltip: 'Delete File',
-                                  ),
-                                ],
-                              );
-                            }
-                            return const SizedBox.shrink();
-                          },
+                        Icon(Icons.folder_open_rounded, color: widget.color),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text('${widget.semester} Resources', style: const TextStyle(fontWeight: FontWeight.bold)),
+                              Text('Academic Session ${widget.session}', style: TextStyle(color: colors.onSurfaceVariant, fontSize: 12)),
+                            ],
+                          ),
                         ),
                       ],
                     ),
                   ),
-                )),
-              ],
+                  const SizedBox(height: 24),
+                  if (sessionItems.isEmpty)
+                    Center(
+                      child: Padding(
+                        padding: const EdgeInsets.all(64),
+                        child: Column(
+                          children: [
+                            Icon(Icons.cloud_off_rounded, size: 64, color: colors.onSurfaceVariant.withValues(alpha: 0.2)),
+                            const SizedBox(height: 16),
+                            Text('No resources found', style: TextStyle(color: colors.onSurfaceVariant)),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ...sessionItems.map((res) => Card(
+                    margin: const EdgeInsets.only(bottom: 16),
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                      side: BorderSide(color: colors.outline.withValues(alpha: 0.1)),
+                    ),
+                    child: ListTile(
+                      contentPadding: const EdgeInsets.all(16),
+                      leading: Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(color: Colors.redAccent.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(12)),
+                        child: const Icon(Icons.insert_drive_file_rounded, color: Colors.redAccent),
+                      ),
+                      title: Text(res.name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+                      subtitle: Padding(
+                        padding: const EdgeInsets.only(top: 4.0),
+                        child: Text('Uploaded on ${res.date}', style: TextStyle(color: colors.onSurfaceVariant, fontSize: 12)),
+                      ),
+                      trailing: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          IconButton(
+                            icon: Icon(Icons.open_in_new_rounded, color: widget.color),
+                            onPressed: () {
+                              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Opening resource link...')));
+                            },
+                          ),
+                          ValueListenableBuilder<CommitteePermission?>(
+                            valueListenable: PermissionsService.currentPermissions,
+                            builder: (context, currentPerms, _) {
+                              final profile = currentProfile.value;
+                              final canManage = profile.role == UserRole.superUser ||
+                                  (profile.role == UserRole.committeeMember && (currentPerms?.canManageResources ?? false)) ||
+                                  profile.designation == 'President' ||
+                                  profile.designation == 'Vice President';
+  
+                              if (canManage) {
+                                return Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    IconButton(
+                                      icon: const Icon(Icons.edit_outlined, color: Colors.blueAccent, size: 20),
+                                      onPressed: () => _showForm(context, existingItem: res),
+                                      tooltip: 'Update Details',
+                                    ),
+                                    IconButton(
+                                      icon: const Icon(Icons.delete_outline, color: Colors.red, size: 20),
+                                      onPressed: () => _deleteItem(res),
+                                      tooltip: 'Delete File',
+                                    ),
+                                  ],
+                                );
+                              }
+                              return const SizedBox.shrink();
+                            },
+                          ),
+                        ],
+                      ),
+                    ),
+                  )),
+                ],
+              ),
             );
           },
         ),

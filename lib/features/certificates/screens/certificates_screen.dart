@@ -230,121 +230,129 @@ class _CertificatesScreenState extends State<CertificatesScreen> with SingleTick
           const SizedBox(height: 16),
 
           Expanded(
-            child: _isLoadingCerts
-                ? const Center(child: CircularProgressIndicator())
-                : filtered.isEmpty
-                    ? Center(
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(Icons.military_tech_outlined, size: 64, color: colors.onSurface.withOpacity(0.3)),
-                            const SizedBox(height: 16),
-                            Text(
-                              _searchQuery.isEmpty
-                                  ? 'No certificates found.'
-                                  : 'No matching certificates found.',
-                              style: TextStyle(fontSize: 16, color: colors.onSurface.withOpacity(0.6)),
+            child: RefreshIndicator(
+              onRefresh: _loadCertificates,
+              child: _isLoadingCerts
+                  ? const Center(child: CircularProgressIndicator())
+                  : filtered.isEmpty
+                      ? SingleChildScrollView(
+                          physics: const AlwaysScrollableScrollPhysics(),
+                          child: Container(
+                            height: MediaQuery.of(context).size.height * 0.6,
+                            alignment: Alignment.center,
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.military_tech_outlined, size: 64, color: colors.onSurface.withOpacity(0.3)),
+                                const SizedBox(height: 16),
+                                Text(
+                                  _searchQuery.isEmpty
+                                      ? 'No certificates found.'
+                                      : 'No matching certificates found.',
+                                  style: TextStyle(fontSize: 16, color: colors.onSurface.withOpacity(0.6)),
+                                ),
+                              ],
                             ),
-                          ],
-                        ),
-                      )
-                    : ListView.builder(
-                        physics: const BouncingScrollPhysics(),
-                        itemCount: filtered.length,
-                        itemBuilder: (context, index) {
-                          final cert = filtered[index];
-                          final isDownloading = _downloadingCerts[cert.id] ?? false;
-
-                          return Card(
-                            margin: const EdgeInsets.only(bottom: 12),
-                            elevation: 0,
-                            color: colors.surface.withOpacity(0.7),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(16),
-                              side: BorderSide(color: colors.outline.withOpacity(0.15)),
-                            ),
-                            child: Padding(
-                              padding: const EdgeInsets.all(16.0),
-                              child: Row(
-                                children: [
-                                  // Gold award medal icon
-                                  Container(
-                                    padding: const EdgeInsets.all(12),
-                                    decoration: BoxDecoration(
-                                      color: Colors.amber.withOpacity(0.12),
-                                      shape: BoxShape.circle,
-                                      border: Border.all(color: Colors.amber.withOpacity(0.2)),
-                                    ),
-                                    child: const Icon(
-                                      Icons.military_tech,
-                                      color: Colors.amber,
-                                      size: 32,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 16),
-
-                                  // Certificate Details
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          cert.memberName,
-                                          style: const TextStyle(
-                                            fontWeight: FontWeight.bold,
-                                            fontSize: 16,
-                                          ),
-                                        ),
-                                        const SizedBox(height: 4),
-                                        Text(
-                                          cert.serialNumber,
-                                          style: TextStyle(
-                                            fontFamily: 'monospace',
-                                            fontWeight: FontWeight.bold,
-                                            fontSize: 12,
-                                            color: colors.primary,
-                                          ),
-                                        ),
-                                        const SizedBox(height: 6),
-                                        Text(
-                                          '${cert.memberDesignation ?? "Member"} • Batch ${cert.memberBatch ?? ""}',
-                                          style: TextStyle(
-                                            fontSize: 13,
-                                            color: colors.onSurface.withOpacity(0.7),
-                                          ),
-                                        ),
-                                        Text(
-                                          'Session ${cert.memberSession ?? ""}',
-                                          style: TextStyle(
-                                            fontSize: 12,
-                                            color: colors.onSurface.withOpacity(0.5),
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-
-                                  // Download Button
-                                  isDownloading
-                                      ? const Padding(
-                                          padding: EdgeInsets.all(12.0),
-                                          child: SizedBox(
-                                            width: 20,
-                                            height: 20,
-                                            child: CircularProgressIndicator(strokeWidth: 2),
-                                          ),
-                                        )
-                                      : IconButton(
-                                          icon: Icon(Icons.download_rounded, color: colors.primary),
-                                          tooltip: 'Download Certificate PDF',
-                                          onPressed: () => _downloadPdf(cert),
-                                        ),
-                                ],
+                          ),
+                        )
+                      : ListView.builder(
+                          physics: const AlwaysScrollableScrollPhysics(),
+                          itemCount: filtered.length,
+                          itemBuilder: (context, index) {
+                            final cert = filtered[index];
+                            final isDownloading = _downloadingCerts[cert.id] ?? false;
+  
+                            return Card(
+                              margin: const EdgeInsets.only(bottom: 12),
+                              elevation: 0,
+                              color: colors.surface.withOpacity(0.7),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(16),
+                                side: BorderSide(color: colors.outline.withOpacity(0.15)),
                               ),
-                            ),
-                          );
-                        },
-                      ),
+                              child: Padding(
+                                padding: const EdgeInsets.all(16.0),
+                                child: Row(
+                                  children: [
+                                    // Gold award medal icon
+                                    Container(
+                                      padding: const EdgeInsets.all(12),
+                                      decoration: BoxDecoration(
+                                        color: Colors.amber.withOpacity(0.12),
+                                        shape: BoxShape.circle,
+                                        border: Border.all(color: Colors.amber.withOpacity(0.2)),
+                                      ),
+                                      child: const Icon(
+                                        Icons.military_tech,
+                                        color: Colors.amber,
+                                        size: 32,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 16),
+  
+                                    // Certificate Details
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            cert.memberName,
+                                            style: const TextStyle(
+                                              fontWeight: FontWeight.bold,
+                                              fontSize: 16,
+                                            ),
+                                          ),
+                                          const SizedBox(height: 4),
+                                          Text(
+                                            cert.serialNumber,
+                                            style: TextStyle(
+                                              fontFamily: 'monospace',
+                                              fontWeight: FontWeight.bold,
+                                              fontSize: 12,
+                                              color: colors.primary,
+                                            ),
+                                          ),
+                                          const SizedBox(height: 6),
+                                          Text(
+                                            '${cert.memberDesignation ?? "Member"} • Batch ${cert.memberBatch ?? ""}',
+                                            style: TextStyle(
+                                              fontSize: 13,
+                                              color: colors.onSurface.withOpacity(0.7),
+                                            ),
+                                          ),
+                                          Text(
+                                            'Session ${cert.memberSession ?? ""}',
+                                            style: TextStyle(
+                                              fontSize: 12,
+                                              color: colors.onSurface.withOpacity(0.5),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+  
+                                    // Download Button
+                                    isDownloading
+                                        ? const Padding(
+                                            padding: EdgeInsets.all(12.0),
+                                            child: SizedBox(
+                                              width: 20,
+                                              height: 20,
+                                              child: CircularProgressIndicator(strokeWidth: 2),
+                                            ),
+                                          )
+                                        : IconButton(
+                                            icon: Icon(Icons.download_rounded, color: colors.primary),
+                                            tooltip: 'Download Certificate PDF',
+                                            onPressed: () => _downloadPdf(cert),
+                                          ),
+                                  ],
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+            ),
           ),
         ],
       ),

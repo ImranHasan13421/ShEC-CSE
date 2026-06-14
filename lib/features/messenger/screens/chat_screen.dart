@@ -11,14 +11,14 @@ import 'package:ShEC_CSE/core/utils/snackbar_utils.dart';
 
 class ChatScreen extends StatefulWidget {
   final String roomId;
-  final String groupName;
-  final Color themeColor;
+  final String? groupName;
+  final Color? themeColor;
 
   const ChatScreen({
     super.key,
     required this.roomId,
-    required this.groupName,
-    required this.themeColor,
+    this.groupName,
+    this.themeColor,
   });
 
   @override
@@ -30,6 +30,10 @@ class _ChatScreenState extends State<ChatScreen> {
   final ScrollController _scrollController = ScrollController();
   RealtimeChannel? _subscription;
 
+  String? _groupName;
+  Color? _themeColor;
+  bool _isLoadingRoom = false;
+
   @override
   void initState() {
     super.initState();
@@ -40,8 +44,53 @@ class _ChatScreenState extends State<ChatScreen> {
     currentUnreads[widget.roomId] = 0;
     chatRoomUnreadCounts.value = currentUnreads;
 
+    _groupName = widget.groupName;
+    _themeColor = widget.themeColor;
+
+    if (_groupName == null || _themeColor == null) {
+      _fetchRoomDetails();
+    }
+
     context.read<ChatBloc>().add(FetchHistoryRequested(roomId: widget.roomId));
     _setupRealtime();
+  }
+
+  Future<void> _fetchRoomDetails() async {
+    if (mounted) setState(() => _isLoadingRoom = true);
+    try {
+      final response = await Supabase.instance.client
+          .from('chat_rooms')
+          .select()
+          .eq('id', widget.roomId)
+          .single();
+      
+      final room = ChatRoom.fromJson(response);
+      
+      Color color = Colors.blue;
+      final colors = Theme.of(context).colorScheme;
+      switch (room.type) {
+        case ChatRoomType.committee: color = Colors.red; break;
+        case ChatRoomType.problemSolving: color = Colors.indigo; break;
+        default: color = colors.primary;
+      }
+
+      if (mounted) {
+        setState(() {
+          _groupName = room.name;
+          _themeColor = color;
+          _isLoadingRoom = false;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error fetching room details: $e');
+      if (mounted) {
+        setState(() {
+          _groupName = _groupName ?? 'Group';
+          _themeColor = _themeColor ?? Colors.blue;
+          _isLoadingRoom = false;
+        });
+      }
+    }
   }
 
   void _setupRealtime() {
@@ -89,7 +138,7 @@ class _ChatScreenState extends State<ChatScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        backgroundColor: widget.themeColor,
+        backgroundColor: _themeColor ?? colors.primary,
         titleSpacing: 0,
         title: Row(
           children: [
@@ -103,7 +152,7 @@ class _ChatScreenState extends State<ChatScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(widget.groupName, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold), overflow: TextOverflow.ellipsis),
+                  Text(_groupName ?? 'Loading...', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold), overflow: TextOverflow.ellipsis),
                   Text('Chat Group', style: TextStyle(fontSize: 12, color: Colors.white.withOpacity(0.8))),
                 ],
               ),
@@ -227,7 +276,7 @@ class _ChatScreenState extends State<ChatScreen> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             decoration: BoxDecoration(
-              color: widget.themeColor,
+              color: _themeColor ?? colors.primary,
               borderRadius: const BorderRadius.only(
                 topLeft: Radius.circular(16),
                 bottomLeft: Radius.circular(16),
@@ -272,7 +321,7 @@ class _ChatScreenState extends State<ChatScreen> {
             ),
             const SizedBox(width: 8),
             CircleAvatar(
-              backgroundColor: widget.themeColor,
+              backgroundColor: _themeColor ?? colors.primary,
               radius: 24,
               child: IconButton(
                 icon: const Icon(Icons.send, color: Colors.white, size: 20),

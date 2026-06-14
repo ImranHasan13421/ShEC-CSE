@@ -153,132 +153,143 @@ class _ExpenseLoggerTabState extends State<ExpenseLoggerTab> {
             ),
           ),
           Expanded(
-            child: filtered.isEmpty
-                ? Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.receipt_long, size: 48, color: colors.onSurface.withValues(alpha: 0.2)),
-                        const SizedBox(height: 12),
-                        const Text('No matching expenses logged.', style: TextStyle(color: Colors.grey)),
-                      ],
-                    ),
-                  )
-                : ListView.builder(
-                    itemCount: filtered.length,
-                    padding: const EdgeInsets.symmetric(horizontal: 12),
-                    itemBuilder: (context, index) {
-                      final exp = filtered[index];
-                      return Card(
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                        elevation: 0,
-                        color: colors.surfaceContainerLowest,
-                        margin: const EdgeInsets.only(bottom: 8),
-                        child: ListTile(
-                          contentPadding: const EdgeInsets.only(left: 16, right: 8, top: 8, bottom: 8),
-                          title: Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Expanded(
-                                child: Text(
-                                  exp.description,
-                                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ),
-                              Text('- ৳ ${exp.amount.toStringAsFixed(0)}',
-                                  style: TextStyle(fontWeight: FontWeight.bold, color: colors.error, fontSize: 14)),
-                            ],
-                          ),
-                          subtitle: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const SizedBox(height: 6),
-                              Row(
-                                children: [
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                    decoration: BoxDecoration(
-                                      color: colors.error.withValues(alpha: 0.1),
-                                      borderRadius: BorderRadius.circular(4),
-                                    ),
-                                    child: Text(
-                                      exp.category.toUpperCase(),
-                                      style: TextStyle(fontSize: 9, color: colors.error, fontWeight: FontWeight.bold),
-                                    ),
+            child: RefreshIndicator(
+              onRefresh: () async {
+                context.read<AccountingBloc>().add(FetchAccountingDataRequested());
+              },
+              child: filtered.isEmpty
+                  ? SingleChildScrollView(
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      child: Container(
+                        height: MediaQuery.of(context).size.height * 0.6,
+                        alignment: Alignment.center,
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.receipt_long, size: 48, color: colors.onSurface.withValues(alpha: 0.2)),
+                            const SizedBox(height: 12),
+                            const Text('No matching expenses logged.', style: TextStyle(color: Colors.grey)),
+                          ],
+                        ),
+                      ),
+                    )
+                  : ListView.builder(
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      itemCount: filtered.length,
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                      itemBuilder: (context, index) {
+                        final exp = filtered[index];
+                        return Card(
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          elevation: 0,
+                          color: colors.surfaceContainerLowest,
+                          margin: const EdgeInsets.only(bottom: 8),
+                          child: ListTile(
+                            contentPadding: const EdgeInsets.only(left: 16, right: 8, top: 8, bottom: 8),
+                            title: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    exp.description,
+                                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
                                   ),
-                                  if (exp.eventName != null) ...[
-                                    const SizedBox(width: 8),
+                                ),
+                                Text('- ৳ ${exp.amount.toStringAsFixed(0)}',
+                                    style: TextStyle(fontWeight: FontWeight.bold, color: colors.error, fontSize: 14)),
+                              ],
+                            ),
+                            subtitle: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const SizedBox(height: 6),
+                                Row(
+                                  children: [
                                     Container(
                                       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                                       decoration: BoxDecoration(
-                                        color: colors.onSurface.withValues(alpha: 0.05),
+                                        color: colors.error.withValues(alpha: 0.1),
                                         borderRadius: BorderRadius.circular(4),
                                       ),
                                       child: Text(
-                                        exp.eventName!,
-                                        style: const TextStyle(fontSize: 9, color: Colors.grey, fontWeight: FontWeight.bold),
+                                        exp.category.toUpperCase(),
+                                        style: TextStyle(fontSize: 9, color: colors.error, fontWeight: FontWeight.bold),
                                       ),
                                     ),
+                                    if (exp.eventName != null) ...[
+                                      const SizedBox(width: 8),
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                        decoration: BoxDecoration(
+                                          color: colors.onSurface.withValues(alpha: 0.05),
+                                          borderRadius: BorderRadius.circular(4),
+                                        ),
+                                        child: Text(
+                                          exp.eventName!,
+                                          style: const TextStyle(fontSize: 9, color: Colors.grey, fontWeight: FontWeight.bold),
+                                        ),
+                                      ),
+                                    ],
+                                    const Spacer(),
+                                    Text(
+                                      DateFormat('d MMM yyyy, h:mm a').format(exp.expenseDate),
+                                      style: const TextStyle(fontSize: 10, color: Colors.grey),
+                                    ),
                                   ],
-                                  const Spacer(),
-                                  Text(
-                                    DateFormat('d MMM yyyy, h:mm a').format(exp.expenseDate),
-                                    style: const TextStyle(fontSize: 10, color: Colors.grey),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 8),
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                children: [
-                                  Text('Logged by: ${exp.recordedByName}', style: const TextStyle(fontSize: 10, color: Colors.grey)),
-                                  if (exp.remarks != null && exp.remarks!.isNotEmpty)
-                                    Text('Note: ${exp.remarks}', style: const TextStyle(fontSize: 10, fontStyle: FontStyle.italic)),
-                                ],
-                              ),
-                            ],
+                                ),
+                                const SizedBox(height: 8),
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Text('Logged by: ${exp.recordedByName}', style: const TextStyle(fontSize: 10, color: Colors.grey)),
+                                    if (exp.remarks != null && exp.remarks!.isNotEmpty)
+                                      Text('Note: ${exp.remarks}', style: const TextStyle(fontSize: 10, fontStyle: FontStyle.italic)),
+                                  ],
+                                ),
+                              ],
+                            ),
+                            trailing: _isCreator(exp)
+                                ? PopupMenuButton<String>(
+                                    icon: const Icon(Icons.more_vert, size: 20),
+                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                    onSelected: (value) {
+                                      if (value == 'edit') {
+                                        _showEditExpenseDialog(context, exp);
+                                      } else if (value == 'delete') {
+                                        _showDeleteConfirmationDialog(context, exp);
+                                      }
+                                    },
+                                    itemBuilder: (context) => [
+                                      const PopupMenuItem(
+                                        value: 'edit',
+                                        child: Row(
+                                          children: [
+                                            Icon(Icons.edit_outlined, size: 18),
+                                            SizedBox(width: 8),
+                                            Text('Edit'),
+                                          ],
+                                        ),
+                                      ),
+                                      PopupMenuItem(
+                                        value: 'delete',
+                                        child: Row(
+                                          children: [
+                                            Icon(Icons.delete_outline, size: 18, color: Colors.red),
+                                            const SizedBox(width: 8),
+                                            Text('Delete', style: TextStyle(color: colors.error)),
+                                          ],
+                                        ),
+                                      ),
+                                    ],
+                                  )
+                                : null,
                           ),
-                          trailing: _isCreator(exp)
-                              ? PopupMenuButton<String>(
-                                  icon: const Icon(Icons.more_vert, size: 20),
-                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                                  onSelected: (value) {
-                                    if (value == 'edit') {
-                                      _showEditExpenseDialog(context, exp);
-                                    } else if (value == 'delete') {
-                                      _showDeleteConfirmationDialog(context, exp);
-                                    }
-                                  },
-                                  itemBuilder: (context) => [
-                                    const PopupMenuItem(
-                                      value: 'edit',
-                                      child: Row(
-                                        children: [
-                                          Icon(Icons.edit_outlined, size: 18),
-                                          SizedBox(width: 8),
-                                          Text('Edit'),
-                                        ],
-                                      ),
-                                    ),
-                                    PopupMenuItem(
-                                      value: 'delete',
-                                      child: Row(
-                                        children: [
-                                          Icon(Icons.delete_outline, size: 18, color: Colors.red),
-                                          const SizedBox(width: 8),
-                                          Text('Delete', style: TextStyle(color: colors.error)),
-                                        ],
-                                      ),
-                                    ),
-                                  ],
-                                )
-                              : null,
-                        ),
-                      );
-                    },
-                  ),
+                        );
+                      },
+                    ),
+            ),
           ),
         ],
       ),

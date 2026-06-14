@@ -19,6 +19,8 @@ import 'main/widgets/main_app_bar.dart';
 import 'main/widgets/onboarding_tour.dart';
 
 class HomeLayout extends StatefulWidget {
+  static final ValueNotifier<int> activeTab = ValueNotifier<int>(0);
+
   const HomeLayout({super.key});
 
   @override
@@ -41,12 +43,13 @@ class _HomeLayoutState extends State<HomeLayout> with WidgetsBindingObserver {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    HomeLayout.activeTab.addListener(_handleTabChange);
+    _currentIndex = HomeLayout.activeTab.value;
+
     _screens = [
       DashboardScreen(
         onNavigateToTab: (index) {
-          setState(() {
-            _currentIndex = index;
-          });
+          HomeLayout.activeTab.value = index;
         },
       ),
       const NoticesScreen(),
@@ -80,6 +83,14 @@ class _HomeLayoutState extends State<HomeLayout> with WidgetsBindingObserver {
     });
   }
 
+  void _handleTabChange() {
+    if (mounted) {
+      setState(() {
+        _currentIndex = HomeLayout.activeTab.value;
+      });
+    }
+  }
+
   void _handleUpdateStatus() {
     if (UpdateService.instance.hasUpdate && UpdateService.instance.isMajor) {
       if (!_isUpdateDialogShowing) {
@@ -97,6 +108,7 @@ class _HomeLayoutState extends State<HomeLayout> with WidgetsBindingObserver {
 
   @override
   void dispose() {
+    HomeLayout.activeTab.removeListener(_handleTabChange);
     WidgetsBinding.instance.removeObserver(this);
     UpdateService.instance.removeListener(_handleUpdateStatus);
     UpdateService.instance.unsubscribeFromUpdates();
@@ -174,7 +186,7 @@ class _HomeLayoutState extends State<HomeLayout> with WidgetsBindingObserver {
                   bottomNavigationBar: MainNavigationBar(
                     currentIndex: _currentIndex,
                     onTabChange: (index) {
-                      setState(() => _currentIndex = index);
+                      HomeLayout.activeTab.value = index;
                       if (index == 1) NotificationService.clearUnread('notices');
                       if (index == 2) NotificationService.clearUnread('messenger');
                       if (index == 3) NotificationService.clearUnread('contests');
@@ -194,17 +206,17 @@ class _HomeLayoutState extends State<HomeLayout> with WidgetsBindingObserver {
                   messengerTabKey: _messengerTabKey,
                   contestsTabKey: _contestsTabKey,
                   onStepChanged: (stepIndex) {
-                    setState(() {
-                      if (stepIndex <= 2) {
-                        _currentIndex = 0;
-                      } else if (stepIndex == 3) {
-                        _currentIndex = 1;
-                      } else if (stepIndex == 4) {
-                        _currentIndex = 2;
-                      } else if (stepIndex == 5) {
-                        _currentIndex = 3;
-                      }
-                    });
+                    int newIndex = 0;
+                    if (stepIndex <= 2) {
+                      newIndex = 0;
+                    } else if (stepIndex == 3) {
+                      newIndex = 1;
+                    } else if (stepIndex == 4) {
+                      newIndex = 2;
+                    } else if (stepIndex == 5) {
+                      newIndex = 3;
+                    }
+                    HomeLayout.activeTab.value = newIndex;
                   },
                 ),
               ],

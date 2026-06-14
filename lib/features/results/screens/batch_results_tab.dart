@@ -284,34 +284,47 @@ class _BatchResultsTabState extends State<BatchResultsTab> {
 
                   // ── Student list ──
                   Expanded(
-                    child: studentIds.isEmpty
-                        ? _buildEmptyState(colors)
-                        : ListView.builder(
-                            padding: const EdgeInsets.symmetric(horizontal: 14).copyWith(bottom: 20),
-                            itemCount: studentIds.length,
-                            itemBuilder: (context, index) {
-                              final id = studentIds[index];
-                              final rank = _sortOrder == _SortOrder.cgpaDesc ? index + 1 : null;
-                              return _StudentAccordionWidget(
-                                studentItems: grouped[id]!,
-                                allResults: state.batchResults,
-                                summary: summaries[id]!,
-                                rank: rank,
-                                colors: colors,
-                                subjectSearchQuery: _subjectSearchQuery,
-                                isExpanded: id == _expandedStudentId,
-                                onExpansionChanged: (expanded) {
-                                  setState(() {
-                                    if (expanded) {
-                                      _expandedStudentId = id;
-                                    } else if (_expandedStudentId == id) {
-                                      _expandedStudentId = null;
-                                    }
-                                  });
-                                },
-                              );
-                            },
-                          ),
+                    child: RefreshIndicator(
+                      onRefresh: () async {
+                        _fetchBatchResults();
+                      },
+                      child: studentIds.isEmpty
+                          ? SingleChildScrollView(
+                              physics: const AlwaysScrollableScrollPhysics(),
+                              child: Container(
+                                height: MediaQuery.of(context).size.height * 0.5,
+                                alignment: Alignment.center,
+                                child: _buildEmptyState(colors),
+                              ),
+                            )
+                          : ListView.builder(
+                              physics: const AlwaysScrollableScrollPhysics(),
+                              padding: const EdgeInsets.symmetric(horizontal: 14).copyWith(bottom: 20),
+                              itemCount: studentIds.length,
+                              itemBuilder: (context, index) {
+                                final id = studentIds[index];
+                                final rank = _sortOrder == _SortOrder.cgpaDesc ? index + 1 : null;
+                                return _StudentAccordionWidget(
+                                  studentItems: grouped[id]!,
+                                  allResults: state.batchResults,
+                                  summary: summaries[id]!,
+                                  rank: rank,
+                                  colors: colors,
+                                  subjectSearchQuery: _subjectSearchQuery,
+                                  isExpanded: id == _expandedStudentId,
+                                  onExpansionChanged: (expanded) {
+                                    setState(() {
+                                      if (expanded) {
+                                        _expandedStudentId = id;
+                                      } else if (_expandedStudentId == id) {
+                                        _expandedStudentId = null;
+                                      }
+                                    });
+                                  },
+                                );
+                              },
+                            ),
+                    ),
                   ),
                 ],
               ),

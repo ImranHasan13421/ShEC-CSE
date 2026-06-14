@@ -1,10 +1,57 @@
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/job_state.dart';
 
-class JobDetailScreen extends StatelessWidget {
-  final JobItem job;
-  const JobDetailScreen({super.key, required this.job});
+class JobDetailScreen extends StatefulWidget {
+  final JobItem? job;
+  final String? jobId;
+
+  const JobDetailScreen({super.key, this.job, this.jobId});
+
+  @override
+  State<JobDetailScreen> createState() => _JobDetailScreenState();
+}
+
+class _JobDetailScreenState extends State<JobDetailScreen> {
+  JobItem? _job;
+  bool _isLoading = false;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _job = widget.job;
+    if (_job == null && widget.jobId != null) {
+      _fetchJob();
+    }
+  }
+
+  Future<void> _fetchJob() async {
+    if (mounted) setState(() => _isLoading = true);
+    try {
+      final response = await Supabase.instance.client
+          .from('jobs')
+          .select()
+          .eq('id', widget.jobId!)
+          .single();
+      
+      if (mounted) {
+        setState(() {
+          _job = JobItem.fromJson(response);
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error fetching job: $e');
+      if (mounted) {
+        setState(() {
+          _error = 'Failed to load job details.';
+          _isLoading = false;
+        });
+      }
+    }
+  }
 
   Future<void> _launchURL(String urlString) async {
     if (urlString.isEmpty) return;
@@ -19,6 +66,40 @@ class JobDetailScreen extends StatelessWidget {
     final colors = Theme.of(context).colorScheme;
     const iconColor = Colors.blue;
     const typeColor = Colors.teal;
+
+    if (_isLoading) {
+      return Scaffold(
+        backgroundColor: colors.surface,
+        appBar: AppBar(
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          leading: IconButton(
+            icon: Icon(Icons.arrow_back, color: colors.onSurface),
+            onPressed: () => Navigator.pop(context),
+          ),
+        ),
+        body: const Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    if (_error != null || _job == null) {
+      return Scaffold(
+        backgroundColor: colors.surface,
+        appBar: AppBar(
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          leading: IconButton(
+            icon: Icon(Icons.arrow_back, color: colors.onSurface),
+            onPressed: () => Navigator.pop(context),
+          ),
+        ),
+        body: Center(
+          child: Text(_error ?? 'Job not found.', style: TextStyle(color: colors.error)),
+        ),
+      );
+    }
+
+    final job = _job!;
 
     return Scaffold(
       body: CustomScrollView(
