@@ -160,6 +160,26 @@ Deno.serve(async (req) => {
         .select("fcm_token")
         .is("is_approved", true);
       recipientTokens = profiles?.map(p => p.fcm_token).filter(Boolean) || [];
+
+    } else if (table === "certificates") {
+      // Notify the certificate recipient directly
+      const memberName = record.member_name || "Member";
+      const certType = record.certificate_type || "Appreciation";
+      const serialNumber = record.serial_number || "";
+      title = `🎓 Certificate Issued`;
+      body = `Your Certificate of ${certType} (${serialNumber}) has been issued. Tap to view it!`;
+
+      // Only notify the specific member who received the certificate
+      if (record.user_id) {
+        const { data: memberProfile } = await supabase
+          .from("profiles")
+          .select("fcm_token")
+          .eq("id", record.user_id)
+          .maybeSingle();
+        if (memberProfile?.fcm_token) {
+          recipientTokens = [memberProfile.fcm_token];
+        }
+      }
     }
 
     if (recipientTokens.length === 0) {
