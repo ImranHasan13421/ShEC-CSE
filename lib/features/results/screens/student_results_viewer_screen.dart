@@ -193,7 +193,7 @@ class _StudentResultsViewerScreenState extends State<StudentResultsViewerScreen>
                   const SizedBox(height: 8),
 
                   // List of Completed Semesters
-                  ...sortedResults.map((result) => _buildResultCard(context, result, colors)),
+                  ...sortedResults.map((result) => _buildResultCard(context, result, colors, widget.results)),
                 ],
               ),
       ),
@@ -211,7 +211,7 @@ class _StudentResultsViewerScreenState extends State<StudentResultsViewerScreen>
     );
   }
 
-  Widget _buildResultCard(BuildContext context, ExamResult result, ColorScheme colors) {
+  Widget _buildResultCard(BuildContext context, ExamResult result, ColorScheme colors, List<ExamResult> allResults) {
     final semNum = result.semester ?? _parseSemesterNumber(result.examName);
 
     return Card(
@@ -250,7 +250,7 @@ class _StudentResultsViewerScreenState extends State<StudentResultsViewerScreen>
                 tooltip: 'Download Semester PDF',
                 padding: EdgeInsets.zero,
                 constraints: const BoxConstraints(),
-                onPressed: () => ResultsPdfGenerator.generateAndShareSemesterPdf(context, widget.profile, result),
+                onPressed: () => ResultsPdfGenerator.generateAndShareSemesterPdf(context, widget.profile, result, allResults: allResults),
               ),
               const SizedBox(width: 8),
             ],

@@ -42,14 +42,69 @@ class ResultsPdfGenerator {
     }
   }
 
+  static List<pw.TableRow> _buildSubjectRows(
+    ExamResult result, 
+    List<ExamResult> improvementResults, {
+    double fontSize = 8,
+    double padding = 6,
+  }) {
+    return result.subjects.map((s) {
+      SubjectResult? improvedSubject;
+      for (final imp in improvementResults) {
+        try {
+          improvedSubject = imp.subjects.firstWhere((sub) => sub.code.toUpperCase() == s.code.toUpperCase());
+          break;
+        } catch (_) {}
+      }
+      
+      if (improvedSubject != null) {
+        final oldP = double.tryParse(s.point) ?? 0.0;
+        final newP = double.tryParse(improvedSubject.point) ?? 0.0;
+        if (newP <= oldP) improvedSubject = null;
+      }
+
+      final displayCode = improvedSubject != null ? '${s.code}*' : s.code;
+      final displayName = improvedSubject != null ? '${s.name} (Improved)' : s.name;
+      final displayGrade = improvedSubject != null ? improvedSubject.grade : s.grade;
+      final displayPoint = improvedSubject != null ? improvedSubject.point : s.point;
+
+      return pw.TableRow(
+        children: [
+          pw.Padding(
+            padding: pw.EdgeInsets.all(padding),
+            child: pw.Text(displayCode, style: pw.TextStyle(fontSize: fontSize)),
+          ),
+          pw.Padding(
+            padding: pw.EdgeInsets.all(padding),
+            child: pw.Text(displayName, style: pw.TextStyle(fontSize: fontSize)),
+          ),
+          pw.Padding(
+            padding: pw.EdgeInsets.all(padding),
+            child: pw.Text(s.credits.toStringAsFixed(1), style: pw.TextStyle(fontSize: fontSize), textAlign: pw.TextAlign.center),
+          ),
+          pw.Padding(
+            padding: pw.EdgeInsets.all(padding),
+            child: pw.Text(displayGrade, style: pw.TextStyle(fontSize: fontSize, color: improvedSubject != null ? PdfColors.orange700 : null), textAlign: pw.TextAlign.center),
+          ),
+          pw.Padding(
+            padding: pw.EdgeInsets.all(padding),
+            child: pw.Text(displayPoint, style: pw.TextStyle(fontSize: fontSize, color: improvedSubject != null ? PdfColors.orange700 : null), textAlign: pw.TextAlign.center),
+          ),
+        ],
+      );
+    }).toList();
+  }
+
   /// Generates a PDF for a single semester result
   static Future<void> generateAndShareSemesterPdf(
     BuildContext context, 
     ProfileData profile, 
-    ExamResult result,
-  ) async {
+    ExamResult result, {
+    List<ExamResult> allResults = const [],
+  }) async {
     final pdf = pw.Document();
     final semNum = result.semester ?? _parseSemesterNumber(result.examName);
+    final improvementResults = allResults.where((r) => r.isImprovement && (r.semester ?? _parseSemesterNumber(r.examName)) == semNum).toList();
 
     pdf.addPage(
       pw.Page(
@@ -95,15 +150,20 @@ class ResultsPdfGenerator {
                     pw.Text('Session: ${profile.session}', style: const pw.TextStyle(fontSize: 10)),
                   ],
                 ),
-                pw.SizedBox(height: 5),
+                pw.SizedBox(height: 15),
                 pw.Row(
                   mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                   children: [
-                    pw.Text('GPA: ${result.gpa}', style: pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold)),
-                    pw.Text('CGPA: ${result.cgpa}', style: pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold)),
+                    pw.Text('GPA: ${result.storedEffectiveGpa != null && result.storedEffectiveGpa! > (double.tryParse(result.gpa) ?? 0.0) ? "${result.storedEffectiveGpa!.toStringAsFixed(2)} (Effective)" : result.gpa}', style: pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold)),
+                    pw.Text('CGPA: ${result.effectiveCgpa != null && result.effectiveCgpa! > (double.tryParse(result.cgpa) ?? 0.0) ? "${result.effectiveCgpa!.toStringAsFixed(2)} (Effective)" : result.cgpa}', style: pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold)),
                   ],
                 ),
                 pw.SizedBox(height: 20),
+                pw.Text(
+                  'Original Semester Result', 
+                  style: pw.TextStyle(fontSize: 11, fontWeight: pw.FontWeight.bold),
+                ),
+                pw.SizedBox(height: 6),
                 pw.Table(
                   border: pw.TableBorder.all(color: PdfColors.grey300, width: 0.5),
                   columnWidths: {
@@ -139,32 +199,66 @@ class ResultsPdfGenerator {
                         ),
                       ],
                     ),
-                    ...result.subjects.map((s) => pw.TableRow(
-                      children: [
-                        pw.Padding(
-                          padding: const pw.EdgeInsets.all(6),
-                          child: pw.Text(s.code, style: const pw.TextStyle(fontSize: 8)),
-                        ),
-                        pw.Padding(
-                          padding: const pw.EdgeInsets.all(6),
-                          child: pw.Text(s.name, style: const pw.TextStyle(fontSize: 8)),
-                        ),
-                        pw.Padding(
-                          padding: const pw.EdgeInsets.all(6),
-                          child: pw.Text(s.credits.toStringAsFixed(1), style: const pw.TextStyle(fontSize: 8), textAlign: pw.TextAlign.center),
-                        ),
-                        pw.Padding(
-                          padding: const pw.EdgeInsets.all(6),
-                          child: pw.Text(s.grade, style: const pw.TextStyle(fontSize: 8), textAlign: pw.TextAlign.center),
-                        ),
-                        pw.Padding(
-                          padding: const pw.EdgeInsets.all(6),
-                          child: pw.Text(s.point, style: const pw.TextStyle(fontSize: 8), textAlign: pw.TextAlign.center),
-                        ),
-                      ],
-                    )),
+                    ..._buildSubjectRows(result, [], fontSize: 8, padding: 6),
                   ],
                 ),
+
+                // Render Improvement Tables if any
+                for (final imp in improvementResults) ...[
+                  pw.SizedBox(height: 20),
+                  pw.Row(
+                    mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                    children: [
+                      pw.Text(
+                        'Improvement - ${imp.examName}', 
+                        style: pw.TextStyle(fontSize: 11, fontWeight: pw.FontWeight.bold, color: PdfColors.orange900),
+                      ),
+                      pw.Text(
+                        'GPA: ${imp.calculatedGpa?.toStringAsFixed(2) ?? "N/A"} (Calc.)', 
+                        style: pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold),
+                      ),
+                    ],
+                  ),
+                  pw.SizedBox(height: 6),
+                  pw.Table(
+                    border: pw.TableBorder.all(color: PdfColors.grey300, width: 0.5),
+                    columnWidths: {
+                      0: const pw.FlexColumnWidth(2),
+                      1: const pw.FlexColumnWidth(5),
+                      2: const pw.FlexColumnWidth(1.5),
+                      3: const pw.FlexColumnWidth(1.5),
+                      4: const pw.FlexColumnWidth(1.5),
+                    },
+                    children: [
+                      pw.TableRow(
+                        decoration: const pw.BoxDecoration(color: PdfColors.grey100),
+                        children: [
+                          pw.Padding(
+                            padding: const pw.EdgeInsets.all(6),
+                            child: pw.Text('Course Code', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 8)),
+                          ),
+                          pw.Padding(
+                            padding: const pw.EdgeInsets.all(6),
+                            child: pw.Text('Course Title', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 8)),
+                          ),
+                          pw.Padding(
+                            padding: const pw.EdgeInsets.all(6),
+                            child: pw.Text('Credits', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 8), textAlign: pw.TextAlign.center),
+                          ),
+                          pw.Padding(
+                            padding: const pw.EdgeInsets.all(6),
+                            child: pw.Text('Grade', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 8), textAlign: pw.TextAlign.center),
+                          ),
+                          pw.Padding(
+                            padding: const pw.EdgeInsets.all(6),
+                            child: pw.Text('Point', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 8), textAlign: pw.TextAlign.center),
+                          ),
+                        ],
+                      ),
+                      ..._buildSubjectRows(imp, [], fontSize: 7.5, padding: 4),
+                    ],
+                  ),
+                ],
                 pw.Spacer(),
                 pw.Divider(),
                 pw.SizedBox(height: 5),
@@ -195,14 +289,21 @@ class ResultsPdfGenerator {
     ProfileData profile, 
     List<ExamResult> results,
   ) async {
-    final pdf = pw.Document();
+    final improvementResults = results.where((r) => r.isImprovement).toList();
 
+    // Sort results by Semester, putting main results before improvement results for the same semester
     final sortedResults = List<ExamResult>.from(results)
       ..sort((a, b) {
         final semA = a.semester ?? _parseSemesterNumber(a.examName);
         final semB = b.semester ?? _parseSemesterNumber(b.examName);
+        if (semA == semB) {
+          if (a.isImprovement && !b.isImprovement) return 1;
+          if (!a.isImprovement && b.isImprovement) return -1;
+        }
         return semA.compareTo(semB);
       });
+
+    final pdf = pw.Document();
 
     // Group sorted results by Year (1 to 4)
     final Map<int, List<ExamResult>> resultsByYear = {};
@@ -270,84 +371,77 @@ class ResultsPdfGenerator {
                   pw.Divider(),
 
                   // Tables for the semesters of this year
-                  ...yearResults.expand((result) => [
-                    pw.SizedBox(height: 12),
-                    pw.Row(
-                      mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-                      children: [
-                        pw.Text(
-                          'Semester ${result.semester ?? _parseSemesterNumber(result.examName)} (${result.examName})',
-                          style: pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold),
-                        ),
-                        pw.Text(
-                          'GPA: ${result.gpa}    CGPA: ${result.cgpa}',
-                          style: pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold),
-                        ),
-                      ],
-                    ),
-                    pw.SizedBox(height: 6),
-                    pw.Table(
-                      border: pw.TableBorder.all(color: PdfColors.grey300, width: 0.5),
-                      columnWidths: {
-                        0: const pw.FlexColumnWidth(2),
-                        1: const pw.FlexColumnWidth(5),
-                        2: const pw.FlexColumnWidth(1.5),
-                        3: const pw.FlexColumnWidth(1.5),
-                        4: const pw.FlexColumnWidth(1.5),
-                      },
-                      children: [
-                        pw.TableRow(
-                          decoration: const pw.BoxDecoration(color: PdfColors.grey100),
-                          children: [
-                            pw.Padding(
-                              padding: const pw.EdgeInsets.all(5),
-                              child: pw.Text('Course Code', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 8)),
-                            ),
-                            pw.Padding(
-                              padding: const pw.EdgeInsets.all(5),
-                              child: pw.Text('Course Title', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 8)),
-                            ),
-                            pw.Padding(
-                              padding: const pw.EdgeInsets.all(5),
-                              child: pw.Text('Credits', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 8), textAlign: pw.TextAlign.center),
-                            ),
-                            pw.Padding(
-                              padding: const pw.EdgeInsets.all(5),
-                              child: pw.Text('Grade', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 8), textAlign: pw.TextAlign.center),
-                            ),
-                            pw.Padding(
-                              padding: const pw.EdgeInsets.all(5),
-                              child: pw.Text('Point', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 8), textAlign: pw.TextAlign.center),
-                            ),
-                          ],
-                        ),
-                        ...result.subjects.map((s) => pw.TableRow(
-                          children: [
-                            pw.Padding(
-                              padding: const pw.EdgeInsets.all(4),
-                              child: pw.Text(s.code, style: const pw.TextStyle(fontSize: 7.5)),
-                            ),
-                            pw.Padding(
-                              padding: const pw.EdgeInsets.all(4),
-                              child: pw.Text(s.name, style: const pw.TextStyle(fontSize: 7.5)),
-                            ),
-                            pw.Padding(
-                              padding: const pw.EdgeInsets.all(4),
-                              child: pw.Text(s.credits.toStringAsFixed(1), style: const pw.TextStyle(fontSize: 7.5), textAlign: pw.TextAlign.center),
-                            ),
-                            pw.Padding(
-                              padding: const pw.EdgeInsets.all(4),
-                              child: pw.Text(s.grade, style: const pw.TextStyle(fontSize: 7.5), textAlign: pw.TextAlign.center),
-                            ),
-                            pw.Padding(
-                              padding: const pw.EdgeInsets.all(4),
-                              child: pw.Text(s.point, style: const pw.TextStyle(fontSize: 7.5), textAlign: pw.TextAlign.center),
-                            ),
-                          ],
-                        )),
-                      ],
-                    ),
-                  ]),
+                  ...yearResults.expand((result) {
+                    final isImp = result.isImprovement;
+                    
+                    final String titleText = isImp 
+                        ? 'Improvement - ${result.examName}' 
+                        : 'Semester ${result.semester ?? _parseSemesterNumber(result.examName)} (${result.examName})';
+
+                    final String gpaText = isImp
+                        ? 'GPA: ${result.calculatedGpa?.toStringAsFixed(2) ?? "N/A"} (Calc.)'
+                        : 'GPA: ${result.storedEffectiveGpa != null && result.storedEffectiveGpa! > (double.tryParse(result.gpa) ?? 0.0) ? "${result.storedEffectiveGpa!.toStringAsFixed(2)} (Effective)" : result.gpa}';
+
+                    final String cgpaText = isImp
+                        ? 'CGPA: Official Pending'
+                        : 'CGPA: ${result.effectiveCgpa != null && result.effectiveCgpa! > (double.tryParse(result.cgpa) ?? 0.0) ? "${result.effectiveCgpa!.toStringAsFixed(2)} (Effective)" : result.cgpa}';
+
+                    return [
+                      pw.SizedBox(height: 12),
+                      pw.Row(
+                        mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                        children: [
+                          pw.Text(
+                            titleText,
+                            style: pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold, color: isImp ? PdfColors.orange900 : null),
+                          ),
+                          pw.Text(
+                            '$gpaText    $cgpaText',
+                            style: pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold),
+                          ),
+                        ],
+                      ),
+                      pw.SizedBox(height: 6),
+                      pw.Table(
+                        border: pw.TableBorder.all(color: PdfColors.grey300, width: 0.5),
+                        columnWidths: {
+                          0: const pw.FlexColumnWidth(2),
+                          1: const pw.FlexColumnWidth(5),
+                          2: const pw.FlexColumnWidth(1.5),
+                          3: const pw.FlexColumnWidth(1.5),
+                          4: const pw.FlexColumnWidth(1.5),
+                        },
+                        children: [
+                          pw.TableRow(
+                            decoration: const pw.BoxDecoration(color: PdfColors.grey100),
+                            children: [
+                              pw.Padding(
+                                padding: const pw.EdgeInsets.all(5),
+                                child: pw.Text('Course Code', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 8)),
+                              ),
+                              pw.Padding(
+                                padding: const pw.EdgeInsets.all(5),
+                                child: pw.Text('Course Title', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 8)),
+                              ),
+                              pw.Padding(
+                                padding: const pw.EdgeInsets.all(5),
+                                child: pw.Text('Credits', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 8), textAlign: pw.TextAlign.center),
+                              ),
+                              pw.Padding(
+                                padding: const pw.EdgeInsets.all(5),
+                                child: pw.Text('Grade', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 8), textAlign: pw.TextAlign.center),
+                              ),
+                              pw.Padding(
+                                padding: const pw.EdgeInsets.all(5),
+                                child: pw.Text('Point', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 8), textAlign: pw.TextAlign.center),
+                              ),
+                            ],
+                          ),
+                          ..._buildSubjectRows(result, isImp ? [] : improvementResults, fontSize: 7.5, padding: 4),
+                        ],
+                      ),
+                    ];
+                  }),
 
                   pw.Spacer(),
                   pw.Divider(color: PdfColors.grey300),

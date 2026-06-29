@@ -521,7 +521,7 @@ class _ResultsScreenState extends State<ResultsScreen> with SingleTickerProvider
                 tooltip: 'Download PDF Report',
                 padding: EdgeInsets.zero,
                 constraints: const BoxConstraints(),
-                onPressed: () => _generateAndSharePdf(context, result),
+                onPressed: () => _generateAndSharePdf(context, result, improvementResults),
               ),
               const SizedBox(width: 12),
               IconButton(
@@ -795,8 +795,8 @@ class _ResultsScreenState extends State<ResultsScreen> with SingleTickerProvider
   }
 
 
-  Future<void> _generateAndSharePdf(BuildContext context, ExamResult result) async {
-    await ResultsPdfGenerator.generateAndShareSemesterPdf(context, currentProfile.value, result);
+  Future<void> _generateAndSharePdf(BuildContext context, ExamResult result, List<ExamResult> allResults) async {
+    await ResultsPdfGenerator.generateAndShareSemesterPdf(context, currentProfile.value, result, allResults: allResults);
   }
 
   Future<void> _generateAndShareFullReport(BuildContext context, List<ExamResult> results) async {
