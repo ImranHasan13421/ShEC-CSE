@@ -4,6 +4,7 @@ import 'package:http/http.dart' as http;
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:ShEC_CSE/core/utils/subject_information.dart';
+import 'result_service.dart';
 
 class ResultScraperService {
   static final SupabaseClient _client = Supabase.instance.client;
@@ -21,34 +22,48 @@ class ResultScraperService {
     try {
       debugPrint('Starting result scraping for user: $userId');
       
-      // 1. Get the sess_id from the session name
-      final sessionData = await _client
+      // 1. Get all sessions to build a map of session -> sess_id
+      final sessionsData = await _client
           .from('DUCMC_sessions_id')
-          .select('sess_id')
-          .eq('session', session)
-          .maybeSingle();
+          .select('session, sess_id');
       
-      if (sessionData == null) {
-        debugPrint('Could not find sess_id for session: $session');
+      final Map<String, String> sessionToSessId = {
+        for (var row in sessionsData)
+          (row['session'] ?? '').toString(): (row['sess_id'] ?? '').toString()
+      };
+
+      final String studentSessId = sessionToSessId[session] ?? '';
+      if (studentSessId.isEmpty) {
+        debugPrint('Could not find sess_id for student session: $session');
         return;
       }
-      final String sessId = sessionData['sess_id'];
 
-      // 2. Get all exam IDs for the specific session
+      // 2. Get all exam IDs for the specific session + all improvement exams
       final examsData = await _client
           .from('DUCMC_exams_id')
-          .select('exam_id, exam_name')
-          .eq('session', session);
+          .select('exam_id, exam_name, session, is_improvement, improves_semester')
+          .or('session.eq.$session,is_improvement.eq.true');
       final List<Map<String, dynamic>> exams = List<Map<String, dynamic>>.from(examsData);
 
       // 3. Perform concurrent scraping tasks
       final List<Future<void>> scrapingTasks = exams.map((exam) {
         final String examId = exam['exam_id'];
         final String examName = exam['exam_name'];
-        return _scrapeSingleExam(userId, regNo, examId, sessId, examName);
+        final String examSession = exam['session'] ?? session;
+        final String examSessId = sessionToSessId[examSession] ?? studentSessId;
+        final bool isImprovementExam = exam['is_improvement'] == true;
+        final int? improvesSemester = exam['improves_semester'] as int?;
+        return _scrapeSingleExam(
+          userId, regNo, examId, examSessId, examName,
+          isImprovementHint: isImprovementExam,
+          improvesSemester: improvesSemester,
+        );
       }).toList();
 
       await Future.wait(scrapingTasks);
+      
+      // ── After all exams scraped, recalculate effective CGPA for all semesters ──
+      await ResultService.recalculateEffectiveCgpa(userId);
       
       debugPrint('Finished scraping all results for user: $userId');
     } catch (e) {
@@ -62,11 +77,104 @@ class ResultScraperService {
     required String examId,
     required String sessId,
     required String examName,
+    bool isImprovementHint = false,
+    int? improvesSemester,
   }) async {
-    return await _scrapeSingleExam(userId, regNo, examId, sessId, examName);
+    try {
+      final examData = await _client
+          .from('DUCMC_exams_id')
+          .select('session, is_improvement, improves_semester')
+          .eq('exam_id', examId)
+          .maybeSingle();
+
+      String resolvedSessId = sessId;
+      bool resolvedIsImp = isImprovementHint;
+      int? resolvedImpSem = improvesSemester;
+
+      if (examData != null) {
+        final String examSession = examData['session'] ?? '';
+        resolvedIsImp = examData['is_improvement'] == true;
+        resolvedImpSem = examData['improves_semester'] as int?;
+
+        if (examSession.isNotEmpty) {
+          final sessionData = await _client
+              .from('DUCMC_sessions_id')
+              .select('sess_id')
+              .eq('session', examSession)
+              .maybeSingle();
+          if (sessionData != null) {
+            resolvedSessId = sessionData['sess_id'] ?? sessId;
+          }
+        }
+      }
+
+      final success = await _scrapeSingleExam(
+        userId, regNo, examId, resolvedSessId, examName,
+        isImprovementHint: resolvedIsImp,
+        improvesSemester: resolvedImpSem,
+      );
+      // ── After saving, recalculate effective CGPA across all semesters ──
+      if (success) await ResultService.recalculateEffectiveCgpa(userId);
+      return success;
+    } catch (e) {
+      debugPrint('Error in scrapeAndSaveSingleResult: $e');
+      final fallback = await _scrapeSingleExam(
+        userId, regNo, examId, sessId, examName,
+        isImprovementHint: isImprovementHint,
+        improvesSemester: improvesSemester,
+      );
+      if (fallback) await ResultService.recalculateEffectiveCgpa(userId);
+      return fallback;
+    }
   }
 
-  static Future<bool> _scrapeSingleExam(String userId, String regNo, String examId, String sessId, String examName) async {
+  /// Auto-detect if a result is an improvement/backlog result.
+  /// Detection logic:
+  ///   1. Admin has flagged it as an improvement exam (isImprovementHint = true)
+  ///   2. OR the API returns status containing "imp" (case-insensitive)
+  ///   3. OR gpa and cgpa are both null but subjects exist
+  static bool _isImprovementResult(Map<String, dynamic> data, {bool isImprovementHint = false}) {
+    if (isImprovementHint) return true;
+    final status = (data['status'] ?? '').toString().toLowerCase();
+    if (status.contains('imp')) return true;
+    final gpaNull = data['gpa'] == null;
+    final cgpaNull = data['cgpa'] == null;
+    final hasSubjects = (data['subjects'] as List?)?.isNotEmpty == true;
+    return gpaNull && cgpaNull && hasSubjects;
+  }
+
+  /// Calculate semester GPA from subject grade points and credits.
+  /// Formula: Σ(grade_point × credits) / Σ(credits)
+  static double? _calculateGpaFromSubjects(List<dynamic> subjects) {
+    double totalPoints = 0.0;
+    double totalCredits = 0.0;
+
+    for (final s in subjects) {
+      final pointStr = s['point']?.toString() ?? '';
+      final point = double.tryParse(pointStr);
+      if (point == null) continue;
+
+      final code = (s['code'] ?? '').toString().toUpperCase().replaceAll(' ', '-').trim();
+      final credits = SubjectInformation.getCredits(code);
+
+      totalPoints += point * credits;
+      totalCredits += credits;
+    }
+
+    if (totalCredits == 0) return null;
+    // Round to 2 decimal places
+    return double.parse((totalPoints / totalCredits).toStringAsFixed(2));
+  }
+
+  static Future<bool> _scrapeSingleExam(
+    String userId,
+    String regNo,
+    String examId,
+    String sessId,
+    String examName, {
+    bool isImprovementHint = false,
+    int? improvesSemester,
+  }) async {
     try {
       final url = Uri.parse('$_apiBaseUrl?reg_no=$regNo&exam_id=$examId&sess_id=$sessId');
       
@@ -85,7 +193,21 @@ class ResultScraperService {
         final bool hasGpa = data['gpa'] != null || data['cgpa'] != null;
 
         if (hasGpa || hasSubjects) {
-          await _saveResultToDB(userId, regNo, examId, sessId, examName, data);
+          // Detect if this is an improvement result
+          final bool isImprovement = _isImprovementResult(data, isImprovementHint: isImprovementHint);
+
+          // Calculate GPA for improvement results (official gpa is null)
+          double? calculatedGpa;
+          if (isImprovement && hasSubjects) {
+            calculatedGpa = _calculateGpaFromSubjects(subjects as List);
+            debugPrint('Improvement result detected for exam $examId. Calculated GPA: $calculatedGpa');
+          }
+
+          await _saveResultToDB(
+            userId, regNo, examId, sessId, examName, data,
+            isImprovement: isImprovement,
+            calculatedGpa: calculatedGpa,
+          );
           return true;
         } else {
           debugPrint('No GPA or subjects returned for exam $examId');
@@ -109,12 +231,21 @@ class ResultScraperService {
     return double.tryParse(str);
   }
 
-  static Future<void> _saveResultToDB(String userId, String regNo, String examId, String sessId, String examName, Map<String, dynamic> data) async {
+  static Future<void> _saveResultToDB(
+    String userId,
+    String regNo,
+    String examId,
+    String sessId,
+    String examName,
+    Map<String, dynamic> data, {
+    bool isImprovement = false,
+    double? calculatedGpa,
+  }) async {
     try {
       final parsedGpa = _parseDbNumeric(data['gpa']);
       final parsedCgpa = _parseDbNumeric(data['cgpa']);
 
-      // 1. Insert/Update the main result record with user_id, exam_id onConflict target
+      // 1. Insert/Update the main result record
       final resultResponse = await _client.from('results').upsert({
         'user_id': userId,
         'reg_no': regNo,
@@ -123,6 +254,8 @@ class ResultScraperService {
         'exam_name': examName,
         'gpa': parsedGpa,
         'cgpa': parsedCgpa,
+        'result_type': isImprovement ? 'improvement' : 'main',
+        'calculated_gpa': calculatedGpa,
       }, onConflict: 'user_id,exam_id').select('id').single();
 
       final String resultId = resultResponse['id'];

@@ -11,6 +11,7 @@ import 'package:ShEC_CSE/features/messenger/screens/chat_screen.dart';
 import 'package:ShEC_CSE/features/notices/screens/notice_detail_screen.dart';
 import 'package:ShEC_CSE/features/jobs/screens/job_detail_screen.dart';
 import 'package:ShEC_CSE/features/jobs/screens/jobs_screen.dart';
+import 'package:ShEC_CSE/features/certificates/screens/certificates_screen.dart';
 
 class NotificationService {
   static final FlutterLocalNotificationsPlugin _notificationsPlugin =
@@ -169,6 +170,13 @@ class NotificationService {
     } else if (table == 'contests') {
       Navigator.popUntil(context, (route) => route.isFirst);
       HomeLayout.activeTab.value = 3;
+    } else if (table == 'certificates') {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => const CertificatesScreen(),
+        ),
+      );
     }
   }
 

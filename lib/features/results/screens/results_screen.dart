@@ -310,12 +310,14 @@ class _ResultsScreenState extends State<ResultsScreen> with SingleTickerProvider
       );
     }
 
-    final sortedResults = List<ExamResult>.from(results)
+    // Separate main vs improvement results
+    final mainResults = results.where((r) => !r.isImprovement).toList()
       ..sort((a, b) {
         final semA = a.semester ?? _parseSemesterNumber(a.examName);
         final semB = b.semester ?? _parseSemesterNumber(b.examName);
         return semA.compareTo(semB);
       });
+    final improvementResults = results.where((r) => r.isImprovement).toList();
 
     return RefreshIndicator(
       onRefresh: () async {
@@ -325,7 +327,7 @@ class _ResultsScreenState extends State<ResultsScreen> with SingleTickerProvider
         physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.all(16.0),
         children: [
-          // 1. CGPA Prediction Chart Card
+          // 1. CGPA Prediction Chart Card (receives ALL results)
           CgpaPredictionChart(key: _chartKey, results: results),
           const SizedBox(height: 20),
 
@@ -349,8 +351,25 @@ class _ResultsScreenState extends State<ResultsScreen> with SingleTickerProvider
         ),
         const SizedBox(height: 8),
 
-        // 3. Semester results cards
-        ...sortedResults.map((result) => _buildResultCard(context, result)),
+        // 3. Main result cards — with linked improvement cards below
+        ...mainResults.map((result) {
+          final sem = result.semester ?? _parseSemesterNumber(result.examName);
+          // Find any improvement results for this semester
+          final linked = improvementResults.where((imp) {
+            final impSem = imp.semester ?? _parseSemesterNumber(imp.examName);
+            return impSem == sem;
+          }).toList();
+          return _buildResultCard(context, result, improvementResults: linked);
+        }),
+
+        // 4. Standalone improvement results (no paired main result for this semester)
+        ...improvementResults.where((imp) {
+          final impSem = imp.semester ?? _parseSemesterNumber(imp.examName);
+          final hasPaired = mainResults.any((m) =>
+            (m.semester ?? _parseSemesterNumber(m.examName)) == impSem
+          );
+          return !hasPaired;
+        }).map((result) => _buildResultCard(context, result)),
       ],
     ),
     );
@@ -412,17 +431,33 @@ class _ResultsScreenState extends State<ResultsScreen> with SingleTickerProvider
     );
   }
 
-  Widget _buildResultCard(BuildContext context, ExamResult result) {
+  Widget _buildResultCard(BuildContext context, ExamResult result, {List<ExamResult> improvementResults = const []}) {
     final colors = Theme.of(context).colorScheme;
     final semNum = result.semester ?? _parseSemesterNumber(result.examName);
+    final isImp = result.isImprovement;
+
+    // Build a set of subject codes that have improvements (for marking in main card)
+    final improvedCodes = <String>{};
+    for (final imp in improvementResults) {
+      for (final s in imp.subjects) {
+        improvedCodes.add(s.code.toUpperCase());
+      }
+    }
 
     return Card(
       margin: const EdgeInsets.only(bottom: 16),
       elevation: 0,
-      color: colors.surface,
+      color: isImp
+          ? Colors.orange.withValues(alpha: 0.04)
+          : colors.surface,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
-        side: BorderSide(color: colors.outline.withValues(alpha: 0.1)),
+        side: BorderSide(
+          color: isImp
+              ? Colors.orange.withValues(alpha: 0.35)
+              : colors.outline.withValues(alpha: 0.1),
+          width: isImp ? 1.5 : 1,
+        ),
       ),
       child: Theme(
         data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
@@ -446,9 +481,32 @@ class _ResultsScreenState extends State<ResultsScreen> with SingleTickerProvider
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      'Semester $semNum',
-                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                    Row(
+                      children: [
+                        Text(
+                          isImp ? '📈 Improvement — Sem $semNum' : 'Semester $semNum',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                            color: isImp ? Colors.orange.shade700 : null,
+                          ),
+                        ),
+                        if (improvementResults.isNotEmpty) ...[  
+                          const SizedBox(width: 8),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: Colors.orange.withValues(alpha: 0.15),
+                              borderRadius: BorderRadius.circular(4),
+                              border: Border.all(color: Colors.orange.withValues(alpha: 0.3)),
+                            ),
+                            child: const Text(
+                              '↑ Improved',
+                              style: TextStyle(fontSize: 9, color: Colors.orange, fontWeight: FontWeight.bold),
+                            ),
+                          ),
+                        ],
+                      ],
                     ),
                     const SizedBox(height: 2),
                     Text(
@@ -499,18 +557,120 @@ class _ResultsScreenState extends State<ResultsScreen> with SingleTickerProvider
           ),
           subtitle: Padding(
             padding: const EdgeInsets.only(top: 8.0),
-            child: Row(
+            child: Wrap(
+              spacing: 6,
+              runSpacing: 4,
               children: [
-                _buildScoreChip(context, 'GPA: ${result.gpa}', Colors.blue),
-                const SizedBox(width: 8),
-                _buildScoreChip(context, 'CGPA: ${result.cgpa}', Colors.green),
+                if (!isImp) ...[  
+                  _buildScoreChip(context, 'GPA: ${result.gpa}', Colors.blue),
+                  if (result.storedEffectiveGpa != null && result.storedEffectiveGpa! > (double.tryParse(result.gpa) ?? 0.0))
+                    _buildScoreChip(context, 'Eff. GPA: ${result.storedEffectiveGpa!.toStringAsFixed(2)}', Colors.orange),
+                  _buildScoreChip(context, 'CGPA: ${result.cgpa}', Colors.green),
+                ] else ...[  
+                  _buildScoreChip(
+                    context,
+                    'Calc. Subjects GPA: ${result.calculatedGpa?.toStringAsFixed(2) ?? "N/A"}',
+                    Colors.orange,
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade100,
+                      borderRadius: BorderRadius.circular(6),
+                      border: Border.all(color: Colors.grey.shade300),
+                    ),
+                    child: const Text(
+                      'CGPA: Official pending',
+                      style: TextStyle(color: Colors.grey, fontSize: 12, fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                ],
               ],
             ),
           ),
           children: [
             const Divider(),
             const SizedBox(height: 8),
-            ...result.subjects.map((subject) => _buildSubjectRow(context, subject)),
+            // Main subjects
+            ...result.subjects.map((subject) {
+              // Check if this subject was improved
+              final isImprovedSubject = improvedCodes.contains(subject.code.toUpperCase());
+              // Find the improvement grade for this subject
+              SubjectResult? impSubject;
+              for (final imp in improvementResults) {
+                try {
+                  impSubject = imp.subjects.firstWhere(
+                    (s) => s.code.toUpperCase() == subject.code.toUpperCase(),
+                  );
+                  break;
+                } catch (_) {}
+              }
+              return _buildSubjectRow(context, subject,
+                  isImproved: isImprovedSubject, improvedSubject: impSubject);
+            }),
+
+            // If this is an improvement result, show standalone improved subjects
+            if (isImp && result.subjects.isNotEmpty) ...[  
+              const SizedBox(height: 4),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                decoration: BoxDecoration(
+                  color: Colors.orange.withValues(alpha: 0.06),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.orange.withValues(alpha: 0.2)),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.info_outline, size: 14, color: Colors.orange.shade700),
+                    const SizedBox(width: 6),
+                    Text(
+                      'Calc. Subjects GPA: ${result.calculatedGpa?.toStringAsFixed(2) ?? "N/A"}',
+                      style: TextStyle(fontSize: 12, color: Colors.orange.shade800, fontWeight: FontWeight.w600),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+
+            // Improvement subjects section below main subjects (only for main result cards)
+            if (!isImp && improvementResults.isNotEmpty) ...[  
+              const SizedBox(height: 12),
+              ...improvementResults.map((imp) => _buildImprovementSection(context, imp)),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Shows the improvement exam subjects as a collapsible sub-section
+  Widget _buildImprovementSection(BuildContext context, ExamResult imp) {
+    final colors = Theme.of(context).colorScheme;
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      decoration: BoxDecoration(
+        color: Colors.orange.withValues(alpha: 0.05),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.orange.withValues(alpha: 0.25)),
+      ),
+      child: Theme(
+        data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+        child: ExpansionTile(
+          dense: true,
+          tilePadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
+          childrenPadding: const EdgeInsets.all(12).copyWith(top: 0),
+          leading: const Icon(Icons.trending_up, color: Colors.orange, size: 18),
+          title: Text(
+            '📈 ${imp.examName}',
+            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Colors.orange),
+          ),
+          subtitle: Text(
+            'Calc. GPA: ${imp.calculatedGpa?.toStringAsFixed(2) ?? "N/A"}  •  ${imp.subjects.length} subject(s) improved',
+            style: TextStyle(fontSize: 11, color: colors.onSurface.withValues(alpha: 0.6)),
+          ),
+          children: [
+            const Divider(height: 16),
+            ...imp.subjects.map((s) => _buildSubjectRow(context, s, isImproved: true)),
           ],
         ),
       ),
@@ -532,20 +692,24 @@ class _ResultsScreenState extends State<ResultsScreen> with SingleTickerProvider
     );
   }
 
-  Widget _buildSubjectRow(BuildContext context, SubjectResult subject) {
+  Widget _buildSubjectRow(
+    BuildContext context,
+    SubjectResult subject, {
+    bool isImproved = false,
+    SubjectResult? improvedSubject,
+  }) {
     final colors = Theme.of(context).colorScheme;
     
-    // Determine grade color
-    Color gradeColor = Colors.grey;
-    if (subject.grade.startsWith('A')) {
-      gradeColor = Colors.green;
-    } else if (subject.grade.startsWith('B')) {
-      gradeColor = Colors.blue;
-    } else if (subject.grade.startsWith('C')) {
-      gradeColor = Colors.orange;
-    } else if (subject.grade == 'F') {
-      gradeColor = Colors.red;
+    Color _gradeColor(String grade) {
+      if (grade.startsWith('A')) return Colors.green;
+      if (grade.startsWith('B')) return Colors.blue;
+      if (grade.startsWith('C')) return Colors.orange;
+      if (grade == 'F') return Colors.red;
+      return Colors.grey;
     }
+
+    final gradeColor = _gradeColor(subject.grade);
+    final impGradeColor = improvedSubject != null ? _gradeColor(improvedSubject.grade) : null;
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 12.0),
@@ -556,9 +720,27 @@ class _ResultsScreenState extends State<ResultsScreen> with SingleTickerProvider
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  subject.code,
-                  style: TextStyle(color: colors.primary, fontSize: 12, fontWeight: FontWeight.bold),
+                Row(
+                  children: [
+                    Text(
+                      subject.code,
+                      style: TextStyle(color: colors.primary, fontSize: 12, fontWeight: FontWeight.bold),
+                    ),
+                    if (isImproved) ...[
+                      const SizedBox(width: 6),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                        decoration: BoxDecoration(
+                          color: Colors.orange.withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(3),
+                        ),
+                        child: const Text(
+                          '↑ improved',
+                          style: TextStyle(fontSize: 9, color: Colors.orange, fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                    ],
+                  ],
                 ),
                 const SizedBox(height: 2),
                 Text(
@@ -572,20 +754,46 @@ class _ResultsScreenState extends State<ResultsScreen> with SingleTickerProvider
           Column(
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
-              Text(
-                subject.grade,
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: gradeColor),
-              ),
-              Text(
-                subject.point,
-                style: TextStyle(fontSize: 12, color: colors.onSurface.withValues(alpha: 0.6)),
-              ),
+              // If improved, show old → new grade
+              if (improvedSubject != null) ...[
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      subject.grade,
+                      style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: gradeColor.withValues(alpha: 0.5),
+                        decoration: TextDecoration.lineThrough),
+                    ),
+                    const SizedBox(width: 4),
+                    const Icon(Icons.arrow_forward, size: 10, color: Colors.orange),
+                    const SizedBox(width: 4),
+                    Text(
+                      improvedSubject.grade,
+                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: impGradeColor),
+                    ),
+                  ],
+                ),
+                Text(
+                  improvedSubject.point,
+                  style: TextStyle(fontSize: 12, color: colors.onSurface.withValues(alpha: 0.6)),
+                ),
+              ] else ...[
+                Text(
+                  subject.grade,
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: gradeColor),
+                ),
+                Text(
+                  subject.point,
+                  style: TextStyle(fontSize: 12, color: colors.onSurface.withValues(alpha: 0.6)),
+                ),
+              ],
             ],
           ),
         ],
       ),
     );
   }
+
 
   Future<void> _generateAndSharePdf(BuildContext context, ExamResult result) async {
     await ResultsPdfGenerator.generateAndShareSemesterPdf(context, currentProfile.value, result);
@@ -760,12 +968,34 @@ class _ManageExamsDialogState extends State<_ManageExamsDialog> {
                       final examName = exam['exam_name'] ?? '';
                       final session = exam['session'] ?? '';
                       final semester = exam['semester'] ?? '';
+                      final isImprovement = exam['is_improvement'] == 'true';
+                      final improvesSemester = exam['improves_semester'] ?? '';
 
                       return ListTile(
                         contentPadding: EdgeInsets.zero,
-                        title: Text(
-                          examName,
-                          style: const TextStyle(fontWeight: FontWeight.bold),
+                        title: Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                examName,
+                                style: const TextStyle(fontWeight: FontWeight.bold),
+                              ),
+                            ),
+                            if (isImprovement)
+                              Container(
+                                margin: const EdgeInsets.only(left: 6),
+                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: Colors.orange.withValues(alpha: 0.15),
+                                  borderRadius: BorderRadius.circular(4),
+                                  border: Border.all(color: Colors.orange.withValues(alpha: 0.4)),
+                                ),
+                                child: const Text(
+                                  '↑ Improvement',
+                                  style: TextStyle(fontSize: 10, color: Colors.orange, fontWeight: FontWeight.bold),
+                                ),
+                              ),
+                          ],
                         ),
                         subtitle: Padding(
                           padding: const EdgeInsets.only(top: 4.0),
@@ -788,9 +1018,19 @@ class _ManageExamsDialogState extends State<_ManageExamsDialog> {
                                     fontWeight: FontWeight.bold,
                                   ),
                                 ),
+                              if (isImprovement && improvesSemester.isNotEmpty)
+                                Text(
+                                  'Improves Semester: $improvesSemester',
+                                  style: const TextStyle(
+                                    color: Colors.orange,
+                                    fontWeight: FontWeight.w600,
+                                    fontSize: 12,
+                                  ),
+                                ),
                             ],
                           ),
                         ),
+
                         trailing: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
@@ -875,6 +1115,8 @@ class _AddEditExamDialogState extends State<_AddEditExamDialog> {
   final _idController = TextEditingController();
   String? _selectedSession;
   int? _selectedSemester;
+  bool _isImprovement = false;
+  int? _improvesSemester;
   List<String> _sessions = [];
   bool _isLoadingSessions = true;
   bool _isSaving = false;
@@ -891,6 +1133,9 @@ class _AddEditExamDialogState extends State<_AddEditExamDialog> {
       }
       final semStr = widget.examToEdit!['semester'];
       _selectedSemester = semStr != null ? int.tryParse(semStr) : null;
+      _isImprovement = widget.examToEdit!['is_improvement'] == 'true';
+      final impSemStr = widget.examToEdit!['improves_semester'];
+      _improvesSemester = impSemStr != null && impSemStr.isNotEmpty ? int.tryParse(impSemStr) : null;
     }
     _loadSessions();
   }
@@ -972,7 +1217,7 @@ class _AddEditExamDialogState extends State<_AddEditExamDialog> {
                   ),
                   const SizedBox(height: 16),
                   DropdownButtonFormField<int>(
-                    initialValue: _selectedSemester,
+                    value: _selectedSemester,
                     decoration: const InputDecoration(
                       labelText: 'Semester *',
                       border: OutlineInputBorder(),
@@ -992,6 +1237,62 @@ class _AddEditExamDialogState extends State<_AddEditExamDialog> {
                     },
                     validator: (val) => val == null ? 'Semester is required' : null,
                   ),
+                  const SizedBox(height: 16),
+
+                  // ── Improvement Exam Toggle ────────────────────────────────
+                  Container(
+                    decoration: BoxDecoration(
+                      border: Border.all(color: Colors.orange.withValues(alpha: 0.4)),
+                      borderRadius: BorderRadius.circular(8),
+                      color: _isImprovement
+                          ? Colors.orange.withValues(alpha: 0.06)
+                          : Colors.transparent,
+                    ),
+                    child: SwitchListTile(
+                      dense: true,
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                      title: const Text(
+                        'Improvement / Backlog Exam',
+                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                      ),
+                      subtitle: const Text(
+                        'Check if this exam is for improving previous semester grades',
+                        style: TextStyle(fontSize: 11),
+                      ),
+                      secondary: Icon(
+                        Icons.trending_up,
+                        color: _isImprovement ? Colors.orange : Colors.grey,
+                      ),
+                      value: _isImprovement,
+                      activeColor: Colors.orange,
+                      onChanged: (val) => setState(() {
+                        _isImprovement = val;
+                        if (!val) _improvesSemester = null;
+                      }),
+                    ),
+                  ),
+
+                  // ── Which semester does this improve? ────────────────────
+                  if (_isImprovement) ...[  
+                    const SizedBox(height: 12),
+                    DropdownButtonFormField<int>(
+                      value: _improvesSemester,
+                      decoration: const InputDecoration(
+                        labelText: 'Improves Semester *',
+                        border: OutlineInputBorder(),
+                        helperText: 'Which original semester does this improve?',
+                        prefixIcon: Icon(Icons.arrow_upward, color: Colors.orange),
+                      ),
+                      items: List.generate(8, (index) {
+                        final sem = index + 1;
+                        return DropdownMenuItem<int>(
+                          value: sem,
+                          child: Text('Semester $sem'),
+                        );
+                      }),
+                      onChanged: (val) => setState(() => _improvesSemester = val),
+                    ),
+                  ],
                 ],
               ),
             ),
@@ -1024,12 +1325,20 @@ class _AddEditExamDialogState extends State<_AddEditExamDialog> {
       SnackBarUtils.showError(context, 'Please fill all fields');
       return;
     }
+    if (_isImprovement && _improvesSemester == null) {
+      SnackBarUtils.showError(context, 'Please select which semester this improvement exam is for');
+      return;
+    }
 
     setState(() => _isSaving = true);
     final navigator = Navigator.of(context);
 
     try {
-      await ResultService.addExamId(name, id, session, semester);
+      await ResultService.addExamId(
+        name, id, session, semester,
+        isImprovement: _isImprovement,
+        improvesSemester: _improvesSemester,
+      );
       navigator.pop(true); // Return true to indicate successful save
     } catch (e) {
       setState(() => _isSaving = false);
@@ -1050,7 +1359,7 @@ class _FetchSpecificResultDialogState extends State<_FetchSpecificResultDialog> 
   Map<String, String>? _selectedSession;
   List<Map<String, String>> _exams = [];
   final Set<String> _selectedExamIds = {};
-  bool _isLoadingSessions = true;
+  bool _isLoading = true;
 
   @override
   void initState() {
@@ -1062,11 +1371,27 @@ class _FetchSpecificResultDialogState extends State<_FetchSpecificResultDialog> 
     final sessionsFuture = ResultService.fetchSessionsWithId();
     final examsFuture = ResultService.fetchAllExams();
     final results = await Future.wait([sessionsFuture, examsFuture]);
+    
     if (mounted) {
       setState(() {
         _sessions = List<Map<String, String>>.from(results[0]);
-        _exams = List<Map<String, String>>.from(results[1]);
-        _isLoadingSessions = false;
+        final allExams = List<Map<String, String>>.from(results[1]);
+        
+        final userSession = currentProfile.value.session;
+        final userSessionMap = _sessions.firstWhere(
+          (s) => s['session'] == userSession,
+          orElse: () => {'session': userSession, 'sess_id': ''},
+        );
+        _selectedSession = userSessionMap;
+        
+        // Filter exams to user session OR improvement exams
+        _exams = allExams.where((e) {
+          final isImp = e['is_improvement'] == 'true';
+          final matchSession = e['session'] == userSession;
+          return matchSession || isImp;
+        }).toList();
+        
+        _isLoading = false;
       });
     }
   }
@@ -1074,6 +1399,7 @@ class _FetchSpecificResultDialogState extends State<_FetchSpecificResultDialog> 
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
+    final userSession = currentProfile.value.session;
 
     return Dialog(
       backgroundColor: colors.surface,
@@ -1084,7 +1410,7 @@ class _FetchSpecificResultDialogState extends State<_FetchSpecificResultDialog> 
           maxHeight: MediaQuery.of(context).size.height * 0.8,
         ),
         padding: const EdgeInsets.all(20),
-        child: _isLoadingSessions
+        child: _isLoading
             ? const SizedBox(
                 height: 150,
                 child: Center(child: CircularProgressIndicator()),
@@ -1112,160 +1438,168 @@ class _FetchSpecificResultDialogState extends State<_FetchSpecificResultDialog> 
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    'Fetch results from DUCMC portal by manually specifying session and exams. Perfect for repeating or drop-out students.',
+                    'Fetch results from the DUCMC portal by manually selecting exams. Improvement exams are marked with an orange badge.',
                     style: TextStyle(
                       fontSize: 12,
                       color: colors.onSurface.withValues(alpha: 0.6),
                     ),
                   ),
                   const Divider(height: 24),
-                  DropdownButtonFormField<Map<String, String>>(
-                    initialValue: _selectedSession,
-                    decoration: const InputDecoration(
-                      labelText: 'Select Academic Session *',
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.all(Radius.circular(12)),
+                  
+                  // Display current session
+                  Row(
+                    children: [
+                      Text(
+                        'Academic Session: ',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500,
+                          color: colors.onSurface.withValues(alpha: 0.6),
+                        ),
                       ),
-                      contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                    ),
-                    items: _sessions.map((sessionMap) {
-                      return DropdownMenuItem<Map<String, String>>(
-                        value: sessionMap,
-                        child: Text(sessionMap['session'] ?? ''),
-                      );
-                    }).toList(),
-                    onChanged: (val) {
-                      setState(() {
-                        _selectedSession = val;
-                        _selectedExamIds.clear();
-                      });
-                    },
+                      Text(
+                        userSession.isEmpty ? 'Not Configured' : userSession,
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                          color: colors.primary,
+                        ),
+                      ),
+                    ],
                   ),
                   const SizedBox(height: 16),
-                  if (_selectedSession != null) ...[
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          'Available Exams (${_exams.length})',
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 14,
-                            color: colors.onSurface,
-                          ),
-                        ),
-                        if (_exams.isNotEmpty)
-                          Row(
-                            children: [
-                              TextButton(
-                                onPressed: () {
-                                  setState(() {
-                                    _selectedExamIds.addAll(_exams.map((e) => e['exam_id'] ?? ''));
-                                  });
-                                },
-                                style: TextButton.styleFrom(
-                                  padding: const EdgeInsets.symmetric(horizontal: 8),
-                                  minimumSize: Size.zero,
-                                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                                ),
-                                child: const Text('Select All', style: TextStyle(fontSize: 12)),
-                              ),
-                              const SizedBox(width: 8),
-                              TextButton(
-                                onPressed: () {
-                                  setState(() {
-                                    _selectedExamIds.clear();
-                                  });
-                                },
-                                style: TextButton.styleFrom(
-                                  padding: const EdgeInsets.symmetric(horizontal: 8),
-                                  minimumSize: Size.zero,
-                                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                                ),
-                                child: const Text('Clear All', style: TextStyle(fontSize: 12)),
-                              ),
-                            ],
-                          ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    Expanded(
-                      child: _exams.isEmpty
-                          ? Center(
-                              child: Text(
-                                'No exams configured for this session.',
-                                style: TextStyle(
-                                  color: colors.onSurface.withValues(alpha: 0.6),
-                                  fontSize: 14,
-                                ),
-                              ),
-                            )
-                          : Container(
-                              decoration: BoxDecoration(
-                                border: Border.all(color: colors.outline.withValues(alpha: 0.2)),
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: ClipRRect(
-                                borderRadius: BorderRadius.circular(12),
-                                child: ListView.separated(
-                                  shrinkWrap: true,
-                                  itemCount: _exams.length,
-                                  separatorBuilder: (context, index) => Divider(
-                                    height: 1,
-                                    color: colors.outline.withValues(alpha: 0.1),
-                                  ),
-                                  itemBuilder: (context, index) {
-                                    final exam = _exams[index];
-                                    final examId = exam['exam_id'] ?? '';
-                                    final examName = exam['exam_name'] ?? '';
-                                    final isChecked = _selectedExamIds.contains(examId);
-
-                                    return CheckboxListTile(
-                                      title: Text(
-                                        examName,
-                                        style: TextStyle(
-                                          fontSize: 14,
-                                          color: colors.onSurface,
-                                          fontWeight: isChecked ? FontWeight.bold : FontWeight.normal,
-                                        ),
-                                      ),
-                                      subtitle: Text(
-                                        'ID: $examId',
-                                        style: TextStyle(
-                                          fontSize: 11,
-                                          color: colors.onSurface.withValues(alpha: 0.5),
-                                        ),
-                                      ),
-                                      value: isChecked,
-                                      controlAffinity: ListTileControlAffinity.leading,
-                                      onChanged: (val) {
-                                        setState(() {
-                                          if (val == true) {
-                                            _selectedExamIds.add(examId);
-                                          } else {
-                                            _selectedExamIds.remove(examId);
-                                          }
-                                        });
-                                      },
-                                    );
-                                  },
-                                ),
-                              ),
-                            ),
-                    ),
-                  ] else
-                    Expanded(
-                      child: Center(
-                        child: Text(
-                          'Please select an academic session to load exams.',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            color: colors.onSurface.withValues(alpha: 0.5),
-                            fontSize: 14,
-                          ),
+                  
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'Available Exams (${_exams.length})',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 14,
+                          color: colors.onSurface,
                         ),
                       ),
-                    ),
+                      if (_exams.isNotEmpty)
+                        Row(
+                          children: [
+                            TextButton(
+                              onPressed: () {
+                                setState(() {
+                                  _selectedExamIds.addAll(_exams.map((e) => e['exam_id'] ?? ''));
+                                });
+                              },
+                              style: TextButton.styleFrom(
+                                padding: const EdgeInsets.symmetric(horizontal: 8),
+                                minimumSize: Size.zero,
+                                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                              ),
+                              child: const Text('Select All', style: TextStyle(fontSize: 12)),
+                            ),
+                            const SizedBox(width: 8),
+                            TextButton(
+                              onPressed: () {
+                                setState(() {
+                                  _selectedExamIds.clear();
+                                });
+                              },
+                              style: TextButton.styleFrom(
+                                padding: const EdgeInsets.symmetric(horizontal: 8),
+                                minimumSize: Size.zero,
+                                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                              ),
+                              child: const Text('Clear All', style: TextStyle(fontSize: 12)),
+                            ),
+                          ],
+                        ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Expanded(
+                    child: _exams.isEmpty
+                        ? Center(
+                            child: Text(
+                              'No exams configured for this session.',
+                              style: TextStyle(
+                                color: colors.onSurface.withValues(alpha: 0.6),
+                                fontSize: 14,
+                              ),
+                            ),
+                          )
+                        : Container(
+                            decoration: BoxDecoration(
+                              border: Border.all(color: colors.outline.withValues(alpha: 0.2)),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(12),
+                              child: ListView.separated(
+                                shrinkWrap: true,
+                                itemCount: _exams.length,
+                                separatorBuilder: (context, index) => Divider(
+                                  height: 1,
+                                  color: colors.outline.withValues(alpha: 0.1),
+                                ),
+                                itemBuilder: (context, index) {
+                                  final exam = _exams[index];
+                                  final examId = exam['exam_id'] ?? '';
+                                  final examName = exam['exam_name'] ?? '';
+                                  final isChecked = _selectedExamIds.contains(examId);
+                                  final isImp = exam['is_improvement'] == 'true';
+
+                                  return CheckboxListTile(
+                                    title: Row(
+                                      children: [
+                                        Expanded(
+                                          child: Text(
+                                            examName,
+                                            style: TextStyle(
+                                              fontSize: 14,
+                                              color: colors.onSurface,
+                                              fontWeight: isChecked ? FontWeight.bold : FontWeight.normal,
+                                            ),
+                                          ),
+                                        ),
+                                        if (isImp)
+                                          Container(
+                                            margin: const EdgeInsets.only(left: 6),
+                                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                            decoration: BoxDecoration(
+                                              color: Colors.orange.withValues(alpha: 0.15),
+                                              borderRadius: BorderRadius.circular(4),
+                                              border: Border.all(color: Colors.orange.withValues(alpha: 0.4)),
+                                            ),
+                                            child: const Text(
+                                              'Improvement',
+                                              style: TextStyle(fontSize: 9, color: Colors.orange, fontWeight: FontWeight.bold),
+                                            ),
+                                          ),
+                                      ],
+                                    ),
+                                    subtitle: Text(
+                                      'ID: $examId${isImp && exam['session'] != null ? "  •  Session: ${exam['session']}" : ""}',
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        color: colors.onSurface.withValues(alpha: 0.5),
+                                      ),
+                                    ),
+                                    value: isChecked,
+                                    controlAffinity: ListTileControlAffinity.leading,
+                                    onChanged: (val) {
+                                      setState(() {
+                                        if (val == true) {
+                                          _selectedExamIds.add(examId);
+                                        } else {
+                                          _selectedExamIds.remove(examId);
+                                        }
+                                      });
+                                    },
+                                  );
+                                },
+                              ),
+                            ),
+                          ),
+                  ),
                   const SizedBox(height: 16),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.end,
